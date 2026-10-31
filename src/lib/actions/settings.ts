@@ -92,11 +92,14 @@ export async function updateOrganizationPixKey(pixKey: string) {
   if (!supabase) return { error: "Supabase não configurado" };
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Não autenticado" };
-  const { data: profile } = await supabase.from("profiles").select("organization_id").eq("id", user.id).single();
+  const { data: profile } = await supabase.from("profiles").select("organization_id,role").eq("id", user.id).single();
   if (!profile?.organization_id) return { error: "Organização não encontrada" };
+  if (profile.role !== "owner") return { error: "Apenas a proprietária pode alterar a chave Pix." };
   const key = pixKey.trim();
   if (key.length > 255) return { error: "Chave Pix muito longa." };
-  const { data, error } = await supabase.from("organizations").update({ pix_key: key || null }).eq("id", profile.organization_id).select("pix_key").single();
+  const admin = await createAdminClient();
+  if (!admin) return { error: "Acesso administrativo indisponível no servidor." };
+  const { data, error } = await admin.from("organizations").update({ pix_key: key || null }).eq("id", profile.organization_id).select("pix_key").single();
   if (error) return { error: error.message };
   if ((data?.pix_key || "") !== key) return { error: "A chave Pix não foi confirmada no banco." };
   return { success: true };
