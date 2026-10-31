@@ -51,11 +51,18 @@ export function Automations({ go, tenant }: { go: (v: View) => void, tenant?: an
     setOpened(true);
   };
 
+  const isHomologation = process.env.NEXT_PUBLIC_GABI_HOMOLOGATION === "true";
+
   const confirmSent = async () => {
     if (!draft || confirming) return;
     setConfirming(true);
     setRecordError("");
     try {
+      if (isHomologation) {
+        // Homologation is a safe preview: never register a real sent event.
+        setRecordError("Modo de homologação: mensagem revisada, mas envio real e registro como enviada permanecem desabilitados. Use produção para confirmar um envio real.");
+        return;
+      }
       const { markMessageSent } = await import("@/lib/actions/automations");
       const res = await markMessageSent(draft.clientId, draft.list, draft.appointmentId);
       if (!res.success) {
