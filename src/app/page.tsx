@@ -24,7 +24,10 @@ export default async function Page() {
     tenantContext.email = user.email || "";
     
     // Fetch tenant profile and organization
-    const { data: profile } = await supabase.from('profiles').select('full_name, organization_id').eq('id', user.id).single();
+    const { data: profile } = await supabase.from('profiles').select('full_name, organization_id, role').eq('id', user.id).single();
+    if (profile?.role === "professional") redirect("/profissional");
+    if (profile?.role === "platform_master") redirect("/plataforma");
+    if (!profile || !["owner", "admin"].includes(profile.role)) redirect("/login");
     let organization = { name: "Nail Studio" };
     tenantContext.profileName = profile?.full_name || "Usuário";
     if (profile?.organization_id) {
