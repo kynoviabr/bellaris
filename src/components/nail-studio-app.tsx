@@ -1231,6 +1231,8 @@ function SettingsView({ tenant, updateToast }: { tenant: any; updateToast: (t: s
 
 export function NailStudioApp({ tenant = { profileName: "Gabi", orgName: "Gabi Ludwig Nail Studio" }, initialClients = demoClients, initialProfessionals = demoProfessionals, initialSpecialties = [], initialAppointments = [], initialInventory = [], initialServices = demoServices as any[], initialFinancials = [], initialStats = { revenue: 0, expenses: 0, commissions: 0, balance: 0 }, initialReports = {} }: { tenant?: { profileName: string; orgName: string; email?: string; }; initialClients?: ClientItem[]; initialProfessionals?: ProfessionalItem[]; initialSpecialties?: {id: string, name: string}[]; initialAppointments?: Appointment[]; initialServices?: any[]; initialInventory?: any[]; initialFinancials?: any[]; initialStats?: any; initialReports?: any }) {
   const [view, setView] = useState<View>(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("view") === "packages" ? "packages" : "dashboard"); const [menu, setMenu] = useState(false); const [booking, setBooking] = useState(false); const [bookingDate, setBookingDate] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" })); const [finish, setFinish] = useState(false); const [activeAppointment, setActiveAppointment] = useState<Appointment | null>(null); const [toast, setToast] = useState(""); const [rows, setRows] = useState(initialAppointments);
+  const [cancelPending, setCancelPending] = useState<{ id: string; client: string; date: string; time: string } | null>(null);
+  const [cancelBusy, setCancelBusy] = useState(false);
   const [systemAlertMessage, setSystemAlertMessage] = useState<string | null>(null);
 
   // Catch native alert calls and display styled SystemAlertModal instead
@@ -1416,6 +1418,18 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
   };
 
   const confirmAction = (message: string, action: () => void) => { if (window.confirm(message)) action(); };
+  const executeCancellation = async () => {
+    if (!cancelPending || cancelBusy) return;
+    setCancelBusy(true);
+    try {
+      const result = await cancelAppointmentRecord(cancelPending.id);
+      if (result.success) {
+        setRows(current => current.map(item => item.id === cancelPending.id ? { ...item, status: "Cancelado" } : item));
+        setCancelPending(null);
+        notify("Agendamento cancelado. Horário liberado e histórico preservado.");
+      } else alert(("error" in result ? result.error : "Não foi possível cancelar o agendamento."));
+    } finally { setCancelBusy(false); }
+  };
   const content = (() => {
     if (view === "dashboard") return <Dashboard stats={initialStats} go={setView} appointments={rows} clients={clientRows} tenant={tenant} onAttendance={(a) => { setActiveAppointment(a); setView("attendance"); }} />;
     if (view === "settings") return <SettingsView tenant={tenant} updateToast={(t) => { setToast(t); setTimeout(() => setToast(""), 3000); }} />;
@@ -1458,7 +1472,7 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
       }
     }
   }}
-  onCancel={(index, id) => confirmAction("Cancelar este agendamento? O histórico será preservado.", () => { cancelAppointmentRecord(id).then(res => { if(res.success) { setRows(current => current.map((item, i) => i === index ? { ...item, status: "Cancelado" } : item)); notify("Agendamento cancelado e horário liberado."); } else alert(("error" in res ? res.error : "Erro desconhecido")); }) })} />;
+  onCancel={(_index, id) => { const item = rows.find(row => row.id === id); if (item) setCancelPending({ id, client: item.client, date: item.dateStr || "", time: item.time }); }} />;
     if (view === "clients") return <Clients
       data={clientRows}
       onNew={() => openEntity("client", "create")}
@@ -1692,6 +1706,18 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
 
       {booking && <BookingModal initialDate={bookingDate} clients={clientRows} professionals={professionalRows} services={serviceRows} close={() => setBooking(false)} save={async (a, rawData) => { if(rawData) { const res = await createAppointmentRecord(rawData); if (res.success) { const fresh = await getAppointments(); setRows(fresh); setBooking(false); notify("Agendamento criado com sucesso."); } else { alert(("error" in res ? res.error : "Erro desconhecido")); } } else { setRows(v => [...v, a]); setBooking(false); notify("Agendamento criado (demo)."); } }} />}
       {finish && activeAppointment && <FinishModal appointment={activeAppointment} close={() => setFinish(false)} done={async (method, val, pkgId) => { const res = await finishAppointment({ appointmentId: activeAppointment.id, amount: val, paymentMethod: method, packageId: pkgId }); if (res.success) { setRows(v => v.map(a => a.id === activeAppointment.id ? { ...a, status: "Concluído", paid: (a.paid || 0) + (pkgId ? 0 : val) } : a)); setFinish(false); setActiveAppointment(null); setView("agenda"); notify("Atendimento concluído e pagamento registrado com sucesso."); } else { alert(("error" in res ? res.error : "Erro desconhecido")); } }} />}
+      {cancelPending && <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 p-4" role="presentation">
+        <div role="alertdialog" aria-modal="true" aria-labelledby="cancel-appointment-title" aria-describedby="cancel-appointment-description" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+          <h2 id="cancel-appointment-title" className="text-xl font-semibold text-[#382D32]">Cancelar agendamento?</h2>
+          <p id="cancel-appointment-description" className="mt-3 text-sm text-muted">Você está prestes a cancelar o horário de <strong>{cancelPending.client}</strong>{cancelPending.date ? ` em ${cancelPending.date}` : ""}, às {cancelPending.time}.</p>
+          <p className="mt-3 text-sm text-muted">O horário ficará disponível para novos agendamentos. O histórico será mantido para consulta.</p>
+          <p className="mt-3 text-sm font-medium text-[#8B4141]">Esta ação não poderá ser desfeita automaticamente.</p>
+          <div className="mt-6 flex flex-wrap justify-end gap-3">
+            <button type="button" className="btn-outline" disabled={cancelBusy} onClick={() => setCancelPending(null)}>Manter agendamento</button>
+            <button type="button" className="btn-primary" disabled={cancelBusy} onClick={executeCancellation}>{cancelBusy ? "Cancelando..." : "Confirmar cancelamento"}</button>
+          </div>
+        </div>
+      </div>}
       {toast && <Toast text={toast} />}
       {systemAlertMessage && <SystemAlertModal title={systemAlertMessage.startsWith("Este número já está vinculado") ? "WhatsApp já cadastrado" : "Aviso do Sistema"} message={systemAlertMessage} close={() => setSystemAlertMessage(null)} />}
     </div>
