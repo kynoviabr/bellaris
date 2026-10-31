@@ -1,6 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 import NextImage from "next/image";
+import { formatBrazilPhone, formatCep, normalizeEmail, digitsOnly } from "@/lib/utils/input-masks";
 import { View, EntityKind, EntityModalState, Badge, statusTone, Metric, RowActions, SectionTitle, SmallMetricLink, SystemAlertModal } from "./shared";
 import { formatAgeInYearsAndMonths } from "@/lib/utils/age";
 import { Professionals } from "./dashboard/professionals";
@@ -517,7 +518,7 @@ function ProfessionalCommissionsModal({ professional, close }: { professional: a
 function ClientModal({ mode, client, close, save }: { mode: "create" | "edit" | "view"; client?: any; close: () => void; save: (data: any) => Promise<void> }) {
   const [tab, setTab] = useState<"info"|"anamnese"|"pacotes">("info");
   const [name, setName] = useState(client?.name || "");
-  const [phone, setPhone] = useState(client?.phone || "");
+  const [phone, setPhone] = useState(formatBrazilPhone(client?.phone || ""));
   const [birthDate, setBirthDate] = useState(client?.birthDate || "");
   const [email, setEmail] = useState(client?.email || "");
   const [cep, setCep] = useState(client?.cep || "");
@@ -589,17 +590,11 @@ function ClientModal({ mode, client, close, save }: { mode: "create" | "edit" | 
   const readOnly = mode === "view";
   const clientAge = formatAgeInYearsAndMonths(birthDate);
 
-  const handlePhone = (v: string) => {
-    let num = v.replace(/\D/g, "");
-    if (num.length > 11) num = num.slice(0, 11);
-    if (num.length > 2) num = `(${num.slice(0, 2)}) ${num.slice(2)}`;
-    if (num.length > 10) num = `${num.slice(0, 10)}-${num.slice(10)}`;
-    setPhone(num);
-  };
+  const handlePhone = (v: string) => setPhone(formatBrazilPhone(v));
 
   const handleCep = async (v: string) => {
-    setCep(v);
-    const cleanCep = v.replace(/\D/g, "");
+    setCep(formatCep(v));
+    const cleanCep = digitsOnly(v);
     if (cleanCep.length === 8) {
       setLoadingCep(true);
       try {
@@ -660,7 +655,7 @@ function ClientModal({ mode, client, close, save }: { mode: "create" | "edit" | 
                     </output>
                   </div>
                 </div>
-                <div><label className="field-label">E-mail</label><input type="email" className="field-input" value={email} onChange={e => setEmail(e.target.value)} placeholder="cliente@email.com" disabled={readOnly} /></div>
+                <div><label className="field-label">E-mail</label><input type="email" className="field-input" value={email} onChange={e => setEmail(e.target.value.replace(/\s/g, ""))} placeholder="cliente@email.com" disabled={readOnly} /></div>
                 <div className="sm:col-span-2 border-t border-[#E7EDF3] pt-4 mt-2">
                   <h3 className="text-sm font-semibold mb-3">Endereço</h3>
                   <div className="grid gap-4 sm:grid-cols-6">
@@ -885,7 +880,7 @@ function ProfessionalModal({ mode, professional, specialtiesList = [], close, sa
           </div>
           <div>
             <label className="field-label">Telefone / WhatsApp</label>
-            <input className="field-input" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} disabled={readOnly} />
+            <input className="field-input" value={formData.phone} onChange={e => setFormData({ ...formData, phone: formatBrazilPhone(e.target.value) })} disabled={readOnly} />
           </div>
           <div>
             <label className="field-label">E-mail</label>
@@ -1017,7 +1012,7 @@ function BookingModal({ initialDate, clients, professionals, services, close, sa
   const totalPrice = selectedSvcs.reduce((acc: number, s: any) => acc + s.price, 0);
   const serviceNames = selectedSvcs.map((s: any) => s.name).join(" + ");
 
-  const newClientForm = showNewClient ? <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/55 p-4"><form className="w-full max-w-md space-y-4 rounded-xl bg-white p-5 shadow-2xl" onSubmit={async e => {e.preventDefault();if(clientSaving)return;setClientSaving(true);setClientError("");try{const res=await createClientRecord({name:newClientName.trim(),phone:newClientPhone.trim()});if(!res.success){setClientError("error" in res ? String(res.error) : "Não foi possível cadastrar a cliente.");return;}const fresh=await getClients();const created=(res.data?.id && fresh.find((c:any)=>c.id===res.data.id)) || fresh.find((c:any)=>c.name===newClientName.trim() && c.phone.replace(/\\D/g,"")===newClientPhone.replace(/\\D/g,""));if(!created){setClientError("Cliente cadastrada, mas não foi possível selecioná-la. Feche e abra o agendamento novamente.");return;}onClientCreated(created);setClientId(created.id);setShowNewClient(false);setNewClientName("");setNewClientPhone("");setNewClientEmail("");}catch{setClientError("Erro de conexão ao cadastrar cliente.");}finally{setClientSaving(false);}}}><h3 className="text-lg font-semibold">Cadastrar nova cliente</h3><p className="text-sm text-muted">Após salvar, você continuará neste agendamento.</p><label className="block"><span className="field-label">Nome completo</span><input className="field-input" value={newClientName} onChange={e=>setNewClientName(e.target.value)} required autoFocus /></label><label className="block"><span className="field-label">WhatsApp</span><input className="field-input" value={newClientPhone} onChange={e=>setNewClientPhone(e.target.value)} placeholder="(11) 99999-9999" required /></label><label className="block"><span className="field-label">E-mail (opcional)</span><input type="email" className="field-input" value={newClientEmail} onChange={e=>setNewClientEmail(e.target.value)} /></label>{clientError&&<p role="alert" className="text-sm text-red-700">{clientError}</p>}<div className="flex justify-end gap-2"><button type="button" className="btn-outline" disabled={clientSaving} onClick={()=>setShowNewClient(false)}>Voltar</button><button type="submit" className="btn-primary" disabled={clientSaving}>{clientSaving?"Salvando...":"Salvar e selecionar"}</button></div></form></div> : null;
+  const newClientForm = showNewClient ? <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/55 p-4"><form className="w-full max-w-md space-y-4 rounded-xl bg-white p-5 shadow-2xl" onSubmit={async e => {e.preventDefault();if(clientSaving)return;if(digitsOnly(newClientPhone).length < 10){setClientError("Informe um WhatsApp válido com DDD (10 ou 11 dígitos).");return;}setClientSaving(true);setClientError("");try{const res=await createClientRecord({name:newClientName.trim(),phone:formatBrazilPhone(newClientPhone)});if(!res.success){setClientError("error" in res ? String(res.error) : "Não foi possível cadastrar a cliente.");return;}const fresh=await getClients();const created=(res.data?.id && fresh.find((c:any)=>c.id===res.data.id)) || fresh.find((c:any)=>c.name===newClientName.trim() && c.phone.replace(/\\D/g,"")===newClientPhone.replace(/\\D/g,""));if(!created){setClientError("Cliente cadastrada, mas não foi possível selecioná-la. Feche e abra o agendamento novamente.");return;}onClientCreated(created);setClientId(created.id);setShowNewClient(false);setNewClientName("");setNewClientPhone("");setNewClientEmail("");}catch{setClientError("Erro de conexão ao cadastrar cliente.");}finally{setClientSaving(false);}}}><h3 className="text-lg font-semibold">Cadastrar nova cliente</h3><p className="text-sm text-muted">Após salvar, você continuará neste agendamento.</p><label className="block"><span className="field-label">Nome completo</span><input className="field-input" value={newClientName} onChange={e=>setNewClientName(e.target.value)} required autoFocus /></label><label className="block"><span className="field-label">WhatsApp</span><input className="field-input" value={newClientPhone} onChange={e=>setNewClientPhone(formatBrazilPhone(e.target.value))} placeholder="(11) 99999-9999" inputMode="tel" maxLength={15} minLength={14} required /></label><label className="block"><span className="field-label">E-mail (opcional)</span><input type="email" className="field-input" value={newClientEmail} onChange={e=>setNewClientEmail(e.target.value.replace(/\s/g, ""))} /></label>{clientError&&<p role="alert" className="text-sm text-red-700">{clientError}</p>}<div className="flex justify-end gap-2"><button type="button" className="btn-outline" disabled={clientSaving} onClick={()=>setShowNewClient(false)}>Voltar</button><button type="submit" className="btn-primary" disabled={clientSaving}>{clientSaving?"Salvando...":"Salvar e selecionar"}</button></div></form></div> : null;
 
   return <>{newClientForm}<div className="fixed inset-0 z-[70] flex items-end justify-center bg-navy-dark/45 p-0 sm:items-center sm:p-4"><form onSubmit={async e => {
     e.preventDefault();
