@@ -1472,7 +1472,7 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
       }
     }
   }}
-  onCancel={(_index, id) => { const item = rows.find(row => row.id === id); if (item) setCancelPending({ id, client: item.client, date: item.dateStr || "", time: item.time }); }} />;
+  onCancel={(_index, id) => { const item = rows.find(row => row.id === id); if (item) setCancelPending({ id, client: item.client, date: bookingDate, time: item.time }); }} />;
     if (view === "clients") return <Clients
       data={clientRows}
       onNew={() => openEntity("client", "create")}
