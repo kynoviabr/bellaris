@@ -75,3 +75,27 @@ export async function updateAuthCredentials(email?: string, password?: string) {
   
   return { success: true, message: "Acesso atualizado com sucesso!" };
 }
+
+export async function getOrganizationPixKey() {
+  const supabase = await createClient();
+  if (!supabase) return { error: "Supabase não configurado", pixKey: "" };
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Não autenticado", pixKey: "" };
+  const { data: profile } = await supabase.from("profiles").select("organization_id").eq("id", user.id).single();
+  if (!profile?.organization_id) return { error: "Organização não encontrada", pixKey: "" };
+  const { data, error } = await supabase.from("organizations").select("pix_key").eq("id", profile.organization_id).single();
+  return error ? { error: error.message, pixKey: "" } : { pixKey: data?.pix_key || "" };
+}
+
+export async function updateOrganizationPixKey(pixKey: string) {
+  const supabase = await createClient();
+  if (!supabase) return { error: "Supabase não configurado" };
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Não autenticado" };
+  const { data: profile } = await supabase.from("profiles").select("organization_id").eq("id", user.id).single();
+  if (!profile?.organization_id) return { error: "Organização não encontrada" };
+  const key = pixKey.trim();
+  if (key.length > 255) return { error: "Chave Pix muito longa." };
+  const { error } = await supabase.from("organizations").update({ pix_key: key || null }).eq("id", profile.organization_id);
+  return error ? { error: error.message } : { success: true };
+}
