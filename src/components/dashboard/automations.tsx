@@ -154,7 +154,7 @@ export function Automations({ go, tenant }: { go: (v: View) => void, tenant?: an
                   <MessageCard
                     key={r.id}
                     item={r}
-                    onSend={() => openWhatsApp(r.phone, r.message, "overdue", i, r.clientId, r.id)}
+                    onSend={() => openWhatsApp(r.phone, r.message, "overdue", i, r.clientId, r.id, r.clientName)}
                     badgeText={`Há ${r.daysSince} dias`}
                   />
                 ))}
