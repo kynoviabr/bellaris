@@ -1128,6 +1128,10 @@ function Toast({ text }: { text: string }) { return <div className="fixed bottom
 
 function SettingsView({ tenant, updateToast }: { tenant: any; updateToast: (t: string) => void }) {
   const [orgName, setOrgName] = useState(tenant?.orgName || "");
+  const [pixKey, setPixKey] = useState("");
+  const [savingPix, setSavingPix] = useState(false);
+  const [pixError, setPixError] = useState("");
+  useEffect(() => { import("@/lib/actions/settings").then(({getOrganizationPixKey}) => getOrganizationPixKey()).then(r => { if (!r.error) setPixKey(r.pixKey); }); }, []);
   const [fullName, setFullName] = useState(tenant?.profileName || "");
   const [email, setEmail] = useState(tenant?.email || "");
   const [password, setPassword] = useState("");
@@ -1163,6 +1167,15 @@ function SettingsView({ tenant, updateToast }: { tenant: any; updateToast: (t: s
 
   return (
     <div className="mx-auto max-w-4xl p-4 sm:p-6 space-y-6">
+
+      <div className="bg-white rounded-lg border shadow-sm p-6 space-y-3">
+        <h3 className="font-semibold text-lg text-ink">Chave Pix para mensagens</h3>
+        <p className="text-sm text-muted">Essa chave será incluída nas mensagens de pagamento geradas pela Agenda. Você pode alterá-la quando quiser.</p>
+        <label className="field-label" htmlFor="pix-key">Chave Pix</label>
+        <input id="pix-key" className="field-input" maxLength={255} value={pixKey} onChange={e=>setPixKey(e.target.value)} placeholder="CPF, CNPJ, e-mail, telefone ou chave aleatória" />
+        {pixError && <p className="text-sm text-red-600">{pixError}</p>}
+        <div className="flex justify-end"><button className="btn-primary" disabled={savingPix} onClick={async()=>{setSavingPix(true);setPixError("");try{const {updateOrganizationPixKey}=await import("@/lib/actions/settings");const result=await updateOrganizationPixKey(pixKey);if(result.error)setPixError(result.error);else updateToast("Chave Pix salva com sucesso.");}catch{setPixError("Não foi possível salvar a chave Pix.");}finally{setSavingPix(false);}}}>{savingPix?"Salvando...":"Salvar chave Pix"}</button></div>
+      </div>
 
       <div className="bg-white rounded-lg border shadow-sm p-6">
         <div className="flex items-center gap-3 mb-6 border-b pb-4">
