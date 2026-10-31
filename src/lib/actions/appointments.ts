@@ -161,6 +161,9 @@ export async function createAppointmentRecord(data: {
 
   // Calculate timestamps
   const startsAt = new Date(`${data.dateStr}T${data.timeStr}:00-03:00`).toISOString();
+  if (!Number.isFinite(Date.parse(startsAt)) || new Date(startsAt).getTime() <= Date.now()) {
+    return { success: false, error: "Não é permitido criar agendamentos em datas ou horários passados. Selecione um horário futuro." };
+  }
   const endsAt = new Date(new Date(startsAt).getTime() + data.durationMinutes * 60000).toISOString();
 
   // Insert appointment
