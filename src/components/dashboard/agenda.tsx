@@ -130,6 +130,10 @@ export function Agenda({
       return a.time.localeCompare(b.time);
     });
 
+  // Show partial agenda blocks as timetable entries, just like the dashboard.
+  const partialBlockRows = rows.filter((r: any) => r.service?.startsWith("Bloqueio parcial:") && r.status !== "Cancelado" && r.status !== "Cancelada" && (calendarView === "dia" ? r.dateStr === selectedDate : calendarView === "mes" ? r.dateStr.slice(0,7) === selectedDate.slice(0,7) : (() => { const start = new Date(selectedDate + "T12:00:00"); start.setDate(start.getDate() - start.getDay()); const end = new Date(start); end.setDate(start.getDate() + 7); const date = new Date(r.dateStr + "T12:00:00"); return date >= start && date < end; })())).filter((r: any, i: number, all: any[]) => all.findIndex(x => x.dateStr === r.dateStr && x.time === r.time && x.end === r.end) === i);
+  const timetableRows = [...visibleRows.map(a => ({ kind: "appointment" as const, row: a })), ...partialBlockRows.map(a => ({ kind: "block" as const, row: a }))].sort((a, b) => (a.row.dateStr || "").localeCompare(b.row.dateStr || "") || a.row.time.localeCompare(b.row.time));
+
   const blockedDays = Array.from(
     new Set(
       rows
@@ -295,20 +299,6 @@ export function Agenda({
           </form>
         </div>
       )}
-      {rows.filter((r: any) => r.dateStr === selectedDate && r.service?.startsWith("Bloqueio parcial:")).filter((r: any, i: number, all: any[]) => all.findIndex(x => x.time === r.time && x.end === r.end) === i).map((r: any) => (
-        <div key={r.id} className="mb-2 flex items-center justify-between rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm">
-          <span>Horário bloqueado: {r.time}–{r.end} · {r.service.replace("Bloqueio parcial: ", "")}</span>
-          <button type="button" disabled={partialBusy} className="btn-outline !py-1 !px-2" onClick={async () => {
-            if (!confirm(`Desbloquear ${r.time}–${r.end}?`)) return;
-            setPartialBusy(true);
-            try {
-              const result = await removePartialAgendaBlock({ date: selectedDate, start: r.time, end: r.end });
-              if (!result.success) alert(result.error || "Erro ao desbloquear");
-              else onPaymentsUpdated?.(await getAppointments());
-            } finally { setPartialBusy(false); }
-          }}>Desbloquear</button>
-        </div>
-      ))}
       {showBlockModal && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
           <button type="button" onClick={() => setShowBlockModal(false)} className="fixed inset-0 bg-navy-dark/40" />
@@ -485,10 +475,20 @@ export function Agenda({
             : "Agendamentos do Mês"}
         </div>
         <div className="divide-y divide-[#E7EDF3]">
-          {visibleRows.length === 0 ? (
+          {timetableRows.length === 0 ? (
             <p className="p-8 text-center text-sm text-muted">Nenhum agendamento encontrado para esta pesquisa.</p>
           ) : (
-            visibleRows.map((a, index) => (
+            timetableRows.map(({ kind, row: a }, index) => kind === "block" ? (
+              <div key={`block-${a.id}`} className="flex w-full items-center gap-3 px-4 py-3 sm:px-5">
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <div className="w-16 shrink-0">{calendarView !== "dia" && <p className="text-[10px] font-bold text-primary">{a.dateStr.split("-").reverse().slice(0,2).join("/")}</p>}<p className="font-semibold">{a.time}</p><p className="text-[10px] text-muted">{a.end}</p></div>
+                  <div className="h-12 w-1 shrink-0 rounded-full bg-primary" />
+                  <div className="min-w-0 flex-1"><p className="font-medium">Bloqueio de Agenda</p><p className="text-xs text-muted">{a.service} · {a.professional}</p></div>
+                  <Badge tone="amber">Bloqueado</Badge>
+                </div>
+                {calendarView === "dia" && <button type="button" disabled={partialBusy} className="btn-outline !px-2 !text-xs" onClick={async () => { if (!confirm(`Desbloquear ${a.time}–${a.end}?`)) return; setPartialBusy(true); try { const result = await removePartialAgendaBlock({ date: a.dateStr, start: a.time, end: a.end }); if (!result.success) alert(result.error || "Erro ao desbloquear"); else onPaymentsUpdated?.(await getAppointments()); } finally { setPartialBusy(false); } }}>Desbloquear</button>}
+              </div>
+            ) : (
               <div key={a.id} className="flex w-full items-center gap-3 px-4 py-3 hover:bg-bg sm:px-5">
                 <button
                   onClick={a.status === "Em atendimento" || a.status === "Cliente chegou" ? () => onAttendance(a) : () => onAction("view", rows.indexOf(a))}
