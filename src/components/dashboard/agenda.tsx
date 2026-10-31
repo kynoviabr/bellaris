@@ -39,6 +39,10 @@ export function Agenda({
   const [statusFilter, setStatusFilter] = useState("Todos os status");
   const [blocking, setBlocking] = useState(false);
   const [advance, setAdvance] = useState<Appointment | null>(null);
+  const [messageAppointment, setMessageAppointment] = useState<Appointment | null>(null);
+  const [messageMode, setMessageMode] = useState<"integral" | "percent" | "fixed">("integral");
+  const [messageValue, setMessageValue] = useState("50");
+  const [messageText, setMessageText] = useState("");
   const [advanceAmount, setAdvanceAmount] = useState("");
   const [advanceMethod, setAdvanceMethod] = useState("pix");
   const [advanceSaving, setAdvanceSaving] = useState(false);
@@ -414,6 +418,26 @@ export function Agenda({
           </form>
         </div>
       )}
+      {messageAppointment && (() => {
+        const a = messageAppointment;
+        const remaining = Math.max(0, Number(a.price || 0) - Number(a.paid || 0));
+        const requested = messageMode === "integral" ? remaining : messageMode === "percent" ? remaining * Math.min(100, Math.max(0, Number(messageValue) || 0)) / 100 : Math.min(remaining, Math.max(0, Number(messageValue) || 0));
+        const phone = (a.phone || "").replace(/\D/g, "");
+        const normalizedPhone = phone.startsWith("55") ? phone : `55${phone}`;
+        return <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"><div className="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl space-y-3">
+          <h2 className="text-lg font-bold">Mensagem de pagamento</h2>
+          <p className="text-sm text-muted">{a.client} · {a.service} · {money.format(a.price)}</p>
+          <p className="text-sm">Já recebido: {money.format(Number(a.paid || 0))} · Saldo registrado: {money.format(remaining)}</p>
+          <p className="text-xs text-amber-700">Confira pagamentos recebidos fora do sistema antes de solicitar qualquer valor.</p>
+          <label className="block text-sm font-medium">Forma de antecipação</label>
+          <select className="field-input" value={messageMode} onChange={e => {setMessageMode(e.target.value as typeof messageMode);setMessageValue(e.target.value === "percent" ? "50" : "30");}}><option value="integral">Saldo integral</option><option value="percent">Percentual do saldo</option><option value="fixed">Valor fixo</option></select>
+          {messageMode !== "integral" && <input aria-label={messageMode === "percent" ? "Percentual" : "Valor em reais"} className="field-input" type="number" min="0" max={messageMode === "percent" ? 100 : remaining} step="0.01" value={messageValue} onChange={e => setMessageValue(e.target.value)} />}
+          <p className="font-semibold">Solicitação: {money.format(requested)}</p><p className="text-xs text-muted">O marcador {"{valor_pagamento}"} será substituído pelo valor calculado ao copiar ou abrir o WhatsApp.</p>
+          <textarea className="field-input min-h-40 w-full" aria-label="Mensagem editável" value={messageText.replaceAll("{valor_pagamento}",money.format(requested))} onChange={e => setMessageText(e.target.value.replaceAll(money.format(requested),"{valor_pagamento}"))} />
+          <div className="flex flex-wrap justify-end gap-2"><button className="btn-outline" onClick={() => setMessageAppointment(null)}>Fechar</button><button className="btn-outline" onClick={() => navigator.clipboard.writeText(messageText.replaceAll("{valor_pagamento}",money.format(requested)))}>Copiar</button><button className="btn-primary" disabled={!phone || requested <= 0} onClick={() => window.open(`https://wa.me/${normalizedPhone}?text=${encodeURIComponent(messageText.replaceAll("{valor_pagamento}",money.format(requested)))}`, "_blank", "noopener,noreferrer")}>Revisar no WhatsApp</button></div>
+          <p className="text-xs text-muted">Abrir o WhatsApp não confirma o envio nem registra pagamento.</p>
+        </div></div>;
+      })()}
       {advance && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-navy-dark/50 p-4">
           <form className="w-full max-w-md rounded-lg bg-surface p-6 shadow-xl" onSubmit={async e => {
@@ -519,6 +543,9 @@ export function Agenda({
                   <option value="Em atendimento">Em atendimento</option>
                   <option value="Concluído">Concluído</option>
                 </select>
+                {a.status !== "Concluído" && a.status !== "Cancelado" && (
+                  <button type="button" className="btn-outline !px-2 !text-xs" disabled={Boolean((a as Appointment & { packageCovered?: boolean }).packageCovered) || Number(a.price || 0) <= Number(a.paid || 0)} title={(a as Appointment & { packageCovered?: boolean }).packageCovered ? "Atendimento coberto por pacote" : Number(a.price || 0) <= Number(a.paid || 0) ? "Atendimento sem saldo devedor" : "Gerar mensagem de pagamento"} onClick={async () => { const pix = await import("@/lib/actions/settings").then(m=>m.getOrganizationPixKey()); setMessageAppointment(a);setMessageMode("integral");setMessageValue("50");setMessageText(`Olá, ${a.client.split(" ")[0]}! 💕💅\n\nSeu agendamento de ${a.service} está reservado!\n\nPara confirmar e garantir seu horário, solicitamos o pagamento antecipado de {valor_pagamento}.\n\n💳 Dados para pagamento via Pix:\nChave Pix: ${pix.pixKey || "[Cadastre a chave Pix em Configurações]"}\n\nApós realizar o pagamento, pedimos que envie o comprovante por aqui para confirmarmos sua reserva.\n\nSerá um prazer receber você! 💖\n\nGabi Ludwig Nails ✨`); }}>Gerar mensagem</button>
+                )}
                 {a.status !== "Concluído" && a.status !== "Cancelado" && Number(a.price) > Number(a.paid || 0) && (
                   <button type="button" className="btn-outline !px-2 !text-xs" onClick={() => { setAdvance(a); setAdvanceAmount(""); setAdvanceMethod("pix"); }}>Receber parcial</button>
                 )}
