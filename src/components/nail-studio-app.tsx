@@ -1008,6 +1008,7 @@ function BookingModal({ initialDate, clients, professionals, services, close, sa
   const [dateStr, setDateStr] = useState(initialDate);
   const [timeStr, setTimeStr] = useState("09:00");
   const [submitting, setSubmitting] = useState(false);
+  const [dateError, setDateError] = useState("");
 
   const selectedClient = clients.find(c => c.id === clientId);
   const selectedProf = professionals.find(p => p.id === profId);
@@ -1021,6 +1022,12 @@ function BookingModal({ initialDate, clients, professionals, services, close, sa
   return <>{newClientForm}<div className="fixed inset-0 z-[70] flex items-end justify-center bg-navy-dark/45 p-0 sm:items-center sm:p-4"><form onSubmit={async e => {
     e.preventDefault();
     if (!selectedClient || !selectedProf || selectedSvcs.length === 0) return;
+    const selectedStart = new Date(`${dateStr}T${timeStr}:00-03:00`);
+    if (!Number.isFinite(selectedStart.getTime()) || selectedStart.getTime() <= Date.now()) {
+      setDateError("Não é permitido agendar em datas ou horários passados. Selecione um horário futuro.");
+      return;
+    }
+    setDateError("");
     setSubmitting(true);
     await save({
       id: `temp-${Date.now()}`,
@@ -1064,9 +1071,9 @@ function BookingModal({ initialDate, clients, professionals, services, close, sa
             ))}
             <button type="button" onClick={() => setSelectedServiceIds([...selectedServiceIds, services[0]?.id])} className="text-sm font-medium text-primary hover:underline">+ Adicionar outro serviço</button>
           </div>
-    <label><span className="field-label">Data</span><input className="field-input" type="date" value={dateStr} onChange={e=>setDateStr(e.target.value)} required /></label>
-    <label><span className="field-label">Horário</span><input className="field-input" type="time" step="900" value={timeStr} onChange={e=>setTimeStr(e.target.value)} required /></label>
-  </div><div className="mt-5 flex justify-end gap-2"><button type="button" disabled={submitting} onClick={close} className="btn-outline">Cancelar</button><button disabled={submitting} className="btn-primary">{submitting ? "Salvando..." : "Criar agendamento"}</button></div></form></div></>;
+    <label><span className="field-label">Data</span><input className="field-input" type="date" value={dateStr} onChange={e=>{setDateStr(e.target.value);setDateError("");}} required /></label>
+    <label><span className="field-label">Horário</span><input className="field-input" type="time" step="900" value={timeStr} onChange={e=>{setTimeStr(e.target.value);setDateError("");}} required /></label>
+  </div>{dateError && <p role="alert" className="mt-3 text-sm text-red-700">{dateError}</p>}<div className="mt-5 flex justify-end gap-2"><button type="button" disabled={submitting} onClick={close} className="btn-outline">Cancelar</button><button disabled={submitting} className="btn-primary">{submitting ? "Salvando..." : "Criar agendamento"}</button></div></form></div></>;
 }
 
 
