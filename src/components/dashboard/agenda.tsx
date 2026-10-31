@@ -132,7 +132,7 @@ export function Agenda({
 
   // Show partial agenda blocks as timetable entries, just like the dashboard.
   const partialBlockRows = rows.filter((r: any) => r.service?.startsWith("Bloqueio parcial:") && r.status !== "Cancelado" && r.status !== "Cancelada" && (calendarView === "dia" ? r.dateStr === selectedDate : calendarView === "mes" ? r.dateStr.slice(0,7) === selectedDate.slice(0,7) : (() => { const start = new Date(selectedDate + "T12:00:00"); start.setDate(start.getDate() - start.getDay()); const end = new Date(start); end.setDate(start.getDate() + 7); const date = new Date(r.dateStr + "T12:00:00"); return date >= start && date < end; })())).filter((r: any, i: number, all: any[]) => all.findIndex(x => x.dateStr === r.dateStr && x.time === r.time && x.end === r.end) === i);
-  const timetableRows = [...visibleRows.map(a => ({ kind: "appointment" as const, row: a })), ...partialBlockRows.map(a => ({ kind: "block" as const, row: a }))].sort((a, b) => (a.row.dateStr || "").localeCompare(b.row.dateStr || "") || a.row.time.localeCompare(b.row.time));
+  const timetableRows = [...visibleRows.map(a => ({ kind: "appointment" as const, row: a as Appointment & { dateStr: string } })), ...partialBlockRows.map(a => ({ kind: "block" as const, row: a as Appointment & { dateStr: string } }))].sort((a, b) => (a.row.dateStr || "").localeCompare(b.row.dateStr || "") || a.row.time.localeCompare(b.row.time));
 
   const blockedDays = Array.from(
     new Set(
