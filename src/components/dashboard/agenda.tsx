@@ -543,7 +543,7 @@ export function Agenda({
                   <option value="Em atendimento">Em atendimento</option>
                   <option value="Concluído">Concluído</option>
                 </select>
-                {a.status !== "Concluído" && a.status !== "Cancelado" && a.status !== "Cancelada" && !(a as Appointment & { packageCovered?: boolean }).packageCovered && Number(a.price) > Number(a.paid || 0) && (
+                {a.status !== "Concluído" && a.status !== "Cancelado" && !(a as Appointment & { packageCovered?: boolean }).packageCovered && Number(a.price) > Number(a.paid || 0) && (
                   <button type="button" className="btn-outline !px-2 !text-xs" onClick={() => { setMessageAppointment(a);setMessageMode("integral");setMessageValue("50");setMessageText(`Olá, ${a.client.split(" ")[0]}! 💕\\n\\nSeu agendamento de ${a.service} está reservado. Para confirmar seu horário, solicitamos o pagamento antecipado de {valor_pagamento}.\\n\\nApós realizar o pagamento, envie o comprovante para conferirmos sua reserva. Será um prazer receber você! 💅\\nGabi Ludwig Nails`.replaceAll("\\n","\n")); }}>Gerar mensagem</button>
                 )}
                 {a.status !== "Concluído" && a.status !== "Cancelado" && Number(a.price) > Number(a.paid || 0) && (
