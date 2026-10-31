@@ -995,8 +995,14 @@ function Dashboard({ go, stats, onAttendance, appointments = [], clients = [], t
 
 
 
-function BookingModal({ initialDate, clients, professionals, services, close, save }: { initialDate: string; clients: any[]; professionals: any[]; services: any[]; close: () => void; save: (a: Appointment, rawData?: any) => void }) {
+function BookingModal({ initialDate, clients, professionals, services, close, save, onClientCreated }: { initialDate: string; clients: any[]; professionals: any[]; services: any[]; close: () => void; save: (a: Appointment, rawData?: any) => void; onClientCreated: (client: any) => void }) {
   const [clientId, setClientId] = useState(clients[0]?.id || "");
+  const [showNewClient, setShowNewClient] = useState(false);
+  const [newClientName, setNewClientName] = useState("");
+  const [newClientPhone, setNewClientPhone] = useState("");
+  const [newClientEmail, setNewClientEmail] = useState("");
+  const [clientSaving, setClientSaving] = useState(false);
+  const [clientError, setClientError] = useState("");
   const [profId, setProfId] = useState(professionals[0]?.id || "");
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([services[0]?.id || ""]);
   const [dateStr, setDateStr] = useState(initialDate);
@@ -1010,7 +1016,9 @@ function BookingModal({ initialDate, clients, professionals, services, close, sa
   const totalPrice = selectedSvcs.reduce((acc: number, s: any) => acc + s.price, 0);
   const serviceNames = selectedSvcs.map((s: any) => s.name).join(" + ");
 
-  return <div className="fixed inset-0 z-[70] flex items-end justify-center bg-navy-dark/45 p-0 sm:items-center sm:p-4"><form onSubmit={async e => {
+  const newClientForm = showNewClient ? <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/55 p-4"><form className="w-full max-w-md space-y-4 rounded-xl bg-white p-5 shadow-2xl" onSubmit={async e => {e.preventDefault();if(clientSaving)return;setClientSaving(true);setClientError("");try{const res=await createClientRecord({name:newClientName.trim(),phone:newClientPhone.trim(),email:newClientEmail.trim()});if(!res.success){setClientError("error" in res ? String(res.error) : "Não foi possível cadastrar a cliente.");return;}const fresh=await getClients();const created=(res.data?.id && fresh.find((c:any)=>c.id===res.data.id)) || fresh.find((c:any)=>c.name===newClientName.trim() && c.phone.replace(/\\D/g,"")===newClientPhone.replace(/\\D/g,""));if(!created){setClientError("Cliente cadastrada, mas não foi possível selecioná-la. Feche e abra o agendamento novamente.");return;}onClientCreated(created);setClientId(created.id);setShowNewClient(false);setNewClientName("");setNewClientPhone("");setNewClientEmail("");}catch{setClientError("Erro de conexão ao cadastrar cliente.");}finally{setClientSaving(false);}}}><h3 className="text-lg font-semibold">Cadastrar nova cliente</h3><p className="text-sm text-muted">Após salvar, você continuará neste agendamento.</p><label className="block"><span className="field-label">Nome completo</span><input className="field-input" value={newClientName} onChange={e=>setNewClientName(e.target.value)} required autoFocus /></label><label className="block"><span className="field-label">WhatsApp</span><input className="field-input" value={newClientPhone} onChange={e=>setNewClientPhone(e.target.value)} placeholder="(11) 99999-9999" required /></label><label className="block"><span className="field-label">E-mail (opcional)</span><input type="email" className="field-input" value={newClientEmail} onChange={e=>setNewClientEmail(e.target.value)} /></label>{clientError&&<p role="alert" className="text-sm text-red-700">{clientError}</p>}<div className="flex justify-end gap-2"><button type="button" className="btn-outline" disabled={clientSaving} onClick={()=>setShowNewClient(false)}>Voltar</button><button type="submit" className="btn-primary" disabled={clientSaving}>{clientSaving?"Salvando...":"Salvar e selecionar"}</button></div></form></div> : null;
+
+  return <>{newClientForm}<div className="fixed inset-0 z-[70] flex items-end justify-center bg-navy-dark/45 p-0 sm:items-center sm:p-4"><form onSubmit={async e => {
     e.preventDefault();
     if (!selectedClient || !selectedProf || selectedSvcs.length === 0) return;
     setSubmitting(true);
@@ -1037,7 +1045,7 @@ function BookingModal({ initialDate, clients, professionals, services, close, sa
     });
     setSubmitting(false);
   }} className="w-full max-w-xl rounded-t-lg bg-white p-5 shadow-xl sm:rounded-lg"><div className="flex items-center justify-between"><div><h2 className="text-lg font-semibold">Novo agendamento</h2><p className="text-xs text-muted">Selecione os dados reais do banco.</p></div><button type="button" onClick={close} className="rounded-md p-2 text-muted hover:bg-bg"><X size={18} /></button></div><div className="mt-5 grid gap-4 sm:grid-cols-2">
-    <label><span className="field-label">Cliente</span><select value={clientId} onChange={e => setClientId(e.target.value)} className="field-input" required>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+    <div><div className="flex items-center justify-between gap-2"><label htmlFor="booking-client" className="field-label">Cliente</label><button type="button" className="text-xs font-semibold text-primary hover:underline" onClick={() => {setClientError("");setShowNewClient(true);}}>+ Nova cliente</button></div><select id="booking-client" value={clientId} onChange={e => setClientId(e.target.value)} className="field-input" required><option value="" disabled>Selecione uma cliente</option>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
     <label><span className="field-label">Profissional</span><select value={profId} onChange={e => setProfId(e.target.value)} className="field-input" required>{professionals.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
     <div className="sm:col-span-2 space-y-2"><span className="field-label">Serviços</span>
             {selectedServiceIds.map((srvId: string, index: number) => (
@@ -1681,7 +1689,7 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
         />
       )}
 
-      {booking && <BookingModal initialDate={bookingDate} clients={clientRows} professionals={professionalRows} services={serviceRows} close={() => setBooking(false)} save={async (a, rawData) => { if(rawData) { const res = await createAppointmentRecord(rawData); if (res.success) { const fresh = await getAppointments(); setRows(fresh); setBooking(false); notify("Agendamento criado com sucesso."); } else { alert(("error" in res ? res.error : "Erro desconhecido")); } } else { setRows(v => [...v, a]); setBooking(false); notify("Agendamento criado (demo)."); } }} />}
+      {booking && <BookingModal initialDate={bookingDate} clients={clientRows} onClientCreated={(client) => setClientRows(current => current.some(c => c.id === client.id) ? current : [...current, client].sort((a,b)=>a.name.localeCompare(b.name)))} professionals={professionalRows} services={serviceRows} close={() => setBooking(false)} save={async (a, rawData) => { if(rawData) { const res = await createAppointmentRecord(rawData); if (res.success) { const fresh = await getAppointments(); setRows(fresh); setBooking(false); notify("Agendamento criado com sucesso."); } else { alert(("error" in res ? res.error : "Erro desconhecido")); } } else { setRows(v => [...v, a]); setBooking(false); notify("Agendamento criado (demo)."); } }} />}
       {finish && activeAppointment && <FinishModal appointment={activeAppointment} close={() => setFinish(false)} done={async (method, val, pkgId) => { const res = await finishAppointment({ appointmentId: activeAppointment.id, amount: val, paymentMethod: method, packageId: pkgId }); if (res.success) { setRows(v => v.map(a => a.id === activeAppointment.id ? { ...a, status: "Concluído", paid: (a.paid || 0) + (pkgId ? 0 : val) } : a)); setFinish(false); setActiveAppointment(null); setView("agenda"); notify("Atendimento concluído e pagamento registrado com sucesso."); } else { alert(("error" in res ? res.error : "Erro desconhecido")); } }} />}
       {toast && <Toast text={toast} />}
       {systemAlertMessage && <SystemAlertModal message={systemAlertMessage} close={() => setSystemAlertMessage(null)} />}
