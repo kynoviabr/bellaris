@@ -96,6 +96,8 @@ export async function updateOrganizationPixKey(pixKey: string) {
   if (!profile?.organization_id) return { error: "Organização não encontrada" };
   const key = pixKey.trim();
   if (key.length > 255) return { error: "Chave Pix muito longa." };
-  const { error } = await supabase.from("organizations").update({ pix_key: key || null }).eq("id", profile.organization_id);
-  return error ? { error: error.message } : { success: true };
+  const { data, error } = await supabase.from("organizations").update({ pix_key: key || null }).eq("id", profile.organization_id).select("pix_key").single();
+  if (error) return { error: error.message };
+  if ((data?.pix_key || "") !== key) return { error: "A chave Pix não foi confirmada no banco." };
+  return { success: true };
 }
