@@ -4,13 +4,12 @@ import Link from "next/link";
 import { CalendarDays, LayoutDashboard, Wallet, Sparkles, LogOut, Menu, X } from "lucide-react";
 import { logout } from "@/lib/actions/auth";
 
-export function ProfessionalNavigation({ name }: { name: string }) {
+export function ProfessionalNavigation({ name, section }: { name: string; section: string }) {
   const [open, setOpen] = useState(false);
-  const [section, setSection] = useState("dashboard");
   const links = [
-    { id: "dashboard", label: "Painel", icon: LayoutDashboard, href: "#painel" },
-    { id: "appointments", label: "Meus agendamentos", icon: CalendarDays, href: "#agendamentos" },
-    { id: "commissions", label: "Minhas comissões", icon: Wallet, href: "#comissoes" },
+    { id: "dashboard", label: "Painel", icon: LayoutDashboard, href: "/profissional?aba=painel" },
+    { id: "appointments", label: "Meus agendamentos", icon: CalendarDays, href: "/profissional?aba=agendamentos" },
+    { id: "commissions", label: "Minhas comissões", icon: Wallet, href: "/profissional?aba=comissoes" },
   ];
   return <>
     {open && <button type="button" aria-label="Fechar menu" onClick={() => setOpen(false)} className="fixed inset-0 z-40 bg-black/40 lg:hidden" />}
@@ -21,7 +20,7 @@ export function ProfessionalNavigation({ name }: { name: string }) {
       </div>
       <nav aria-label="Menu profissional" className="flex-1 space-y-1 px-3 py-5">
         <p className="px-3 pb-2 text-[10px] uppercase tracking-widest text-white/50">Operação</p>
-        {links.map(({id,label,icon:Icon,href}) => <Link key={id} href={href} onClick={() => {setSection(id);setOpen(false);}} className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm transition-colors ${section === id ? "bg-primary text-white" : "text-white/75 hover:bg-white/10 hover:text-white"}`}><Icon size={17}/>{label}</Link>)}
+        {links.map(({id,label,icon:Icon,href}) => <Link key={id} href={href} onClick={() => {setOpen(false);}} className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm transition-colors ${section === id ? "bg-primary text-white" : "text-white/75 hover:bg-white/10 hover:text-white"}`}><Icon size={17}/>{label}</Link>)}
       </nav>
       <form action={logout} className="border-t border-white/10 p-3"><button className="flex w-full items-center gap-3 rounded-md px-3 py-3 text-sm text-white/75 hover:bg-white/10" type="submit"><LogOut size={17}/> Sair do sistema</button></form>
     </aside>
