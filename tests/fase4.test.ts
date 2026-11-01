@@ -26,8 +26,8 @@ test('Fase 4 - Automações: markMessageSentService real com mock Supabase (inse
   let insertedData: any = null;
   const mockSupabaseSuccess: any = {
     from: (table: string) => {
-      if (table === 'profiles') {
-        return { select: () => ({ single: async () => ({ data: { organization_id: 'org-1' } }) }) };
+      if (table === 'clients') {
+        return { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { id: 'client-10', organization_id: 'org-1' } }) }) }) };
       }
       if (table === 'message_jobs') {
         return {
@@ -62,8 +62,8 @@ test('Fase 4 - Automações: markMessageSentService real com mock Supabase (inse
   let insertCalled = false;
   const mockSupabaseDuplicate: any = {
     from: (table: string) => {
-      if (table === 'profiles') {
-        return { select: () => ({ single: async () => ({ data: { organization_id: 'org-1' } }) }) };
+      if (table === 'clients') {
+        return { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { id: 'client-10', organization_id: 'org-1' } }) }) }) };
       }
       if (table === 'message_jobs') {
         return {
@@ -95,8 +95,8 @@ test('Fase 4 - Automações: markMessageSentService real com mock Supabase (inse
   // Mock 3: DB Insert Error
   const mockSupabaseError: any = {
     from: (table: string) => {
-      if (table === 'profiles') {
-        return { select: () => ({ single: async () => ({ data: { organization_id: 'org-1' } }) }) };
+      if (table === 'clients') {
+        return { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { id: 'client-10', organization_id: 'org-1' } }) }) }) };
       }
       if (table === 'message_jobs') {
         return {
@@ -128,8 +128,8 @@ test('Fase 4 - Automações: job legado sem payload.list não bloqueia o envio d
 
   const mockSupabaseLegacyJob: any = {
     from: (table: string) => {
-      if (table === 'profiles') {
-        return { select: () => ({ single: async () => ({ data: { organization_id: 'org-1' } }) }) };
+      if (table === 'clients') {
+        return { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { id: 'client-10', organization_id: 'org-1' } }) }) }) };
       }
       if (table === 'message_jobs') {
         return {

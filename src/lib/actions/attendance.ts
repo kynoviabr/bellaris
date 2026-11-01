@@ -113,7 +113,6 @@ export async function finishAppointment(data: {
   return { success: true };
 }
 
-
 export async function getCheckoutCorrectionPackages(appointmentId: string) {
   const supabase = await createClient();
   if (!supabase) return { success: false, error: "Sem conexão", packages: [] as { id: string; name: string; remaining_sessions: number; linked: boolean }[] };

@@ -78,6 +78,7 @@ export async function getAppointments(): Promise<Appointment[]> {
     }, 0) || 0;
     // Package sessions were paid when the package was purchased; do not create another payment.
     const coveredByPackage = row.package_sessions?.some((session: any) => session.status === "used") || false;
+    const packageCovered = row.status === 'completed' && coveredByPackage;
     const paid = coveredByPackage ? Math.max(price, paidFromPayments) : paidFromPayments;
 
     const serviceName = row.items?.map((i: any) => i.service?.name || i.description).filter(Boolean).join(" + ") || "Serviço";
@@ -110,6 +111,7 @@ export async function getAppointments(): Promise<Appointment[]> {
       status: (statusMap[row.status] || "Pendente") as AppointmentStatus,
       price,
       paid,
+      packageCovered,
       source: row.source === "online" ? "Online" : "Interno",
       serviceCompletedAt: row.service_completed_at || null,
       items: row.items?.map((i: any) => ({ id: i.id, name: i.service?.name || i.description || "Serviço", price: Number(i.unit_price) })) || []
@@ -186,6 +188,9 @@ export async function createAppointmentRecord(data: {
 
   // Calculate timestamps
   const startsAt = new Date(`${data.dateStr}T${data.timeStr}:00-03:00`).toISOString();
+  if (!Number.isFinite(Date.parse(startsAt)) || new Date(startsAt).getTime() <= Date.now()) {
+    return { success: false, error: "Não é permitido criar agendamentos em datas ou horários passados. Selecione um horário futuro." };
+  }
   const endsAt = new Date(new Date(startsAt).getTime() + data.durationMinutes * 60000).toISOString();
 
   const blockError = await checkProfessionalBlock(supabase, organizationId, data.professionalId, startsAt, endsAt);

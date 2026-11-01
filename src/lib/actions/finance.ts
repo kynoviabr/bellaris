@@ -441,7 +441,7 @@ export async function getPayablesAndCategories(period?: string) {
   const inSeven = new Date(today + "T12:00:00Z");
   inSeven.setUTCDate(inSeven.getUTCDate() + 7);
   const seven = inSeven.toISOString().slice(0, 10);
-  const payables = (data || []).filter(x => x.status === "pending" && (period === "all" || (() => { const d = x.due_date; if (period === "today") return d === today; if (period === "month") return d.startsWith(today.slice(0,7)); if (period === "last_month") { const dt = new Date(today+"T12:00:00Z"); dt.setUTCMonth(dt.getUTCMonth()-1); return d.startsWith(dt.toISOString().slice(0,7)); } if (period === "30days") { const dt = new Date(today+"T12:00:00Z"); dt.setUTCDate(dt.getUTCDate()-30); return d >= dt.toISOString().slice(0,10) && d <= today; } if (period?.startsWith("month:")) return d.startsWith(period.slice(6)); return true; })())).map(x => ({
+  const payables = (data || []).filter(x => x.status === "pending").map(x => ({
     ...x, alert: x.due_date < today ? "overdue" : x.due_date <= seven ? "soon" : "future"
   }));
   const now = new Date();

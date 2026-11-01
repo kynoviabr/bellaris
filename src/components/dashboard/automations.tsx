@@ -10,6 +10,10 @@ export function Automations({ go, tenant }: { go: (v: View) => void, tenant?: an
   const [reminders, setReminders] = useState<any[]>([]);
   const [overdue, setOverdue] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [draft, setDraft] = useState<{phone:string; message:string; clientName:string; list:"reminders"|"overdue"; clientId:string; appointmentId?:string}|null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [opened, setOpened] = useState(false);
+  const [recordError, setRecordError] = useState("");
   const [tab, setTab] = useState<"reminders" | "retention">("reminders");
 
   const loadData = React.useCallback(async () => {
@@ -28,30 +32,51 @@ export function Automations({ go, tenant }: { go: (v: View) => void, tenant?: an
     run();
   }, [loadData, tenant?.orgName]);
 
-  const openWhatsApp = async (phone: string, message: string, list: "reminders" | "overdue", index: number, clientId: string, appointmentId?: string) => {
-    if (true) { // Branch homolog: bloqueio permanente de envio
-      alert("Homologação: WhatsApp desabilitado; nenhum envio foi registrado.");
-      return;
-    }
-    const { markMessageSent } = await import("@/lib/actions/automations");
-    const res = await markMessageSent(clientId, list, appointmentId);
-    if (!res.success) {
-      alert("Erro ao registrar envio da mensagem no banco de dados.");
-      return;
-    }
-    const cleanPhone = phone.replace(/\D/g, "");
-    let finalPhone = cleanPhone;
-    if (finalPhone.startsWith("55") && finalPhone.length > 11) {
-      finalPhone = finalPhone.substring(2);
-    }
-    const url = `https://wa.me/55${finalPhone}?text=${encodeURIComponent(message)}`;
-    window.open(url, "_blank");
+  const openWhatsApp = (phone: string, message: string, list: "reminders" | "overdue", _index: number, clientId: string, appointmentId?: string, clientName = "Cliente") => {
+    setDraft({phone, message, list, clientId, appointmentId, clientName});
+    setOpened(false);
+    setRecordError("");
+  };
 
-    // Mark as sent visually
-    if (list === "reminders") {
-      setReminders(curr => curr.map((r, i) => i === index ? { ...r, sent: true } : r));
-    } else {
-      setOverdue(curr => curr.map((r, i) => i === index ? { ...r, sent: true } : r));
+  const reviewOnWhatsApp = () => {
+    if (!draft) return;
+    let phone = draft.phone.replace(/\D/g, "");
+    if (phone.startsWith("55") && phone.length > 11) phone = phone.slice(2);
+    if (phone.length < 10 || phone.length > 11) {
+      setRecordError("WhatsApp inválido. Corrija o telefone no cadastro da cliente.");
+      return;
+    }
+    const url = `https://wa.me/55${phone}?text=${encodeURIComponent(draft.message)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+    setOpened(true);
+  };
+
+  const isHomologation = process.env.NEXT_PUBLIC_GABI_HOMOLOGATION === "true";
+
+  const confirmSent = async () => {
+    if (!draft || confirming) return;
+    setConfirming(true);
+    setRecordError("");
+    try {
+      if (isHomologation) {
+        // Homologation is a safe preview: never register a real sent event.
+        setRecordError("Modo de homologação: mensagem revisada, mas envio real e registro como enviada permanecem desabilitados. Use produção para confirmar um envio real.");
+        return;
+      }
+      const { markMessageSent } = await import("@/lib/actions/automations");
+      const res = await markMessageSent(draft.clientId, draft.list, draft.appointmentId);
+      if (!res.success) {
+        setRecordError(res.error || "Não foi possível registrar o envio. Tente novamente.");
+        return;
+      }
+      const update = (items: any[]) => items.map(item => item.clientId === draft.clientId && (draft.list === "overdue" || item.id === draft.appointmentId) ? {...item, sent: true} : item);
+      if (draft.list === "reminders") setReminders(update);
+      else setOverdue(update);
+      setDraft(null);
+    } catch {
+      setRecordError("Falha ao registrar o envio. A mensagem pode ter sido enviada no WhatsApp.");
+    } finally {
+      setConfirming(false);
     }
   };
 
@@ -88,12 +113,12 @@ export function Automations({ go, tenant }: { go: (v: View) => void, tenant?: an
         <>
           <div className="grid gap-4 sm:grid-cols-3 mb-6">
             <Metric label="Lembretes pendentes" value={reminders.filter(r => !r.sent).length.toString()} detail="Próximos horários marcados" icon={MessageCircle} />
-            <Metric label="Já enviados" value={reminders.filter(r => r.sent).length.toString()} detail="Confirmados no WhatsApp Web" icon={Check} />
+            <Metric label="Já enviados" value={reminders.filter(r => r.sent).length.toString()} detail="Envio confirmado manualmente" icon={Check} />
             <Metric onClick={() => go("agenda")} label="Agendamentos vazios" value="0" detail="Clientes sem celular" icon={Users} />
           </div>
 
           <section className="card">
-            <SectionTitle title="Fila de Mensagens" subtitle="Clique em Enviar para abrir o WhatsApp Web com o texto pronto." />
+            <SectionTitle title="Fila de Mensagens" subtitle="Revise e edite a mensagem antes de abrir o WhatsApp. Confirme manualmente após o envio." />
 
             {loading ? (
               <div className="py-12 flex justify-center"><div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full"></div></div>
@@ -105,7 +130,7 @@ export function Automations({ go, tenant }: { go: (v: View) => void, tenant?: an
             ) : (
               <div className="space-y-4 mt-6">
                 {reminders.map((r, i) => (
-                  <MessageCard key={r.id} item={r} onSend={() => openWhatsApp(r.phone, r.message, "reminders", i, r.clientId, r.id)} />
+                  <MessageCard key={r.id} item={r} onSend={() => openWhatsApp(r.phone, r.message, "reminders", i, r.clientId, r.id, r.clientName)} />
                 ))}
               </div>
             )}
@@ -117,7 +142,7 @@ export function Automations({ go, tenant }: { go: (v: View) => void, tenant?: an
         <>
           <div className="grid gap-4 sm:grid-cols-2 mb-6">
             <Metric label="Oportunidades de retorno" value={overdue.filter(r => !r.sent).length.toString()} detail="Mais de 20 dias sem voltar" icon={AlertTriangle} tone="warning" />
-            <Metric label="Reativações tentadas" value={overdue.filter(r => r.sent).length.toString()} detail="WhatsApp enviado" icon={Check} tone="success" />
+            <Metric label="Reativações tentadas" value={overdue.filter(r => r.sent).length.toString()} detail="Envio confirmado manualmente" icon={Check} tone="success" />
           </div>
 
           <section className="card">
@@ -136,7 +161,7 @@ export function Automations({ go, tenant }: { go: (v: View) => void, tenant?: an
                   <MessageCard
                     key={r.id}
                     item={r}
-                    onSend={() => openWhatsApp(r.phone, r.message, "overdue", i, r.clientId, r.id)}
+                    onSend={() => openWhatsApp(r.phone, r.message, "overdue", i, r.clientId, r.id, r.clientName)}
                     badgeText={`Há ${r.daysSince} dias`}
                   />
                 ))}
@@ -144,6 +169,24 @@ export function Automations({ go, tenant }: { go: (v: View) => void, tenant?: an
             )}
           </section>
         </>
+      )}
+
+      {draft && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" role="presentation" onMouseDown={e => {if(e.target === e.currentTarget) setDraft(null);}}>
+          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl" role="dialog" aria-modal="true" aria-label="Revisar mensagem">
+            <h2 className="text-2xl font-semibold text-ink mb-2">Revisar mensagem</h2>
+            <p className="text-muted mb-4">Cliente: {draft.clientName}. Revise o texto antes de abrir o WhatsApp.</p>
+            <textarea aria-label="Texto da mensagem" className="w-full rounded-xl border border-[#E7D7C5] p-4 text-ink bg-white min-h-[240px]" value={draft.message} onChange={e=>setDraft({...draft,message:e.target.value})}/>
+            {recordError && <p className="text-red-700 text-sm mt-3" role="alert">{recordError}</p>}
+            {opened && <p className="text-sm text-muted mt-3">WhatsApp aberto para revisão. Confirme abaixo somente depois de enviar a mensagem à cliente.</p>}
+            <div className="flex flex-wrap justify-end gap-3 mt-5">
+              <button className="btn-outline" onClick={()=>setDraft(null)}>Fechar</button>
+              <button className="btn-outline" onClick={()=>navigator.clipboard.writeText(draft.message)}>Copiar</button>
+              <button className="btn-primary" onClick={reviewOnWhatsApp}>Revisar no WhatsApp</button>
+              {opened && <button className="btn-outline" disabled={confirming} onClick={confirmSent}>{confirming ? "Registrando..." : "Confirmar que enviei"}</button>}
+            </div>
+          </div>
+        </div>
       )}
 
     </main>
@@ -183,7 +226,7 @@ function MessageCard({ item, onSend, badgeText }: { item: any, onSend: () => voi
           onClick={onSend}
           className="btn-primary bg-green-600 hover:bg-green-700 border-green-600 py-1.5 px-3 text-xs"
         >
-          <MessageCircle size={14} /> {item.sent ? "Reenviar WhatsApp" : "Enviar WhatsApp"}
+          <MessageCircle size={14} /> {item.sent ? "Revisar novamente" : "Gerar mensagem"}
         </button>
       </div>
     </div>

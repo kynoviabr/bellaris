@@ -7,7 +7,7 @@ import { ExpenseManager } from "./expense-manager";
 export function Finance({ data, stats, onNew, onAction, onReverse }: { data: any[]; stats?: any; onNew: () => void; onAction: (mode: "view" | "edit", index: number) => void; onReverse: (index: number) => void }) { 
   const [period, setPeriod] = useState("month");
   const [movementSearch, setMovementSearch] = useState("");
-
+  const [movementDate, setMovementDate] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }).slice(0, 7));
   const [movementType, setMovementType] = useState("");
   const [showMovements, setShowMovements] = useState(false);
   const [movementResults, setMovementResults] = useState<any[]>([]);
@@ -18,7 +18,7 @@ export function Finance({ data, stats, onNew, onAction, onReverse }: { data: any
   const [loading, setLoading] = useState(false);
   const [payables, setPayables] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
-  
+  const [categoryMonth, setCategoryMonth] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }).slice(0, 7));
   const [financeError, setFinanceError] = useState("");
   const [futureRevenue, setFutureRevenue] = useState<{ total: number; lastDate: string | null; count: number } | null>(null);
 
@@ -31,10 +31,11 @@ export function Finance({ data, stats, onNew, onAction, onReverse }: { data: any
     const { getPayablesAndCategories } = await import("@/lib/actions/finance");
     const summary = await getPayablesAndCategories(period);
     setPayables(summary.payables || []);
-    setCategories(summary.categories || []);
+    const categorySummary = await getPayablesAndCategories(`month:${categoryMonth}`);
+    setCategories(categorySummary.categories || []);
     setFinanceError(summary.error || "");
     setLoading(false);
-  }, [period]);
+  }, [period, categoryMonth]);
 
   // Carrega faturamento futuro respeitando o período selecionado
   useEffect(() => {
@@ -77,7 +78,7 @@ export function Finance({ data, stats, onNew, onAction, onReverse }: { data: any
     const rawDate = String(item.date ?? "");
     const dateParts = rawDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
     const isoDate = dateParts ? `${dateParts[3]}-${dateParts[2]}-${dateParts[1]}` : rawDate.slice(0, 10);
-    return matchesSearch && (!movementType || item.type === movementType);
+    return matchesSearch && (!movementDate || isoDate.startsWith(movementDate)) && (!movementType || item.type === movementType);
   }) : [];
 
 
@@ -170,7 +171,7 @@ export function Finance({ data, stats, onNew, onAction, onReverse }: { data: any
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="card">
-          <SectionTitle title="Contas a pagar" subtitle={`Contas pendentes no período: ${getPeriodDetailLabel()}`} />
+          <SectionTitle title="Contas a pagar" subtitle="Vencidas, próximas e futuras — independente do filtro do DRE" />
           {financeError && <p role="alert" className="mt-3 text-sm text-red-600">{financeError}</p>}
           <div className="mt-4 flex flex-wrap gap-3 text-sm">
             <span className="rounded-md bg-red-50 px-3 py-2 text-red-700">Vencidas: {money.format(payables.filter(p => p.alert === "overdue").reduce((a,p) => a + Number(p.amount), 0))}</span>
@@ -186,8 +187,10 @@ export function Finance({ data, stats, onNew, onAction, onReverse }: { data: any
         </section>
         <section className="card">
           <div className="flex flex-wrap items-end justify-between gap-3">
-            <SectionTitle title="Despesas por categoria" subtitle={`Período: ${getPeriodDetailLabel()}`} />
-
+            <SectionTitle title="Despesas por categoria" subtitle="Selecione o mês para consultar despesas pagas e pendentes" />
+            <label className="text-sm font-medium text-slate-700">Mês de referência
+              <input type="month" aria-label="Mês de despesas por categoria" className="field-input mt-1 block" value={categoryMonth} onChange={e => setCategoryMonth(e.target.value)} />
+            </label>
           </div>
           <div className="mt-4 space-y-3">
             {categories.length === 0 && <p className="text-sm text-muted">Nenhuma despesa no período.</p>}
@@ -278,10 +281,10 @@ export function Finance({ data, stats, onNew, onAction, onReverse }: { data: any
               {movementSearch && <button type="button" aria-label="Limpar busca" onClick={() => setMovementSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-900"><X size={16} /></button>}
             </label>
             <div className="flex flex-wrap items-end gap-2">
-
+              <label className="text-sm font-medium text-slate-700">Mês de referência<input type="month" aria-label="Mês dos movimentos do período" className="field-input mt-1 block" value={movementDate} onChange={e => { setMovementDate(e.target.value); setShowMovements(false); }} /></label>
               <label className="text-xs text-muted">Tipo<select className="field-input mt-1 block" value={movementType} onChange={e => { setMovementType(e.target.value); setShowMovements(false); }}><option value="">Todos</option><option value="Receita">Receita</option><option value="Despesa">Despesa</option></select></label>
-              <button type="button" className="btn-primary" onClick={async () => { setMovementLoading(true); setShowMovements(false); const { getFinance } = await import("@/lib/actions/finance"); const result = await getFinance(period); setMovementResults(result.data || []); setShowMovements(true); setMovementLoading(false); }} disabled={movementLoading}>{movementLoading ? "Consultando..." : "Consultar"}</button>
-              <button type="button" className="btn-outline" onClick={() => { setShowMovements(false); setMovementType(""); setMovementSearch(""); }}>Limpar</button>
+              <button type="button" className="btn-primary" onClick={async () => { setMovementLoading(true); setShowMovements(false); const { getFinance } = await import("@/lib/actions/finance"); const result = await getFinance(movementDate ? `month:${movementDate}` : period); setMovementResults(result.data || []); setShowMovements(true); setMovementLoading(false); }} disabled={movementLoading}>{movementLoading ? "Consultando..." : "Consultar"}</button>
+              <button type="button" className="btn-outline" onClick={() => { setShowMovements(false); setMovementDate(new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }).slice(0, 7)); setMovementType(""); setMovementSearch(""); }}>Limpar</button>
             </div>
             {showMovements && <span className="text-xs text-muted" aria-live="polite">{filteredMovements.length} movimentos encontrados</span>}
           </div>

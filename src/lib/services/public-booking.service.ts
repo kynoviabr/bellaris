@@ -8,8 +8,11 @@ export async function getOrgBySlug(supabase: SupabaseClient, slug: string) {
     .eq("slug", slug.toLowerCase().trim())
     .maybeSingle();
 
-  if (error) console.error("[PublicBooking] Organization lookup failed:", { code: error.code, message: error.message });
-  if (error || !org) return null;
+  if (error) {
+    console.error("[PublicBooking] Organization lookup failed:", { code: error.code, message: error.message, status: error.details });
+    return null;
+  }
+  if (!org) return null;
   return org;
 }
 

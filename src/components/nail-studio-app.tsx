@@ -1,6 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 import NextImage from "next/image";
+import { formatBrazilPhone, formatCep, normalizeEmail, digitsOnly } from "@/lib/utils/input-masks";
 import { View, EntityKind, EntityModalState, Badge, statusTone, Metric, RowActions, SectionTitle, SmallMetricLink, SystemAlertModal } from "./shared";
 import { formatAgeInYearsAndMonths } from "@/lib/utils/age";
 import { Professionals } from "./dashboard/professionals";
@@ -522,7 +523,7 @@ function ProfessionalCommissionsModal({ professional, close }: { professional: a
 function ClientModal({ mode, client, close, save }: { mode: "create" | "edit" | "view"; client?: any; close: () => void; save: (data: any) => Promise<void> }) {
   const [tab, setTab] = useState<"info"|"anamnese"|"pacotes">("info");
   const [name, setName] = useState(client?.name || "");
-  const [phone, setPhone] = useState(client?.phone || "");
+  const [phone, setPhone] = useState(formatBrazilPhone(client?.phone || ""));
   const [birthDate, setBirthDate] = useState(client?.birthDate || "");
   const [email, setEmail] = useState(client?.email || "");
   const [cep, setCep] = useState(client?.cep || "");
@@ -594,17 +595,11 @@ function ClientModal({ mode, client, close, save }: { mode: "create" | "edit" | 
   const readOnly = mode === "view";
   const clientAge = formatAgeInYearsAndMonths(birthDate);
 
-  const handlePhone = (v: string) => {
-    let num = v.replace(/\D/g, "");
-    if (num.length > 11) num = num.slice(0, 11);
-    if (num.length > 2) num = `(${num.slice(0, 2)}) ${num.slice(2)}`;
-    if (num.length > 10) num = `${num.slice(0, 10)}-${num.slice(10)}`;
-    setPhone(num);
-  };
+  const handlePhone = (v: string) => setPhone(formatBrazilPhone(v));
 
   const handleCep = async (v: string) => {
-    setCep(v);
-    const cleanCep = v.replace(/\D/g, "");
+    setCep(formatCep(v));
+    const cleanCep = digitsOnly(v);
     if (cleanCep.length === 8) {
       setLoadingCep(true);
       try {
@@ -665,7 +660,7 @@ function ClientModal({ mode, client, close, save }: { mode: "create" | "edit" | 
                     </output>
                   </div>
                 </div>
-                <div><label className="field-label">E-mail</label><input type="email" className="field-input" value={email} onChange={e => setEmail(e.target.value)} placeholder="cliente@email.com" disabled={readOnly} /></div>
+                <div><label className="field-label">E-mail</label><input type="email" className="field-input" value={email} onChange={e => setEmail(e.target.value.replace(/\s/g, ""))} onBlur={() => setEmail(normalizeEmail(email))} placeholder="cliente@email.com" disabled={readOnly} /></div>
                 <div className="sm:col-span-2 border-t border-[#E7EDF3] pt-4 mt-2">
                   <h3 className="text-sm font-semibold mb-3">Endereço</h3>
                   <div className="grid gap-4 sm:grid-cols-6">
@@ -890,7 +885,7 @@ function ProfessionalModal({ mode, professional, specialtiesList = [], close, sa
           </div>
           <div>
             <label className="field-label">Telefone / WhatsApp</label>
-            <input className="field-input" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} disabled={readOnly} />
+            <input className="field-input" value={formData.phone} onChange={e => setFormData({ ...formData, phone: formatBrazilPhone(e.target.value) })} disabled={readOnly} />
           </div>
           <div>
             <label className="field-label">E-mail</label>
@@ -1007,13 +1002,20 @@ function Dashboard({ go, stats, onAttendance, appointments = [], clients = [], t
 
 
 
-function BookingModal({ clients, professionals, services, initialDate, close, save }: { clients: any[]; professionals: any[]; services: any[]; initialDate: string; close: () => void; save: (a: Appointment, rawData?: any) => void }) {
+function BookingModal({ initialDate, clients, professionals, services, close, save, onClientCreated }: { initialDate: string; clients: any[]; professionals: any[]; services: any[]; close: () => void; save: (a: Appointment, rawData?: any) => void; onClientCreated: (client: any) => void }) {
   const [clientId, setClientId] = useState(clients[0]?.id || "");
+  const [showNewClient, setShowNewClient] = useState(false);
+  const [newClientName, setNewClientName] = useState("");
+  const [newClientPhone, setNewClientPhone] = useState("");
+  const [newClientEmail, setNewClientEmail] = useState("");
+  const [clientSaving, setClientSaving] = useState(false);
+  const [clientError, setClientError] = useState("");
   const [profId, setProfId] = useState(professionals[0]?.id || "");
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([services[0]?.id || ""]);
   const [dateStr, setDateStr] = useState(initialDate);
   const [timeStr, setTimeStr] = useState("09:00");
   const [submitting, setSubmitting] = useState(false);
+  const [dateError, setDateError] = useState("");
 
   const selectedClient = clients.find(c => c.id === clientId);
   const selectedProf = professionals.find(p => p.id === profId);
@@ -1022,9 +1024,17 @@ function BookingModal({ clients, professionals, services, initialDate, close, sa
   const totalPrice = selectedSvcs.reduce((acc: number, s: any) => acc + s.price, 0);
   const serviceNames = selectedSvcs.map((s: any) => s.name).join(" + ");
 
-  return <div className="fixed inset-0 z-[70] flex items-end justify-center bg-navy-dark/45 p-0 sm:items-center sm:p-4"><form onSubmit={async e => {
+  const newClientForm = showNewClient ? <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/55 p-4"><form className="w-full max-w-md space-y-4 rounded-xl bg-white p-5 shadow-2xl" onSubmit={async e => {e.preventDefault();if(clientSaving)return;if(digitsOnly(newClientPhone).length < 10){setClientError("Informe um WhatsApp válido com DDD (10 ou 11 dígitos).");return;}setClientSaving(true);setClientError("");try{const res=await createClientRecord({name:newClientName.trim(),phone:formatBrazilPhone(newClientPhone)});if(!res.success){setClientError("error" in res ? String(res.error) : "Não foi possível cadastrar a cliente.");return;}const fresh=await getClients();const created=(res.data?.id && fresh.find((c:any)=>c.id===res.data.id)) || fresh.find((c:any)=>c.name===newClientName.trim() && c.phone.replace(/\\D/g,"")===newClientPhone.replace(/\\D/g,""));if(!created){setClientError("Cliente cadastrada, mas não foi possível selecioná-la. Feche e abra o agendamento novamente.");return;}onClientCreated(created);setClientId(created.id);setShowNewClient(false);setNewClientName("");setNewClientPhone("");setNewClientEmail("");}catch{setClientError("Erro de conexão ao cadastrar cliente.");}finally{setClientSaving(false);}}}><h3 className="text-lg font-semibold">Cadastrar nova cliente</h3><p className="text-sm text-muted">Após salvar, você continuará neste agendamento.</p><label className="block"><span className="field-label">Nome completo</span><input className="field-input" value={newClientName} onChange={e=>setNewClientName(e.target.value)} required autoFocus /></label><label className="block"><span className="field-label">WhatsApp</span><input className="field-input" value={newClientPhone} onChange={e=>setNewClientPhone(formatBrazilPhone(e.target.value))} placeholder="(11) 99999-9999" inputMode="tel" maxLength={15} minLength={14} required /></label><label className="block"><span className="field-label">E-mail (opcional)</span><input type="email" className="field-input" value={newClientEmail} onChange={e=>setNewClientEmail(e.target.value.replace(/\s/g, ""))} onBlur={()=>setNewClientEmail(normalizeEmail(newClientEmail))} /></label>{clientError&&<p role="alert" className="text-sm text-red-700">{clientError}</p>}<div className="flex justify-end gap-2"><button type="button" className="btn-outline" disabled={clientSaving} onClick={()=>setShowNewClient(false)}>Voltar</button><button type="submit" className="btn-primary" disabled={clientSaving}>{clientSaving?"Salvando...":"Salvar e selecionar"}</button></div></form></div> : null;
+
+  return <>{newClientForm}<div className="fixed inset-0 z-[70] flex items-end justify-center bg-navy-dark/45 p-0 sm:items-center sm:p-4"><form onSubmit={async e => {
     e.preventDefault();
     if (!selectedClient || !selectedProf || selectedSvcs.length === 0) return;
+    const selectedStart = new Date(`${dateStr}T${timeStr}:00-03:00`);
+    if (!Number.isFinite(selectedStart.getTime()) || selectedStart.getTime() <= Date.now()) {
+      setDateError("Não é permitido agendar em datas ou horários passados. Selecione um horário futuro.");
+      return;
+    }
+    setDateError("");
     setSubmitting(true);
     await save({
       id: `temp-${Date.now()}`,
@@ -1049,7 +1059,7 @@ function BookingModal({ clients, professionals, services, initialDate, close, sa
     });
     setSubmitting(false);
   }} className="w-full max-w-xl rounded-t-lg bg-white p-5 shadow-xl sm:rounded-lg"><div className="flex items-center justify-between"><div><h2 className="text-lg font-semibold">Novo agendamento</h2><p className="text-xs text-muted">Selecione os dados reais do banco.</p></div><button type="button" onClick={close} className="rounded-md p-2 text-muted hover:bg-bg"><X size={18} /></button></div><div className="mt-5 grid gap-4 sm:grid-cols-2">
-    <label><span className="field-label">Cliente</span><select value={clientId} onChange={e => setClientId(e.target.value)} className="field-input" required>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+    <div><div className="flex items-center justify-between gap-2"><label htmlFor="booking-client" className="field-label">Cliente</label><button type="button" className="text-xs font-semibold text-primary hover:underline" onClick={() => {setClientError("");setShowNewClient(true);}}>+ Nova cliente</button></div><select id="booking-client" value={clientId} onChange={e => setClientId(e.target.value)} className="field-input" required><option value="" disabled>Selecione uma cliente</option>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
     <label><span className="field-label">Profissional</span><select value={profId} onChange={e => setProfId(e.target.value)} className="field-input" required>{professionals.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
     <div className="sm:col-span-2 space-y-2"><span className="field-label">Serviços</span>
             {selectedServiceIds.map((srvId: string, index: number) => (
@@ -1068,9 +1078,10 @@ function BookingModal({ clients, professionals, services, initialDate, close, sa
             ))}
             <button type="button" onClick={() => setSelectedServiceIds([...selectedServiceIds, services[0]?.id])} className="text-sm font-medium text-primary hover:underline">+ Adicionar outro serviço</button>
           </div>
-    <label><span className="field-label">Data</span><input className="field-input" type="date" value={dateStr} onChange={e=>setDateStr(e.target.value)} required /></label>
-    <label><span className="field-label">Horário</span><input className="field-input" type="time" step="900" value={timeStr} onChange={e=>setTimeStr(e.target.value)} required /></label>
-  </div><div className="mt-5 flex justify-end gap-2"><button type="button" disabled={submitting} onClick={close} className="btn-outline">Cancelar</button><button disabled={submitting} className="btn-primary">{submitting ? "Salvando..." : "Criar agendamento"}</button></div></form></div> }
+    <label><span className="field-label">Data</span><input className="field-input" type="date" value={dateStr} onChange={e=>{setDateStr(e.target.value);setDateError("");}} required /></label>
+    <label><span className="field-label">Horário</span><input className="field-input" type="time" step="900" value={timeStr} onChange={e=>{setTimeStr(e.target.value);setDateError("");}} required /></label>
+  </div>{dateError && <p role="alert" className="mt-3 text-sm text-red-700">{dateError}</p>}<div className="mt-5 flex justify-end gap-2"><button type="button" disabled={submitting} onClick={close} className="btn-outline">Cancelar</button><button disabled={submitting} className="btn-primary">{submitting ? "Salvando..." : "Criar agendamento"}</button></div></form></div></>;
+}
 
 
 function ServiceModal({ mode, service, close, save }: { mode: "create" | "view" | "edit"; service?: ServiceItem; close: () => void; save: (data: Omit<ServiceItem, 'id' | 'active'>) => void }) {
@@ -1140,6 +1151,10 @@ function Toast({ text }: { text: string }) { return <div className="fixed bottom
 
 function SettingsView({ tenant, updateToast }: { tenant: any; updateToast: (t: string) => void }) {
   const [orgName, setOrgName] = useState(tenant?.orgName || "");
+  const [pixKey, setPixKey] = useState("");
+  const [savingPix, setSavingPix] = useState(false);
+  const [pixError, setPixError] = useState("");
+  useEffect(() => { import("@/lib/actions/settings").then(({getOrganizationPixKey}) => getOrganizationPixKey()).then(r => { if (!r.error) setPixKey(r.pixKey); }); }, []);
   const [fullName, setFullName] = useState(tenant?.profileName || "");
   const [email, setEmail] = useState(tenant?.email || "");
   const [password, setPassword] = useState("");
@@ -1177,6 +1192,15 @@ function SettingsView({ tenant, updateToast }: { tenant: any; updateToast: (t: s
     <div className="mx-auto max-w-4xl p-4 sm:p-6 space-y-6">
 
       <RolePermissionsManager />
+      <div className="bg-white rounded-lg border shadow-sm p-6 space-y-3">
+        <h3 className="font-semibold text-lg text-ink">Chave Pix para mensagens</h3>
+        <p className="text-sm text-muted">Essa chave será incluída nas mensagens de pagamento geradas pela Agenda. Você pode alterá-la quando quiser.</p>
+        <label className="field-label" htmlFor="pix-key">Chave Pix</label>
+        <input id="pix-key" className="field-input" maxLength={255} value={pixKey} onChange={e=>setPixKey(e.target.value)} placeholder="CPF, CNPJ, e-mail, telefone ou chave aleatória" />
+        {pixError && <p className="text-sm text-red-600">{pixError}</p>}
+        <div className="flex justify-end"><button className="btn-primary" disabled={savingPix} onClick={async()=>{setSavingPix(true);setPixError("");try{const {updateOrganizationPixKey}=await import("@/lib/actions/settings");const result=await updateOrganizationPixKey(pixKey);if(result.error)setPixError(result.error);else updateToast("Chave Pix salva com sucesso.");}catch{setPixError("Não foi possível salvar a chave Pix.");}finally{setSavingPix(false);}}}>{savingPix?"Salvando...":"Salvar chave Pix"}</button></div>
+      </div>
+
       <div className="bg-white rounded-lg border shadow-sm p-6">
         <div className="flex items-center gap-3 mb-6 border-b pb-4">
           <div className="bg-primary/10 text-primary p-2 rounded-lg"><Settings size={20} /></div>
@@ -1729,7 +1753,7 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
         />
       )}
 
-      {booking && <BookingModal initialDate={bookingDate} clients={clientRows} professionals={professionalRows} services={serviceRows} close={() => setBooking(false)} save={async (a, rawData) => { if(rawData) { const res = await createAppointmentRecord(rawData); if (res.success) { const fresh = await getAppointments(); setRows(fresh); setBooking(false); notify("Agendamento criado com sucesso."); } else { alert(("error" in res ? res.error : "Erro desconhecido")); } } else { setRows(v => [...v, a]); setBooking(false); notify("Agendamento criado (demo)."); } }} />}
+      {booking && <BookingModal initialDate={bookingDate} clients={clientRows} onClientCreated={(client) => setClientRows(current => current.some(c => c.id === client.id) ? current : [...current, client].sort((a,b)=>a.name.localeCompare(b.name)))} professionals={professionalRows} services={serviceRows} close={() => setBooking(false)} save={async (a, rawData) => { if(rawData) { const res = await createAppointmentRecord(rawData); if (res.success) { const fresh = await getAppointments(); setRows(fresh); setBooking(false); notify("Agendamento criado com sucesso."); } else { alert(("error" in res ? res.error : "Erro desconhecido")); } } else { setRows(v => [...v, a]); setBooking(false); notify("Agendamento criado (demo)."); } }} />}
       {finish && activeAppointment && <FinishModal appointment={activeAppointment} close={() => setFinish(false)} done={async (method, val, pkgId) => { const res = await finishAppointment({ appointmentId: activeAppointment.id, amount: val, paymentMethod: method, packageId: pkgId }); if (res.success) { setRows(v => v.map(a => a.id === activeAppointment.id ? { ...a, status: "Concluído", paid: (a.paid || 0) + (pkgId ? 0 : val) } : a)); getProfessionals().then(fresh => setProfessionalRows(fresh as any[])); setFinish(false); setActiveAppointment(null); setView("agenda"); notify("Atendimento concluído e pagamento registrado com sucesso."); } else { alert(("error" in res ? res.error : "Erro desconhecido")); } }} />}
       {cancelPending && <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 p-4" role="presentation">
         <div role="alertdialog" aria-modal="true" aria-labelledby="cancel-appointment-title" aria-describedby="cancel-appointment-description" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">

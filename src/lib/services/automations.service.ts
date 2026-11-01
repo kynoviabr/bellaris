@@ -1,12 +1,16 @@
 export async function markMessageSentService(supabase: any, clientId: string, list: string, appointmentId?: string) {
   if (!supabase) return { success: false, error: "Sem banco de dados" };
-  const { data: profile } = await supabase.from('profiles').select('organization_id').single();
-  if (!profile?.organization_id) return { success: false, error: "Organização não encontrada" };
+  // Resolve the organization from the actual client under the current user's RLS scope.
+  // A user profile may be missing or not uniquely selectable in this session.
+  const { data: client, error: clientError } = await supabase.from('clients').select('id, organization_id').eq('id', clientId).maybeSingle();
+  if (clientError) return { success: false, error: clientError.message };
+  if (!client?.organization_id) return { success: false, error: "Cliente não encontrado ou sem acesso à organização" };
+  const organizationId = client.organization_id;
 
   let query = supabase
     .from('message_jobs')
     .select('id, payload')
-    .eq('organization_id', profile.organization_id)
+    .eq('organization_id', organizationId)
     .eq('client_id', clientId)
     .eq('status', 'sent');
 
@@ -22,7 +26,7 @@ export async function markMessageSentService(supabase: any, clientId: string, li
   }
 
   const { error } = await supabase.from('message_jobs').insert([{
-    organization_id: profile.organization_id,
+    organization_id: organizationId,
     client_id: clientId,
     appointment_id: appointmentId || null,
     channel: 'whatsapp',
