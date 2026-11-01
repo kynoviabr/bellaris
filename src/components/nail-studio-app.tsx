@@ -1248,7 +1248,7 @@ export function NailStudioApp({ tenant = { profileName: "Gabi", orgName: "Gabi L
 
   // Auto-refresh appointments when looking at the agenda
   useEffect(() => {
-    if (view === "agenda") {
+    if (view === "agenda" && !professionalMode) {
       const interval = setInterval(() => {
         getAppointments().then(fresh => setRows(fresh));
       }, 5000);
@@ -1431,7 +1431,7 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
     } finally { setCancelBusy(false); }
   };
   const content = (() => {
-    if (professionalMode && view !== "dashboard" && view !== "agenda") return <main className="page-content"><div className="card"><h2 className="text-lg font-semibold">Acesso restrito</h2><p className="mt-2 text-sm text-muted">Este módulo está visível no menu, mas o acesso aos dados e às operações depende das permissões do seu perfil. Nenhum dado de outras profissionais ou salões será exibido.</p></div></main>;
+    if (professionalMode && !["dashboard", "agenda", "services"].includes(view)) return <main className="page-content"><div className="card"><h2 className="text-lg font-semibold">Acesso restrito</h2><p className="mt-2 text-sm text-muted">Este módulo está visível no menu, mas o acesso aos dados e às operações depende das permissões do seu perfil. Nenhum dado de outras profissionais ou salões será exibido.</p></div></main>;
     if (view === "dashboard" && professionalMode) return <main className="page-content"><div className="card"><h2 className="text-xl font-semibold">Painel profissional</h2><p className="mt-2 text-sm text-muted">Acesse sua agenda pelo menu. Indicadores e demais módulos serão disponibilizados após a validação das permissões individuais.</p></div></main>;
     if (view === "dashboard") return <Dashboard stats={initialStats} go={setView} appointments={rows} clients={clientRows} tenant={tenant} onAttendance={(a) => { setActiveAppointment(a); setView("attendance"); }} />;
     if (view === "settings") return <SettingsView tenant={tenant} updateToast={(t) => { setToast(t); setTimeout(() => setToast(""), 3000); }} />;
@@ -1530,7 +1530,7 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
         }
       }}
     />;
-    if (view === "services") return <Services data={serviceRows} inventory={productRows} onNew={() => openEntity("service", "create")} onAction={(mode, index) => openEntity("service", mode, index)} onDelete={index => confirmAction("Excluir este serviço?", async () => { const item = serviceRows[index]; if (item.id && !item.id.startsWith("demo-")) { await deleteServiceRecord(item.id); } setServiceRows(current => current.filter((_, i) => i !== index)); notify("Serviço removido."); })} onConsumables={(index) => openEntity("service_consumables" as any, "edit", index)} />;
+    if (view === "services") return <Services readOnly={professionalMode} data={serviceRows} inventory={productRows} onNew={() => openEntity("service", "create")} onAction={(mode, index) => openEntity("service", mode, index)} onDelete={index => confirmAction("Excluir este serviço?", async () => { const item = serviceRows[index]; if (item.id && !item.id.startsWith("demo-")) { await deleteServiceRecord(item.id); } setServiceRows(current => current.filter((_, i) => i !== index)); notify("Serviço removido."); })} onConsumables={(index) => openEntity("service_consumables" as any, "edit", index)} />;
     if (view === "professionals") return <Professionals data={professionalRows} onNew={() => openEntity("professional", "create")} onAction={(mode, index) => openEntity("professional", mode, index)} onDelete={index => confirmAction("Arquivar esta profissional? Agendamentos anteriores serão preservados.", async () => { const item = professionalRows[index]; if (item.id) await archiveProfessionalRecord(item.id); setProfessionalRows(current => current.filter((_, i) => i !== index)); notify("Profissional arquivada."); })} />;
     if (view === "attendance") return (
       <Attendance
