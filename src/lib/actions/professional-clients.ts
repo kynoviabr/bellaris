@@ -12,7 +12,7 @@ async function context() {
  if(!professional)throw new Error("Profissional não vinculada");
  return {supabase,organizationId:profile.organization_id,professionalId:professional.id};
 }
-export type ProfessionalClient={id:string;name:string;phone:string;email:string|null;marketing_consent:boolean;preferred_professional_id:string|null;last_visit:string|null};
+export type ProfessionalClient={id:string;name:string;phone:string;email:string|null;marketing_consent:boolean;preferred_professional_id:string|null;last_visit:string|null;can_edit:boolean};
 export async function listMyClients():Promise<{rows:ProfessionalClient[];error?:string}>{
  try{
   const {supabase,organizationId,professionalId}=await context();
@@ -22,7 +22,7 @@ export async function listMyClients():Promise<{rows:ProfessionalClient[];error?:
   for(const a of appointments||[])if(a.client_id&&!visits.has(a.client_id))visits.set(a.client_id,a.starts_at);
   const {data,error}=await supabase.from("clients").select("id,name,phone,email,marketing_consent,preferred_professional_id").eq("organization_id",organizationId).order("name").limit(1000);
   if(error)throw error;
-  return {rows:(data||[]).filter(c=>c.preferred_professional_id===professionalId||visits.has(c.id)).map(c=>({...c,last_visit:visits.get(c.id)||null}))};
+  return {rows:(data||[]).filter(c=>c.preferred_professional_id===professionalId||visits.has(c.id)).map(c=>({...c,last_visit:visits.get(c.id)||null,can_edit:c.preferred_professional_id===professionalId}))};
  }catch(e){return {rows:[],error:e instanceof Error?e.message:"Erro ao carregar clientes"}}
 }
 export async function saveMyClient(input:{id?:string;name:string;phone:string;email?:string;marketing_consent?:boolean}):Promise<{success:boolean;error?:string}>{
