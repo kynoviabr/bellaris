@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
-import { Sparkles, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { BellarisMark } from "@/components/brand/bellaris-mark";
 import { login } from "@/lib/actions/auth";
 import Link from "next/link";
 
@@ -12,9 +13,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-bg p-4 sm:p-8">
       <div className="w-full max-w-sm rounded-lg border border-[#DBE3EC] bg-white p-6 shadow-card sm:p-8">
         <div className="flex flex-col items-center text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary">
-            <Sparkles size={24} className="text-white" />
-          </div>
+          <BellarisMark size={56} />
           <h1 className="mt-5 text-xl font-bold text-ink">Bellaris</h1>
           <p className="mt-1 text-sm text-muted">Acesso ao painel administrativo</p>
         </div>
