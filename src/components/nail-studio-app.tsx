@@ -424,25 +424,31 @@ function ProfessionalCommissionsModal({ professional, close }: { professional: a
   const [data, setData] = useState<{ commissions: any[], stats: { pending: number, paid: number } }>({ commissions: [], stats: { pending: 0, paid: 0 } });
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (professional?.id) {
       getProfessionalCommissions(professional.id).then(res => {
         setData(res);
+        // Por padrão, todas as pendentes vêm marcadas; a gestora desmarca o que não for pagar agora.
+        setSelectedIds(res.commissions.filter((c: any) => c.status === "generated").map((c: any) => c.id));
         setLoading(false);
       });
     } else {
       setLoading(false);
     }
-
   }, [professional]);
 
-  const handlePay = async () => {
-    if (!professional?.id) return;
-    if (!data.commissions.some(c => c.status === 'generated')) return;
+  const pendingRows = data.commissions.filter(c => c.status === "generated");
+  const selectedTotal = pendingRows.filter(c => selectedIds.includes(c.id)).reduce((sum, c) => sum + Number(c.amount || 0), 0);
+  const allSelected = pendingRows.length > 0 && pendingRows.every(c => selectedIds.includes(c.id));
+  const toggle = (id: string) => setSelectedIds(current => current.includes(id) ? current.filter(x => x !== id) : [...current, id]);
+  const toggleAll = () => setSelectedIds(allSelected ? [] : pendingRows.map(c => c.id));
 
+  const handlePay = async () => {
+    if (!professional?.id || selectedIds.length === 0) return;
     setPaying(true);
-    const res = await payCommissions(professional.id);
+    const res = await payCommissions(professional.id, selectedIds);
     setPaying(false);
     if (res.success) {
       window.location.reload();
@@ -482,17 +488,25 @@ function ProfessionalCommissionsModal({ professional, close }: { professional: a
               <table className="data-table !min-w-0 table-fixed">
                 <thead className="sticky top-0 bg-white">
                   <tr>
-                    <th className="w-[24%]">Data</th>
+                    <th className="w-[8%]">
+                      <input type="checkbox" aria-label="Selecionar todas as pendentes" checked={allSelected} disabled={pendingRows.length === 0} onChange={toggleAll} className="h-4 w-4 accent-primary" />
+                    </th>
+                    <th className="w-[20%]">Data</th>
                     <th>Serviço</th>
-                    <th className="w-[22%]">Status</th>
+                    <th className="w-[18%]">Status</th>
                     <th className="w-[20%] text-right">Valor</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.commissions.length === 0 ? (
-                    <tr><td colSpan={4} className="text-center py-8 text-muted">Nenhuma comissão registrada.</td></tr>
+                    <tr><td colSpan={5} className="text-center py-8 text-muted">Nenhuma comissão registrada.</td></tr>
                   ) : data.commissions.map((c: any) => (
                     <tr key={c.id}>
+                      <td>
+                        {c.status === "generated" && (
+                          <input type="checkbox" aria-label={`Selecionar comissão de ${c.service}`} checked={selectedIds.includes(c.id)} onChange={() => toggle(c.id)} className="h-4 w-4 accent-primary" />
+                        )}
+                      </td>
                       <td>{c.date}</td>
                       <td>{c.service}</td>
                       <td><Badge tone={c.status === 'paid' ? 'success' : 'warning'}>{c.status === 'paid' ? 'Pago' : 'Pendente'}</Badge></td>
@@ -502,6 +516,7 @@ function ProfessionalCommissionsModal({ professional, close }: { professional: a
                 </tbody>
               </table>
             </div>
+            <p className="mt-2 text-xs text-muted">{selectedIds.length} de {pendingRows.length} pendente(s) selecionada(s)</p>
           </>
         )}
 
@@ -509,10 +524,10 @@ function ProfessionalCommissionsModal({ professional, close }: { professional: a
           <button onClick={close} className="btn-outline">Fechar</button>
           <button
             onClick={handlePay}
-            disabled={paying || data.stats.pending <= 0 || loading}
+            disabled={paying || loading || selectedIds.length === 0}
             className="btn-primary disabled:opacity-50"
           >
-            <Check size={16} />{paying ? "Processando..." : "Fechar e Pagar Pendentes"}
+            <Check size={16} />{paying ? "Processando..." : `Pagar selecionadas · ${money.format(selectedTotal)}`}
           </button>
         </div>
       </div>

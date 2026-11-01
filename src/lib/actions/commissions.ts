@@ -45,11 +45,19 @@ export async function getProfessionalCommissions(profId: string) {
 // Marca as comissões pendentes como pagas e grava a despesa correspondente
 // numa única transação no banco (função public.pay_commissions). O total é
 // calculado no banco, não recebido da tela.
-export async function payCommissions(profId: string) {
+export async function payCommissions(profId: string, commissionIds?: string[]) {
   const supabase = await createClient();
   if (!supabase) return { success: false, error: "Sem conexão com o banco" };
 
-  const { data, error } = await supabase.rpc("pay_commissions", { p_professional_id: profId });
+  // Lista vazia nunca deve virar "pagar todas": só nulo/undefined paga todas as pendentes.
+  if (commissionIds !== undefined && commissionIds.length === 0) {
+    return { success: false, error: "Selecione ao menos uma comissão" };
+  }
+
+  const { data, error } = await supabase.rpc("pay_commissions", {
+    p_professional_id: profId,
+    p_commission_ids: commissionIds ?? null,
+  });
 
   if (error) return { success: false, error: error.message };
 
