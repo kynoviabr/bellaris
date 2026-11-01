@@ -420,12 +420,13 @@ function ClientDetailsModal({ client, close }: { client: any; close: () => void 
   );
 }
 
-function ProfessionalCommissionsModal({ professional, close }: { professional: any; close: () => void }) {
+function ProfessionalCommissionsModal({ professional, close, onPaid }: { professional: any; close: () => void; onPaid?: () => void }) {
   const [data, setData] = useState<{ commissions: any[], stats: { pending: number, paid: number } }>({ commissions: [], stats: { pending: 0, paid: 0 } });
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [monthFilter, setMonthFilter] = useState<string>("all");
+  const [paidMessage, setPaidMessage] = useState<string>("");
 
   useEffect(() => {
     if (professional?.id) {
@@ -481,12 +482,18 @@ function ProfessionalCommissionsModal({ professional, close }: { professional: a
     if (!professional?.id || selectedIds.length === 0) return;
     setPaying(true);
     const res = await payCommissions(professional.id, selectedIds);
-    setPaying(false);
-    if (res.success) {
-      window.location.reload();
-    } else {
+    if (!res.success) {
+      setPaying(false);
       alert("Erro ao pagar comissões: " + ("error" in res ? res.error : "Erro desconhecido"));
+      return;
     }
+    // Mantém a tela aberta: recarrega as comissões e atualiza o painel da profissional.
+    const fresh = await getProfessionalCommissions(professional.id);
+    setData(fresh);
+    setSelectedIds(fresh.commissions.filter((c: any) => c.status === "generated").map((c: any) => c.id));
+    setPaidMessage(`Pagamento registrado: ${money.format(Number(res.total || 0))}.`);
+    setPaying(false);
+    onPaid?.();
   };
 
   const chipClass = (active: boolean) => `rounded-full border px-3 py-1.5 text-xs transition-colors ${active ? "border-primary bg-primary text-white" : "border-[#E8D9C7] bg-white text-ink hover:bg-bg"}`;
@@ -566,6 +573,7 @@ function ProfessionalCommissionsModal({ professional, close }: { professional: a
               </table>
             </div>
             <p className="mt-2 text-xs text-muted">{selectedIds.length} de {pendingRows.length} pendente(s) selecionada(s)</p>
+            {paidMessage && <p className="mt-1 text-xs font-medium text-green-800">{paidMessage}</p>}
           </>
         )}
 
@@ -1719,7 +1727,7 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
         {content}
       </div>
       {viewingClient && <ClientDetailsModal client={viewingClient} close={() => setViewingClient(null)} />}
-      {closingCommissionFor && <ProfessionalCommissionsModal professional={closingCommissionFor} close={() => setClosingCommissionFor(null)} />}
+      {closingCommissionFor && <ProfessionalCommissionsModal professional={closingCommissionFor} close={() => setClosingCommissionFor(null)} onPaid={() => getProfessionals().then(fresh => setProfessionalRows(fresh as any[]))} />}
       {entityModal && (
         entityModal.kind === "appointment" ? (
           <AppointmentModal
