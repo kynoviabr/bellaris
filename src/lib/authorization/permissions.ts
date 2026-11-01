@@ -54,9 +54,15 @@ export const viewModule: Record<string, StudioModule> = {
   settings: "settings",
 };
 
-export function canOpenView(role: StudioRole, view: string): boolean {
+// Linha da tabela role_permissions (matriz editável pela gestora em Configurações).
+export type PermissionRow = { role: string; module: string; operation: string; enabled: boolean };
+
+// Quando `rows` é informado, a matriz gravada no banco manda (owner/admin sempre liberados).
+// Sem `rows`, usa os padrões do código.
+export function canOpenView(role: StudioRole, view: string, rows?: PermissionRow[]): boolean {
   if (role === "owner" || role === "admin") return true;
   const moduleName = viewModule[view];
   if (!moduleName) return false;
+  if (rows) return rows.some(r => r.role === role && r.module === moduleName && r.operation === "view" && r.enabled);
   return canAccess(role, moduleName, "view");
 }

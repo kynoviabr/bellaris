@@ -10,7 +10,7 @@ import { getServices } from "@/lib/actions/services";
 import { getFinance } from "@/lib/actions/finance";
 import { getInventory } from "@/lib/actions/inventory";
 import { getReports } from "@/lib/actions/reports";
-import type { StudioRole } from "@/lib/authorization/permissions";
+import type { PermissionRow, StudioRole } from "@/lib/authorization/permissions";
 
 export default async function Page() {
   const supabase = await createClient();
@@ -18,6 +18,7 @@ export default async function Page() {
   // Protect route
   let tenantContext = { profileName: "Usuário", orgName: "Studio", email: "" };
   let viewerRole: string = "owner";
+  let viewerOrg: string | null = null;
   if (supabase) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -31,6 +32,7 @@ export default async function Page() {
     if (profile?.role === "platform_master") redirect("/plataforma");
     if (!profile || !["owner", "admin", "staff"].includes(profile.role)) redirect("/login");
     viewerRole = profile.role;
+    viewerOrg = profile.organization_id ?? null;
     let organization = { name: "Nail Studio" };
     tenantContext.profileName = profile?.full_name || "Usuário";
     if (profile?.organization_id) {
@@ -50,6 +52,10 @@ export default async function Page() {
   const appointments = await getAppointments();
   const services = await getServices();
   // A recepcionista não carrega dados financeiros nem relatórios (somente a gestora).
+  // Matriz de permissões da organização (editada pela gestora em Configurações).
+  const permissionRows = supabase && viewerOrg
+    ? ((await supabase.from("role_permissions").select("role,module,operation,enabled").eq("organization_id", viewerOrg)).data ?? [])
+    : [];
   const isStaff = viewerRole === "staff";
   const financialData = isStaff ? { data: [], stats: { revenue: 0, expenses: 0, commissions: 0, balance: 0 } } : await getFinance();
   const inventory = await getInventory();
@@ -67,5 +73,6 @@ export default async function Page() {
     initialReports={reports}
     tenant={tenantContext}
     role={viewerRole as StudioRole}
+    permissionRows={permissionRows as PermissionRow[]}
   />;
 }
