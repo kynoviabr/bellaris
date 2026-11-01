@@ -1,3 +1,5 @@
+import { Agenda } from "@/components/dashboard/agenda";
+import { getAppointments } from "@/lib/actions/appointments";
 import { ProfessionalNavigation } from "@/components/professional-navigation";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
@@ -25,6 +27,7 @@ export default async function ProfessionalHome({ searchParams }: { searchParams:
     ? await supabase.from("commissions").select("id,amount,status,created_at").eq("professional_id", professional.id).order("created_at", { ascending: false }).limit(30)
     : { data: [], error: null };
   const appointments = appointmentsResult.data ?? [];
+  const sharedAgendaRows = tab === "agenda" ? await getAppointments() : [];
   const availabilityResult = professional ? await supabase.from("professional_availability").select("id,starts_at,ends_at,kind,notes").eq("professional_id",professional.id).eq("kind","block").order("starts_at",{ascending:true}).limit(30) : {data:[],error:null};
   const blocks = availabilityResult.data ?? [];
   const commissions = commissionsResult.data ?? [];
@@ -56,8 +59,9 @@ export default async function ProfessionalHome({ searchParams }: { searchParams:
           <div className="card"><div className="flex items-center gap-2 text-sm text-muted"><Wallet size={18} className="text-primary" /> Comissões</div><p className="mt-3 text-3xl font-bold text-ink">{commissions.length}</p><p className="mt-1 text-xs text-muted">Até 30 registros recentes</p></div>
           <div className="card"><div className="flex items-center gap-2 text-sm text-muted"><Wallet size={18} className="text-primary" /> Valor das comissões listadas</div><p className="mt-3 text-2xl font-bold text-ink">{currency(total)}</p><p className="mt-1 text-xs text-muted">Soma dos registros exibidos, não saldo a receber</p></div>
         </div>}
+        {tab === "agenda" && <Agenda readOnly rows={sharedAgendaRows} onNew={() => {}} onAttendance={() => {}} onAction={() => {}} onCancel={() => {}} onStatusChange={() => {}} />}
         <div className={tab === "painel" ? "grid items-start gap-5 lg:grid-cols-2" : "grid grid-cols-1"}>
-          {(tab === "painel" || tab === "agendamentos" || tab === "agenda") && <section id="agendamentos" className="card">
+          {(tab === "painel" || tab === "agendamentos") && <section id="agendamentos" className="card">
             <h2 className="flex items-center gap-2 text-lg font-bold text-ink"><CalendarDays size={19} className="text-primary" /> Meus agendamentos</h2>
             {appointmentsResult.error ? <p className="mt-5 text-sm text-danger">Não foi possível consultar seus agendamentos.</p> : appointments.length === 0 ? <div className="mt-5 rounded-lg bg-[#FAF6F0] px-5 py-10 text-center"><Clock3 className="mx-auto mb-3 text-primary" size={28} /><p className="font-medium">Nenhum agendamento encontrado</p><p className="mt-1 text-sm text-muted">Seus próximos atendimentos aparecerão aqui quando forem cadastrados.</p></div> : <ul className="mt-5 divide-y divide-[#E8D9C7]">{appointments.map(a => <li key={a.id} className="flex justify-between gap-4 py-3 text-sm"><span>{dateTime(a.starts_at)}{a.ends_at ? ` — ${new Date(a.ends_at).toLocaleTimeString("pt-BR",{timeZone:"America/Sao_Paulo",hour:"2-digit",minute:"2-digit"})}` : ""}</span><span className="font-medium text-primary">{a.status}</span></li>)}</ul>}
           </section>}
