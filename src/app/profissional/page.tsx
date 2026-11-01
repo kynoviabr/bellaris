@@ -53,7 +53,6 @@ export default async function ProfessionalHome({ searchParams }: { searchParams:
           <div className="card"><div className="flex items-center gap-2 text-sm text-muted"><CalendarDays size={18} className="text-primary" /> Agendamentos</div><p className="mt-3 text-3xl font-bold text-ink">{appointments.length}</p><p className="mt-1 text-xs text-muted">Até 30 registros recentes</p></div>
           <div className="card"><div className="flex items-center gap-2 text-sm text-muted"><Wallet size={18} className="text-primary" /> Comissões</div><p className="mt-3 text-3xl font-bold text-ink">{commissions.length}</p><p className="mt-1 text-xs text-muted">Até 30 registros recentes</p></div>
           <div className="card"><div className="flex items-center gap-2 text-sm text-muted"><Wallet size={18} className="text-primary" /> Valor das comissões listadas</div><p className="mt-3 text-2xl font-bold text-ink">{currency(total)}</p><p className="mt-1 text-xs text-muted">Soma dos registros exibidos, não saldo a receber</p></div>
-        </div>
         </div>}
         <div className={tab === "painel" ? "grid items-start gap-5 lg:grid-cols-2" : "grid grid-cols-1"}>
           {(tab === "painel" || tab === "agendamentos") && <section id="agendamentos" className="card">
