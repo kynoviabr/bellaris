@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function ProfessionalHome({ searchParams }: { searchParams: Promise<{ aba?: string }> }) {
   const requestedTab = (await searchParams).aba;
-  const tab = requestedTab === "agendamentos" || requestedTab === "comissoes" ? requestedTab : "painel";
+  const tab = requestedTab === "agenda" || requestedTab === "agendamentos" || requestedTab === "comissoes" ? requestedTab : "painel";
   const supabase = await createClient();
   if (!supabase) redirect("/login");
   const { data: { user } } = await supabase.auth.getUser();
@@ -19,12 +19,14 @@ export default async function ProfessionalHome({ searchParams }: { searchParams:
   const { data: professional } = await supabase.from("professionals").select("id,name").eq("user_id", user.id).single();
   const name = professional?.name || profile.full_name || "Profissional";
   const appointmentsResult = professional
-    ? await supabase.from("appointments").select("id,starts_at,status").eq("professional_id", professional.id).order("starts_at", { ascending: false }).limit(30)
+    ? await supabase.from("appointments").select("id,starts_at,ends_at,status").eq("professional_id", professional.id).order("starts_at", { ascending: false }).limit(30)
     : { data: [], error: null };
   const commissionsResult = professional
     ? await supabase.from("commissions").select("id,amount,status,created_at").eq("professional_id", professional.id).order("created_at", { ascending: false }).limit(30)
     : { data: [], error: null };
   const appointments = appointmentsResult.data ?? [];
+  const availabilityResult = professional ? await supabase.from("professional_availability").select("id,starts_at,ends_at,kind,notes").eq("professional_id",professional.id).eq("kind","block").order("starts_at",{ascending:true}).limit(30) : {data:[],error:null};
+  const blocks = availabilityResult.data ?? [];
   const commissions = commissionsResult.data ?? [];
   const total = commissions.reduce((sum, c) => sum + Number(c.amount || 0), 0);
   const currency = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
@@ -32,7 +34,7 @@ export default async function ProfessionalHome({ searchParams }: { searchParams:
   const dateOnly = (value: string) => new Date(value).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
 
   return (
-    <div className="min-h-screen bg-bg lg:pl-60"><ProfessionalNavigation name={name} section={tab === "painel" ? "dashboard" : tab === "agendamentos" ? "appointments" : "commissions"} />
+    <div className="min-h-screen bg-bg lg:pl-60"><ProfessionalNavigation name={name} section={tab === "painel" ? "dashboard" : tab === "agendamentos" || tab === "agenda" ? "appointments" : "commissions"} />
       <header className="border-b border-[#E8D9C7] bg-white">
         <div className="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
@@ -45,8 +47,8 @@ export default async function ProfessionalHome({ searchParams }: { searchParams:
       <main id="painel" className="mx-auto max-w-[1200px] space-y-6 px-4 py-7 sm:px-6 sm:py-10">
         <div>
           <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-primary"><ShieldCheck size={15} /> Acesso profissional</p>
-          <h1 className="text-2xl font-bold text-ink sm:text-3xl">{tab === "painel" ? `Olá, ${name}` : tab === "agendamentos" ? "Meus agendamentos" : "Minhas comissões"}</h1>
-          <p className="mt-2 text-sm text-muted">{tab === "painel" ? "Acompanhe seus agendamentos e suas comissões em um só lugar." : tab === "agendamentos" ? "Consulte seus atendimentos registrados." : "Consulte as comissões vinculadas aos seus atendimentos."}</p>
+          <h1 className="text-2xl font-bold text-ink sm:text-3xl">{tab === "painel" ? `Olá, ${name}` : tab === "agendamentos" || tab === "agenda" ? "Minha agenda" : "Minhas comissões"}</h1>
+          <p className="mt-2 text-sm text-muted">{tab === "painel" ? "Acompanhe seus agendamentos e suas comissões em um só lugar." : tab === "agendamentos" || tab === "agenda" ? "Consulte seus horários e bloqueios de agenda." : "Consulte as comissões vinculadas aos seus atendimentos."}</p>
         </div>
         {!professional && <div className="card text-sm text-ink">Seu usuário ainda não está vinculado a uma profissional. Solicite o vínculo à administração do salão.</div>}
         {tab === "painel" && <div className="grid gap-4 sm:grid-cols-3">
@@ -55,10 +57,11 @@ export default async function ProfessionalHome({ searchParams }: { searchParams:
           <div className="card"><div className="flex items-center gap-2 text-sm text-muted"><Wallet size={18} className="text-primary" /> Valor das comissões listadas</div><p className="mt-3 text-2xl font-bold text-ink">{currency(total)}</p><p className="mt-1 text-xs text-muted">Soma dos registros exibidos, não saldo a receber</p></div>
         </div>}
         <div className={tab === "painel" ? "grid items-start gap-5 lg:grid-cols-2" : "grid grid-cols-1"}>
-          {(tab === "painel" || tab === "agendamentos") && <section id="agendamentos" className="card">
+          {(tab === "painel" || tab === "agendamentos" || tab === "agenda") && <section id="agendamentos" className="card">
             <h2 className="flex items-center gap-2 text-lg font-bold text-ink"><CalendarDays size={19} className="text-primary" /> Meus agendamentos</h2>
-            {appointmentsResult.error ? <p className="mt-5 text-sm text-danger">Não foi possível consultar seus agendamentos.</p> : appointments.length === 0 ? <div className="mt-5 rounded-lg bg-[#FAF6F0] px-5 py-10 text-center"><Clock3 className="mx-auto mb-3 text-primary" size={28} /><p className="font-medium">Nenhum agendamento encontrado</p><p className="mt-1 text-sm text-muted">Seus próximos atendimentos aparecerão aqui quando forem cadastrados.</p></div> : <ul className="mt-5 divide-y divide-[#E8D9C7]">{appointments.map(a => <li key={a.id} className="flex justify-between gap-4 py-3 text-sm"><span>{dateTime(a.starts_at)}</span><span className="font-medium text-primary">{a.status}</span></li>)}</ul>}
+            {appointmentsResult.error ? <p className="mt-5 text-sm text-danger">Não foi possível consultar seus agendamentos.</p> : appointments.length === 0 ? <div className="mt-5 rounded-lg bg-[#FAF6F0] px-5 py-10 text-center"><Clock3 className="mx-auto mb-3 text-primary" size={28} /><p className="font-medium">Nenhum agendamento encontrado</p><p className="mt-1 text-sm text-muted">Seus próximos atendimentos aparecerão aqui quando forem cadastrados.</p></div> : <ul className="mt-5 divide-y divide-[#E8D9C7]">{appointments.map(a => <li key={a.id} className="flex justify-between gap-4 py-3 text-sm"><span>{dateTime(a.starts_at)}{a.ends_at ? ` — ${new Date(a.ends_at).toLocaleTimeString("pt-BR",{timeZone:"America/Sao_Paulo",hour:"2-digit",minute:"2-digit"})}` : ""}</span><span className="font-medium text-primary">{a.status}</span></li>)}</ul>}
           </section>}
+          {tab === "agenda" && <section className="card"><h2 className="flex items-center gap-2 text-lg font-bold text-ink"><Clock3 size={19} className="text-primary" /> Meus bloqueios</h2>{availabilityResult.error ? <p className="mt-4 text-sm text-danger">Não foi possível carregar os bloqueios.</p> : blocks.length === 0 ? <p className="mt-4 text-sm text-muted">Nenhum bloqueio de agenda cadastrado.</p> : <ul className="mt-4 divide-y divide-[#E8D9C7]">{blocks.map(b => <li key={b.id} className="flex justify-between gap-4 py-3 text-sm"><span>{dateTime(b.starts_at)} — {dateTime(b.ends_at)}</span><span className="text-muted">{b.notes || "Indisponível"}</span></li>)}</ul>}</section>}
           {(tab === "painel" || tab === "comissoes") && <section id="comissoes" className="card">
             <h2 className="flex items-center gap-2 text-lg font-bold text-ink"><Wallet size={19} className="text-primary" /> Minhas comissões</h2>
             {commissionsResult.error ? <p className="mt-5 text-sm text-danger">Não foi possível consultar suas comissões.</p> : commissions.length === 0 ? <div className="mt-5 rounded-lg bg-[#FAF6F0] px-5 py-10 text-center"><Wallet className="mx-auto mb-3 text-primary" size={28} /><p className="font-medium">Nenhuma comissão encontrada</p><p className="mt-1 text-sm text-muted">Suas comissões serão exibidas aqui após o registro dos atendimentos.</p></div> : <ul className="mt-5 divide-y divide-[#E8D9C7]">{commissions.map(c => <li key={c.id} className="flex justify-between gap-4 py-3 text-sm"><span>{dateOnly(c.created_at)} · {c.status}</span><strong>{currency(Number(c.amount))}</strong></li>)}</ul>}
