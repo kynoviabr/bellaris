@@ -21,6 +21,10 @@ export async function getAppointments(): Promise<Appointment[]> {
   const supabase = await createClient();
   if (!supabase) return [];
 
+  // Profissional não recebe telefone nem observações dos clientes (ocultado no servidor, não só na tela).
+  const { data: viewer } = await supabase.from("profiles").select("role").maybeSingle();
+  const hideContact = viewer?.role === "professional";
+
   const { data, error } = await supabase
     .from("appointments")
     .select(`
@@ -98,8 +102,8 @@ export async function getAppointments(): Promise<Appointment[]> {
       end,
       client: row.client?.name || "Desconhecida",
       clientId: row.client_id,
-      phone: row.client?.phone || "",
-      clientNotes: row.client?.notes || "",
+      phone: hideContact ? "" : row.client?.phone || "",
+      clientNotes: hideContact ? "" : row.client?.notes || "",
       professional: row.professional?.name || "Desconhecida",
       service: serviceName,
       status: (statusMap[row.status] || "Pendente") as AppointmentStatus,
