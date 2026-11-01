@@ -1,4 +1,4 @@
-// Marca do Bellaris: espelho de mão, objeto comum a salões de cabelo, unha e estética.
+// Marca do Bellaris: pétala abstrata com a letra B no vazado. Serve a qualquer tipo de salão de beleza.
 // Cores fixas para ficar legível sobre a barra lateral escura.
 export function BellarisMark({ size = 32, className }: { size?: number; className?: string }) {
   return (
@@ -10,16 +10,18 @@ export function BellarisMark({ size = 32, className }: { size?: number; classNam
       aria-label="Bellaris"
       className={className}
     >
-      <ellipse cx="80" cy="60" rx="46" ry="54" fill="#E9CFDD" />
-      <ellipse cx="80" cy="60" rx="34" ry="42" fill="#33252C" />
       <path
-        d="M58 42 Q66 30 80 28"
+        d="M80 14 C118 52 128 100 80 146 C32 100 42 52 80 14 Z"
+        fill="#E9CFDD"
+      />
+      <path
+        d="M68 62 V108 M68 62 H84 C92 62 93 76 84 80 H68 M68 80 H86 C96 80 97 98 86 102 H68"
         fill="none"
-        stroke="#E9CFDD"
+        stroke="#33252C"
         strokeWidth={6}
         strokeLinecap="round"
+        strokeLinejoin="round"
       />
-      <rect x="71" y="112" width="18" height="38" rx="9" fill="#E9CFDD" />
     </svg>
   );
 }
