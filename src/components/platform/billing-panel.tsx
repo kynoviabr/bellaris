@@ -38,12 +38,7 @@ export function StatusBadge({ status }: { status: string }) {
   return <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${s.cls}`}>{s.label}</span>;
 }
 
-// Converte 'aaaa-mm-dd' em 'dd/mm/aaaa' sem passar por fuso.
-export function brDate(iso: string | null) {
-  if (!iso) return "—";
-  const [y, m, d] = iso.slice(0, 10).split("-");
-  return `${d}/${m}/${y}`;
-}
+import { brDate } from "@/lib/platform-format";
 
 export function SalonRowActions({ salon, plans }: { salon: SalonBilling; plans: PlanOption[] }) {
   const [open, setOpen] = useState<null | "pagamento" | "assinatura">(null);

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { SalonRowActions, StatusBadge, brDate, type PlanOption, type SalonBilling } from "@/components/platform/billing-panel";
+import { SalonRowActions, StatusBadge, type PlanOption, type SalonBilling } from "@/components/platform/billing-panel";
+import { brDate } from "@/lib/platform-format";
 export const dynamic = "force-dynamic";
 
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
