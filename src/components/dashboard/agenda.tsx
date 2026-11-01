@@ -1,3 +1,4 @@
+"use client";
 import { getCheckoutCorrectionPackages, correctCheckoutWithPackage } from "@/lib/actions/attendance";
 import React, { useState } from "react";
 import { registerAdvancePayment, getAppointments, createPartialAgendaBlock, removePartialAgendaBlock } from "@/lib/actions/appointments";
