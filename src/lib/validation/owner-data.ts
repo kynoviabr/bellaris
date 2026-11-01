@@ -1,6 +1,7 @@
 import { formatCepDisplay, isValidCep, isValidCpf, isValidUf, isValidWhatsapp, onlyDigits } from "./br.ts";
 
-export type OwnerData = {
+/** Dados pessoais e de endereço do responsável pelo salão (sem plano). */
+export type OwnerPersonal = {
   fullName: string;
   whatsapp: string; // somente dígitos
   cpf: string; // somente dígitos
@@ -11,16 +12,17 @@ export type OwnerData = {
   bairro: string | null;
   cidade: string;
   uf: string;
-  planCode: string;
 };
+
+export type OwnerData = OwnerPersonal & { planCode: string };
 
 export const OWNER_FIELD_NAMES = [
   "fullName", "whatsapp", "cpf", "cep", "logradouro", "numero",
   "complemento", "bairro", "cidade", "uf", "planCode",
 ] as const;
 
-/** Valida os dados do dono. Devolve o valor normalizado ou a primeira mensagem de erro. */
-export function validateOwnerData(raw: Record<string, string>): { error: string } | { value: OwnerData } {
+/** Valida os dados pessoais do responsável. Devolve o valor normalizado ou a primeira mensagem de erro. */
+export function validateOwnerPersonal(raw: Record<string, string>): { error: string } | { value: OwnerPersonal } {
   const get = (key: string) => (raw[key] ?? "").trim();
 
   const fullName = get("fullName");
@@ -47,9 +49,6 @@ export function validateOwnerData(raw: Record<string, string>): { error: string 
   const uf = get("uf").toUpperCase();
   if (!isValidUf(uf)) return { error: "Informe uma UF válida." };
 
-  const planCode = get("planCode");
-  if (!planCode) return { error: "Escolha um plano." };
-
   return {
     value: {
       fullName,
@@ -62,7 +61,17 @@ export function validateOwnerData(raw: Record<string, string>): { error: string 
       bairro: get("bairro") || null,
       cidade,
       uf,
-      planCode,
     },
   };
+}
+
+/** Valida os dados do dono no cadastro (pessoais + plano escolhido). */
+export function validateOwnerData(raw: Record<string, string>): { error: string } | { value: OwnerData } {
+  const personal = validateOwnerPersonal(raw);
+  if ("error" in personal) return personal;
+
+  const planCode = (raw.planCode ?? "").trim();
+  if (!planCode) return { error: "Escolha um plano." };
+
+  return { value: { ...personal.value, planCode } };
 }
