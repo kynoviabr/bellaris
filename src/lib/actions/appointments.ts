@@ -33,6 +33,7 @@ export async function getAppointments(): Promise<Appointment[]> {
       ends_at,
       status,
       source,
+      service_completed_at,
       client_id,
       client:clients(name, phone, notes),
       professional:professionals(name),
@@ -110,6 +111,7 @@ export async function getAppointments(): Promise<Appointment[]> {
       price,
       paid,
       source: row.source === "online" ? "Online" : "Interno",
+      serviceCompletedAt: row.service_completed_at || null,
       items: row.items?.map((i: any) => ({ id: i.id, name: i.service?.name || i.description || "Serviço", price: Number(i.unit_price) })) || []
     };
   });
@@ -263,6 +265,28 @@ export async function updateAppointmentStatus(id: string, status: string) {
   if (error) {
     console.error(error);
     return { success: false, error: error.message };
+  }
+  revalidatePath("/");
+  return { success: true };
+}
+
+// A profissional informa que terminou o serviço. Não altera status, pagamento nem comissão:
+// o recebimento e a comissão continuam sendo gerados pela recepção no checkout.
+export async function markServiceCompleted(id: string) {
+  const supabase = await createClient();
+  if (!supabase) return { success: false, error: "Sessão indisponível." };
+  const { data, error } = await supabase
+    .from("appointments")
+    .update({ service_completed_at: new Date().toISOString() })
+    .eq("id", id)
+    .in("status", ["in_progress", "arrived"])
+    .select("id");
+  if (error) {
+    console.error(error);
+    return { success: false, error: error.message };
+  }
+  if (!data || data.length === 0) {
+    return { success: false, error: "Este atendimento não está em andamento." };
   }
   revalidatePath("/");
   return { success: true };
