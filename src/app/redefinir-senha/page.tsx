@@ -28,22 +28,41 @@ export default function ResetPasswordPage() {
       }
     });
     async function verify() {
+      // Supabase SSR may consume the recovery code before this component mounts.
+      // Always inspect the current session before attempting a second exchange.
+      const initial = await client!.auth.getSession();
+      if (!active) return;
+      if (!initial.error && initial.data.session && isRecovery) {
+        setValid(true);
+        setMessage("");
+        return;
+      }
       if (!isRecovery) {
-        if (active) setMessage("Abra esta página pelo link de recuperação enviado ao seu e-mail.");
+        setMessage("Abra esta página pelo link de recuperação enviado ao seu e-mail.");
         return;
       }
       const code = query.get("code");
       if (code) {
-        const { error } = await client!.auth.exchangeCodeForSession(code);
-        if (error) { if (active) setMessage("O link expirou ou é inválido. Solicite outro."); return; }
+        const { error: exchangeError } = await client!.auth.exchangeCodeForSession(code);
+        const recovered = await client!.auth.getSession();
+        if (!active) return;
+        if (!recovered.error && recovered.data.session) {
+          setValid(true);
+          setMessage("");
+          return;
+        }
+        if (exchangeError) {
+          setMessage("Não foi possível validar o código de recuperação. Ele pode já ter sido utilizado ou estar inválido.");
+          return;
+        }
       }
-      const { data, error } = await client!.auth.getSession();
+      const result = await client!.auth.getSession();
       if (!active) return;
-      if (!error && data.session) {
+      if (!result.error && result.data.session) {
         setValid(true);
         setMessage("");
       } else {
-        setMessage("Não foi possível validar o link. Solicite outro e-mail de recuperação.");
+        setMessage("Não foi possível validar a sessão. Solicite outro link de recuperação.");
       }
     }
     void verify();
