@@ -1,6 +1,6 @@
-# Documentação Técnica e Regras de Negócio — Gabi Ludwig Nails
+# Bellaris — Documentação Técnica e Regras de Negócio
 
-Este documento descreve detalhadamente a arquitetura, regras de negócio e especificações do sistema **Gabi Ludwig Nails**.
+Este documento descreve detalhadamente a arquitetura, regras de negócio e especificações do sistema **Bellaris**.
 
 ---
 

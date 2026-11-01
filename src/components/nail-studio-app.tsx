@@ -6,13 +6,18 @@ import { View, EntityKind, EntityModalState, Badge, statusTone, Metric, RowActio
 import { formatAgeInYearsAndMonths } from "@/lib/utils/age";
 import { Professionals } from "./dashboard/professionals";
 import { Attendance } from "./dashboard/attendance";
+import { BellarisMark, BellarisWordmark } from "./brand/bellaris-mark";
 import { Finance } from "./dashboard/finance";
 import { Inventory } from "./dashboard/inventory";
 import { Automations } from "./dashboard/automations";
 import { Reports } from "./dashboard/reports";
 import { Clients } from "./dashboard/clients";
 import { Services } from "./dashboard/services";
+import { PackageCatalogContent } from "./dashboard/package-catalog";
 import { Agenda } from "./dashboard/agenda";
+import { ProfessionalClients } from "./dashboard/professional-clients";
+import { canOpenView, type PermissionRow, type StudioRole } from "@/lib/authorization/permissions";
+import { RolePermissionsManager } from "./dashboard/role-permissions-manager";
 import { updateAppointmentRecord, addServiceToAppointment, removeServiceFromAppointment } from "@/lib/actions/appointments";
 
 import { useState, useEffect, useRef } from "react";
@@ -29,7 +34,7 @@ import { createClientRecord, updateClientRecord, archiveClientRecord, type Clien
 import { createProfessionalRecord, updateProfessionalRecord, archiveProfessionalRecord, type ProfessionalItem } from "@/lib/actions/professionals";
 import { createSpecialtyRecord } from "@/lib/actions/specialties";
 import { createServiceRecord, type ServiceItem } from "@/lib/actions/services";
-import { createAppointmentRecord, cancelAppointmentRecord, updateAppointmentStatus, getAppointments, toggleBlockDayRecord } from "@/lib/actions/appointments";
+import { createAppointmentRecord, cancelAppointmentRecord, updateAppointmentStatus, getAppointments, toggleBlockDayRecord, markServiceCompleted } from "@/lib/actions/appointments";
 import { finishAppointment } from "@/lib/actions/attendance";
 import { createExpense } from "@/lib/actions/finance";
 import { getProfessionalCommissions, payCommissions } from "@/lib/actions/commissions";
@@ -44,16 +49,17 @@ const nav: { id: View; label: string; icon: typeof Home }[] = [
   { id: "dashboard", label: "Painel", icon: Home }, { id: "agenda", label: "Agenda", icon: CalendarDays },
   { id: "clients", label: "Clientes", icon: Users }, { id: "services", label: "Serviços", icon: Sparkles },
   { id: "professionals", label: "Profissionais", icon: UserRound }, { id: "attendance", label: "Atendimentos", icon: ClipboardCheck },
-  { id: "finance", label: "Financeiro", icon: Wallet }, { id: "inventory", label: "Estoque", icon: Package },
+  { id: "finance", label: "Financeiro", icon: Wallet }, { id: "commissions", label: "Comissões", icon: CircleDollarSign }, { id: "packages", label: "Catálogo de Pacotes", icon: Package }, { id: "inventory", label: "Estoque", icon: Package },
   { id: "automations", label: "Automações", icon: WandSparkles }, { id: "reports", label: "Relatórios", icon: BarChart3 }, { id: "online", label: "Agendamento online", icon: ShoppingBag }
 ];
 
 const titles: Record<View, [string, string]> = {
+  commissions: ["Minhas comissões", "Acompanhe suas comissões."],
   settings: ["Configurações", "Gerencie os dados e o acesso do seu salão."],
-  dashboard: ["Bom dia, Gabi", "Acompanhe o ritmo do ateliê hoje."], agenda: ["Agenda", "Domingo, 14 de setembro de 2026"],
+  dashboard: ["Painel", "Acompanhe o ritmo do salão hoje."], agenda: ["Agenda", "Gerencie seus agendamentos"],
   clients: ["Clientes", "Relacionamento, histórico e recorrência."], services: ["Serviços", "Catálogo, preços e consumo de insumos."],
   professionals: ["Profissionais", "Equipe, jornadas e indicadores."], attendance: ["Atendimentos", "Conduza cada atendimento até o recebimento."],
-  finance: ["Financeiro", "Faturamento, recebimentos, despesas e comissões."], inventory: ["Estoque", "Saldo por movimentação e previsão de consumo."],
+  finance: ["Financeiro", "Faturamento, recebimentos, despesas e comissões."], packages: ["Catálogo de Pacotes e Combos", "Cadastre e gerencie os pacotes de serviços do salão."], inventory: ["Estoque", "Saldo por movimentação e previsão de consumo."],
   automations: ["Automações", "Comunicações programadas e receita recuperada."], reports: ["Relatórios", "Desempenho, clientes e consumo."], online: ["Agendamento online", "Prévia do fluxo público para suas clientes."]
 };
 
@@ -951,11 +957,18 @@ function ProfessionalModal({ mode, professional, specialtiesList = [], close, sa
 function Header({ view, onMenu, tenant }: { view: View; onMenu: () => void; tenant: any }) {
   const configured = isSupabaseConfigured();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  return <header className="sticky top-0 z-30 flex min-h-[65px] items-center justify-between border-b border-[#DBE3EC] bg-white/95 px-4 backdrop-blur sm:px-7"><div className="flex min-w-0 items-center gap-3"><button onClick={onMenu} className="rounded-md p-2 text-muted hover:bg-bg lg:hidden" aria-label="Abrir menu"><Menu size={20} /></button><div className="min-w-0"><h1 className="truncate text-base font-semibold text-ink sm:text-lg">{view === "dashboard" ? `Bom dia, ${tenant.profileName.split(" ")[0]}` : titles[view][0]}</h1><p className="hidden text-xs text-muted sm:block">{titles[view][1]}</p></div></div><div className="flex items-center gap-2.5"><div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-[#DBE3EC] bg-[#F7F9FC]"><Database size={13} className={configured ? "text-emerald-600" : "text-amber-600"} /><span className="text-[11px] text-muted">{configured ? "Supabase Conectado" : "Modo Demonstração"}</span></div><button className="relative rounded-md border border-[#DBE3EC] p-2.5 text-muted hover:text-primary" aria-label="Notificações"><Bell size={17} /><span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-danger" /></button><div className="relative hidden border-l border-[#DBE3EC] pl-3 sm:block"><button type="button" onClick={() => setProfileMenuOpen(open => !open)} className="flex items-center gap-2 rounded-md px-1 py-1 text-left hover:bg-bg" aria-expanded={profileMenuOpen} aria-haspopup="menu"><div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-white">{tenant.profileName.substring(0,2).toUpperCase()}</div><div><p className="text-xs font-medium line-clamp-1">{tenant.profileName}</p><p className="text-[10px] text-muted">Proprietária</p></div><ChevronDown size={14} className="text-muted" /></button>{profileMenuOpen && <div role="menu" className="absolute right-0 top-full z-50 mt-2 w-44 rounded-md border border-[#DBE3EC] bg-white p-1 shadow-lg"><button type="button" role="menuitem" onClick={() => logout()} className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50"><Trash2 size={15} />Sair do sistema</button></div>}</div></div></header>;
+  return <header className="sticky top-0 z-30 flex min-h-[65px] items-center justify-between border-b border-[#DBE3EC] bg-white/95 px-4 backdrop-blur sm:px-7"><div className="flex min-w-0 items-center gap-3"><button onClick={onMenu} className="rounded-md p-2 text-muted hover:bg-bg lg:hidden" aria-label="Abrir menu"><Menu size={20} /></button><div className="min-w-0"><h1 className="truncate text-base font-semibold text-ink sm:text-lg">{view === "dashboard" ? `Bom dia, ${tenant.profileName.split(" ")[0]}` : titles[view][0]}</h1><p className="hidden text-xs text-muted sm:block">{titles[view][1]}</p></div></div><div className="flex items-center gap-2.5"><div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-[#DBE3EC] bg-[#F7F9FC]"><Database size={13} className={configured ? "text-emerald-600" : "text-amber-600"} /><span className="text-[11px] text-muted">{configured ? "Supabase Conectado" : "Modo Demonstração"}</span></div><div className="relative hidden border-l border-[#DBE3EC] pl-3 sm:block"><button type="button" onClick={() => setProfileMenuOpen(open => !open)} className="flex items-center gap-2 rounded-md px-1 py-1 text-left hover:bg-bg" aria-expanded={profileMenuOpen} aria-haspopup="menu"><div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-white">{tenant.profileName.substring(0,2).toUpperCase()}</div><div><p className="text-xs font-medium line-clamp-1">{tenant.profileName}</p><p className="text-[10px] text-muted">{tenant.email?.includes("profissional") ? "Profissional" : "Proprietária"}</p></div><ChevronDown size={14} className="text-muted" /></button>{profileMenuOpen && <div role="menu" className="absolute right-0 top-full z-50 mt-2 w-44 rounded-md border border-[#DBE3EC] bg-white p-1 shadow-lg"><button type="button" role="menuitem" onClick={() => logout()} className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50"><Trash2 size={15} />Sair do sistema</button></div>}</div></div></header>;
 }
 
-function Sidebar({ view, setView, open, close, tenant }: { view: View; setView: (v: View) => void; open: boolean; close: () => void; tenant: any }) {
-  return <>{open && <button onClick={close} aria-label="Fechar menu" className="fixed inset-0 z-40 bg-navy-dark/40 lg:hidden" />}<aside className={`fixed inset-y-0 left-0 z-50 flex w-[min(250px,calc(100vw-36px))] flex-col bg-navy text-white transition-transform lg:w-60 lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}><div className="flex h-[65px] items-center justify-between border-b border-white/10 px-5"><button onClick={() => setView("dashboard")} className="flex items-center gap-3 text-left"><div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary"><Sparkles size={16} /></div><div><span className="block text-sm font-semibold line-clamp-1">{tenant.profileName}</span><span className="block text-[10px] text-white/55 line-clamp-1">{tenant.orgName}</span></div></button><button onClick={close} className="text-white/70 lg:hidden"><X size={19} /></button></div><nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4"><p className="px-3 pb-2 text-[10px] font-medium uppercase tracking-[.12em] text-white/45">Operação</p>{nav.slice(0, 6).map(({ id, label, icon: Icon }) => <button key={id} onClick={() => { setView(id); close(); }} className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-[13.5px] transition ${view === id ? "bg-primary text-white" : "text-white/75 hover:bg-white/10 hover:text-white"}`}><Icon size={17} strokeWidth={1.5} />{label}</button>)}<p className="px-3 pb-2 pt-5 text-[10px] font-medium uppercase tracking-[.12em] text-white/45">Gestão</p>{nav.slice(6).map(({ id, label, icon: Icon }) => <button key={id} onClick={() => { setView(id); close(); }} className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-[13.5px] transition ${view === id ? "bg-primary text-white" : "text-white/75 hover:bg-white/10 hover:text-white"}`}><Icon size={17} strokeWidth={1.5} />{label}</button>)}</nav><div className="border-t border-white/10 p-3"><button onClick={() => setView("settings")} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-xs text-white/65 hover:bg-white/10"><Settings size={16} />Configurações</button><button onClick={() => logout()} className="mt-1 flex w-full items-center gap-3 rounded-md px-3 py-2 text-xs text-white/65 hover:bg-white/10 hover:text-rose-400 transition-colors"><Trash2 size={16} />Sair do sistema</button></div></aside></>;
+// Ordem dos status na tela de atendimentos da profissional: chegou, em atendimento, concluído.
+function professionalStatusOrder(status: string) {
+  return status === "Cliente chegou" ? 0 : status === "Em atendimento" ? 1 : 2;
+}
+
+function Sidebar({ view, setView, open, close, tenant, professionalMode = false, role = "owner", permissionRows }: { view: View; setView: (v: View) => void; open: boolean; close: () => void; tenant: any; professionalMode?: boolean; role?: StudioRole; permissionRows?: PermissionRow[] }) {
+  // Para a profissional, "Financeiro" já mostra as próprias comissões: o item "Comissões" não aparece duplicado.
+  const visibleNav = nav.filter(item => canOpenView(role, item.id, permissionRows) && !(role === "professional" && item.id === "commissions"));
+  return <>{open && <button onClick={close} aria-label="Fechar menu" className="fixed inset-0 z-40 bg-navy-dark/40 lg:hidden" />}<aside className={`fixed inset-y-0 left-0 z-50 flex w-[min(250px,calc(100vw-36px))] flex-col bg-navy text-white transition-transform lg:w-60 lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}><div className="flex h-[65px] items-center justify-between border-b border-white/10 px-5"><button onClick={() => setView("dashboard")} className="flex items-center gap-3 text-left"><BellarisMark size={34} className="shrink-0" /><div className="min-w-0"><span className="block text-base font-semibold text-white line-clamp-1"><BellarisWordmark /></span><span className="block text-[11px] text-white/60 line-clamp-1">{tenant.orgName}</span></div></button><button onClick={close} className="text-white/70 lg:hidden"><X size={19} /></button></div><nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4"><p className="px-3 pb-2 text-[10px] font-medium uppercase tracking-[.12em] text-white/45">Operação</p>{visibleNav.slice(0, 6).map(({ id, label, icon: Icon }) => <button key={id} onClick={() => { setView(id); close(); }} className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-[13.5px] transition ${view === id ? "bg-primary text-white" : "text-white/75 hover:bg-white/10 hover:text-white"}`}><Icon size={17} strokeWidth={1.5} />{label}</button>)}<p className="px-3 pb-2 pt-5 text-[10px] font-medium uppercase tracking-[.12em] text-white/45">Gestão</p>{visibleNav.slice(6).map(({ id, label, icon: Icon }) => <button key={id} onClick={() => { setView(id); close(); }} className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-[13.5px] transition ${view === id ? "bg-primary text-white" : "text-white/75 hover:bg-white/10 hover:text-white"}`}><Icon size={17} strokeWidth={1.5} />{label}</button>)}</nav><div className="border-t border-white/10 p-3">{<button onClick={() => setView("settings")} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-xs text-white/65 hover:bg-white/10"><Settings size={16} />Configurações</button>}<button onClick={() => logout()} className="mt-1 flex w-full items-center gap-3 rounded-md px-3 py-2 text-xs text-white/65 hover:bg-white/10 hover:text-rose-400 transition-colors"><Trash2 size={16} />Sair do sistema</button></div></aside></>;
 }
 
 function Dashboard({ go, stats, onAttendance, appointments = [], clients = [], tenant }: { go: (v: View) => void, stats?: any, onAttendance?: (a: Appointment) => void, appointments?: Appointment[], clients?: any[], tenant: any }) {
@@ -1188,6 +1201,7 @@ function SettingsView({ tenant, updateToast }: { tenant: any; updateToast: (t: s
         <div className="flex justify-end"><button className="btn-primary" disabled={savingPix} onClick={async()=>{setSavingPix(true);setPixError("");try{const {updateOrganizationPixKey}=await import("@/lib/actions/settings");const result=await updateOrganizationPixKey(pixKey);if(result.error)setPixError(result.error);else updateToast("Chave Pix salva com sucesso.");}catch{setPixError("Não foi possível salvar a chave Pix.");}finally{setSavingPix(false);}}}>{savingPix?"Salvando...":"Salvar chave Pix"}</button></div>
       </div>
 
+      <RolePermissionsManager />
       <div className="bg-white rounded-lg border shadow-sm p-6">
         <div className="flex items-center gap-3 mb-6 border-b pb-4">
           <div className="bg-primary/10 text-primary p-2 rounded-lg"><Settings size={20} /></div>
@@ -1252,10 +1266,10 @@ function SettingsView({ tenant, updateToast }: { tenant: any; updateToast: (t: s
   );
 }
 
-export function NailStudioApp({ tenant = { profileName: "Gabi", orgName: "Gabi Ludwig Nail Studio" }, initialClients = demoClients, initialProfessionals = demoProfessionals, initialSpecialties = [], initialAppointments = [], initialInventory = [], initialServices = demoServices as any[], initialFinancials = [], initialStats = { revenue: 0, expenses: 0, commissions: 0, balance: 0 }, initialReports = {} }: { tenant?: { profileName: string; orgName: string; email?: string; }; initialClients?: ClientItem[]; initialProfessionals?: ProfessionalItem[]; initialSpecialties?: {id: string, name: string}[]; initialAppointments?: Appointment[]; initialServices?: any[]; initialInventory?: any[]; initialFinancials?: any[]; initialStats?: any; initialReports?: any }) {
+export function NailStudioApp({ tenant = { profileName: "Usuária", orgName: "Salão" }, initialClients = demoClients, initialProfessionals = demoProfessionals, initialSpecialties = [], initialAppointments = [], initialInventory = [], initialServices = demoServices as any[], initialFinancials = [], initialStats = { revenue: 0, expenses: 0, commissions: 0, balance: 0 }, initialReports = {}, initialCommissions = [], professionalMode = false, role = professionalMode ? "professional" : "owner", permissionRows }: { initialCommissions?: {id:string;amount:number;status:string;date:string;service:string}[]; professionalMode?: boolean; role?: StudioRole; permissionRows?: PermissionRow[]; tenant?: { profileName: string; orgName: string; email?: string; orgSlug?: string; }; initialClients?: ClientItem[]; initialProfessionals?: ProfessionalItem[]; initialSpecialties?: {id: string, name: string}[]; initialAppointments?: Appointment[]; initialServices?: any[]; initialInventory?: any[]; initialFinancials?: any[]; initialStats?: any; initialReports?: any }) {
+  const [view, setView] = useState<View>(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("view") === "packages" ? "packages" : canOpenView(role, "dashboard", permissionRows) ? "dashboard" : "agenda"); const [menu, setMenu] = useState(false); const [booking, setBooking] = useState(false); const [bookingDate, setBookingDate] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" })); const [finish, setFinish] = useState(false); const [activeAppointment, setActiveAppointment] = useState<Appointment | null>(null); const [toast, setToast] = useState(""); const [rows, setRows] = useState(initialAppointments);
   const [cancelPending, setCancelPending] = useState<{ id: string; client: string; date: string; time: string } | null>(null);
   const [cancelBusy, setCancelBusy] = useState(false);
-  const [view, setView] = useState<View>("dashboard"); const [menu, setMenu] = useState(false); const [booking, setBooking] = useState(false); const [bookingDate, setBookingDate] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" })); const [finish, setFinish] = useState(false); const [activeAppointment, setActiveAppointment] = useState<Appointment | null>(null); const [toast, setToast] = useState(""); const [rows, setRows] = useState(initialAppointments);
   const [systemAlertMessage, setSystemAlertMessage] = useState<string | null>(null);
 
   // Catch native alert calls and display styled SystemAlertModal instead
@@ -1271,7 +1285,7 @@ export function NailStudioApp({ tenant = { profileName: "Gabi", orgName: "Gabi L
 
   // Auto-refresh appointments when looking at the agenda
   useEffect(() => {
-    if (view === "agenda") {
+    if (view === "agenda" && !professionalMode) {
       const interval = setInterval(() => {
         getAppointments().then(fresh => setRows(fresh));
       }, 5000);
@@ -1282,7 +1296,7 @@ export function NailStudioApp({ tenant = { profileName: "Gabi", orgName: "Gabi L
   // Auto-promoção: ao abrir a tela de clientes, promove automaticamente
   // quem tem >= 3 visitas e ainda não está na whitelist
   useEffect(() => {
-    if (view === "clients") {
+    if (view === "clients" && !professionalMode) {
       runAutoPromoteWhitelist(3).then(res => {
         if (res.success && res.promoted > 0) {
           // Recarregar a lista para refletir as promoções
@@ -1324,13 +1338,33 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
         const fresh = await getClients();
         setClientRows(fresh);
       } else {
-        alert("Erro ao salvar cliente: " + ("error" in res ? res.error : "Erro desconhecido"));
+        const message: string = ("error" in res && typeof res.error === "string" && res.error) ? res.error : "Não foi possível salvar o cadastro.";
+        if (message.startsWith("WhatsApp já cadastrado")) {
+          setSystemAlertMessage("Este número já está vinculado a outra cliente deste salão. Confira o telefone informado ou consulte o cadastro existente.");
+        } else {
+          setSystemAlertMessage(message);
+        }
         return;
       }
     } else if (entityModal.index !== undefined) {
       const item = clientRows[entityModal.index];
-      if (item.id) await updateClientRecord(item.id, data);
-      setClientRows(current => current.map((c, i) => i === entityModal.index ? { ...c, ...data } : c));
+      if (!item.id) {
+        alert("Não foi possível identificar a cliente para atualização.");
+        return;
+      }
+      const res = await updateClientRecord(item.id, data);
+      if (!res.success) {
+        const message: string = ("error" in res && typeof res.error === "string" && res.error) ? res.error : "Não foi possível salvar o cadastro.";
+        if (message.startsWith("WhatsApp já cadastrado")) {
+          setSystemAlertMessage("Este número já está vinculado a outra cliente deste salão. Confira o telefone informado ou consulte o cadastro existente.");
+        } else {
+          setSystemAlertMessage(message);
+        }
+        return;
+      }
+      // Recarregar dados persistidos, evitando exibir valores que o banco recusou.
+      const fresh = await getClients();
+      setClientRows(fresh);
     }
     setEntityModal(null); notify(creating ? "Cliente cadastrada." : "Cliente atualizada.");
   };
@@ -1434,9 +1468,13 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
     } finally { setCancelBusy(false); }
   };
   const content = (() => {
+    if (!canOpenView(role, view, permissionRows)) return <main className="page-content"><div className="card"><h2 className="text-lg font-semibold">Acesso restrito</h2><p className="mt-2 text-sm text-muted">Este módulo não está liberado para o seu perfil. Fale com a gestora do salão.</p></div></main>;
+    if (professionalMode && !["dashboard", "agenda", "services", "attendance", "clients", "packages", "reports", "automations", "commissions", "professionals", "finance", "inventory", "settings", "online"].includes(view)) return <main className="page-content"><div className="card"><h2 className="text-lg font-semibold">Acesso restrito</h2><p className="mt-2 text-sm text-muted">Este módulo está visível no menu, mas o acesso aos dados e às operações depende das permissões do seu perfil. Nenhum dado de outras profissionais ou salões será exibido.</p></div></main>;
+    if (view === "dashboard" && professionalMode) return <main className="page-content"><h2 className="mb-5 text-xl font-semibold">Meu painel</h2><div className="grid gap-4 sm:grid-cols-3"><div className="card"><p className="text-sm text-muted">Meus agendamentos</p><p className="mt-2 text-3xl font-bold">{rows.length}</p></div><div className="card"><p className="text-sm text-muted">Em atendimento</p><p className="mt-2 text-3xl font-bold">{rows.filter(a => a.status === "Em atendimento" || a.status === "Cliente chegou").length}</p></div><div className="card"><p className="text-sm text-muted">Concluídos</p><p className="mt-2 text-3xl font-bold">{rows.filter(a => a.status === "Concluído").length}</p></div></div><div className="mt-5 flex flex-wrap gap-3"><button className="btn-primary" onClick={() => setView("agenda")}>Abrir minha agenda</button><button className="btn-outline" onClick={() => setView("attendance")}>Meus atendimentos</button></div></main>;
     if (view === "dashboard") return <Dashboard stats={initialStats} go={setView} appointments={rows} clients={clientRows} tenant={tenant} onAttendance={(a) => { setActiveAppointment(a); setView("attendance"); }} />;
+    if (view === "settings" && professionalMode) return <main className="page-content"><h2 className="text-xl font-semibold">Configurações</h2><p className="mt-2 text-sm text-muted">Tela administrativa visível para avaliação. Alterações de gestão estão reservadas à proprietária.</p></main>;
     if (view === "settings") return <SettingsView tenant={tenant} updateToast={(t) => { setToast(t); setTimeout(() => setToast(""), 3000); }} />;
-    if (view === "agenda") return <Agenda rows={rows} onPaymentsUpdated={(fresh) => setRows(fresh)} onNew={(dateStr) => { setBookingDate(dateStr); setBooking(true); }} onAttendance={(a) => { setActiveAppointment(a); setView("attendance"); }} onAction={(mode, index) => openEntity("appointment", mode, index)} onToggleBlockDay={async (dateStr) => {
+    if (view === "agenda") return <Agenda readOnly={professionalMode} rows={rows} onPaymentsUpdated={(fresh) => setRows(fresh)} onNew={(dateStr) => { setBookingDate(dateStr); setBooking(true); }} onAttendance={(a) => { setActiveAppointment(a); setView("attendance"); }} onAction={(mode, index) => openEntity("appointment", mode, index)} onToggleBlockDay={async (dateStr) => {
       const res = await toggleBlockDayRecord(dateStr);
       if (res.success) {
         const fresh = await getAppointments();
@@ -1476,6 +1514,7 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
     }
   }}
   onCancel={(_index, id) => { const item = rows.find(row => row.id === id); if (item) setCancelPending({ id, client: item.client, date: bookingDate, time: item.time }); }} />;
+    if (view === "clients" && professionalMode) return <ProfessionalClients />;
     if (view === "clients") return <Clients
       data={clientRows}
       onNew={() => openEntity("client", "create")}
@@ -1531,8 +1570,10 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
         }
       }}
     />;
-    if (view === "services") return <Services data={serviceRows} inventory={productRows} onNew={() => openEntity("service", "create")} onAction={(mode, index) => openEntity("service", mode, index)} onDelete={index => confirmAction("Excluir este serviço?", async () => { const item = serviceRows[index]; if (item.id && !item.id.startsWith("demo-")) { await deleteServiceRecord(item.id); } setServiceRows(current => current.filter((_, i) => i !== index)); notify("Serviço removido."); })} onConsumables={(index) => openEntity("service_consumables" as any, "edit", index)} />;
+    if (view === "services") return <Services readOnly={professionalMode} data={serviceRows} inventory={productRows} onNew={() => openEntity("service", "create")} onAction={(mode, index) => openEntity("service", mode, index)} onDelete={index => confirmAction("Excluir este serviço?", async () => { const item = serviceRows[index]; if (item.id && !item.id.startsWith("demo-")) { await deleteServiceRecord(item.id); } setServiceRows(current => current.filter((_, i) => i !== index)); notify("Serviço removido."); })} onConsumables={(index) => openEntity("service_consumables" as any, "edit", index)} />;
+    if (view === "professionals" && professionalMode) return <main className="page-content"><h2 className="text-xl font-semibold">Profissionais</h2><p className="mt-2 text-sm text-muted">Cadastro e gestão da equipe exclusivos da gestora do salão.</p></main>;
     if (view === "professionals") return <Professionals data={professionalRows} onNew={() => openEntity("professional", "create")} onAction={(mode, index) => openEntity("professional", mode, index)} onDelete={index => confirmAction("Arquivar esta profissional? Agendamentos anteriores serão preservados.", async () => { const item = professionalRows[index]; if (item.id) await archiveProfessionalRecord(item.id); setProfessionalRows(current => current.filter((_, i) => i !== index)); notify("Profissional arquivada."); })} />;
+    if (view === "attendance" && professionalMode) return <main className="page-content"><h2 className="mb-4 text-xl font-semibold">Meus atendimentos</h2><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{rows.filter(a => a.status === "Em atendimento" || a.status === "Cliente chegou" || a.status === "Concluído").sort((x, y) => (x.dateStr || "").localeCompare(y.dateStr || "") || professionalStatusOrder(x.status) - professionalStatusOrder(y.status) || x.time.localeCompare(y.time)).map(a => <div key={a.id} className="card"><p className="font-medium">{a.client}</p><p className="mt-1 text-sm text-muted">{a.dateStr ? a.dateStr.split("-").reverse().join("/") : ""} · {a.time} às {a.end} · {a.status}</p><p className="mt-1 text-sm">{a.service}</p>{(a.status === "Em atendimento" || a.status === "Cliente chegou") && (a.serviceCompletedAt ? <p className="mt-3 text-sm text-muted">Serviço finalizado. A recepção fará o recebimento.</p> : <button type="button" className="btn-primary mt-3 justify-center" onClick={async () => { const res = await markServiceCompleted(a.id); if (!res.success) { notify(res.error || "Não foi possível marcar o serviço."); return; } setRows(current => current.map(r => r.id === a.id ? { ...r, serviceCompletedAt: new Date().toISOString() } : r)); notify("Serviço marcado como finalizado."); }}>Marcar serviço como finalizado</button>)}</div>)}{!rows.some(a => ["Em atendimento","Cliente chegou","Concluído"].includes(a.status)) && <p className="text-sm text-muted">Nenhum atendimento encontrado.</p>}</div></main>;
     if (view === "attendance") return (
       <Attendance
         appointment={activeAppointment}
@@ -1589,16 +1630,23 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
         }}
         onFinish={() => setFinish(true)}
       />
-    ); if (view === "finance") return <Finance stats={initialStats} data={financialRows} onNew={() => openEntity("financial", "create")} onAction={(mode, index) => openEntity("financial", mode, index)} onReverse={index => confirmAction("Estornar este movimento? Um lançamento de compensação será registrado.", () => { setFinancialRows(current => current.map((item, i) => i === index ? { ...item, status: "Estornado" } : item)); notify("Movimento estornado por compensação; registro original preservado."); })} />;
+    ); if (view === "commissions") return <main className="page-content"><h2 className="text-xl font-semibold">Minhas comissões</h2><div className="mt-4 grid gap-3">{initialCommissions.map(item => <div className="card" key={item.id}><p className="font-medium">{item.service}</p><p className="mt-1 text-sm text-muted">{item.date} · {item.status}</p><p className="mt-2 font-semibold">{money.format(item.amount)}</p></div>)}{initialCommissions.length === 0 && <p className="text-sm text-muted">Nenhuma comissão registrada.</p>}</div></main>;
+    if (view === "finance" && professionalMode) return <main className="page-content"><h2 className="text-xl font-semibold">Financeiro</h2><p className="mt-2 text-sm text-muted">Somente as suas comissões.</p><div className="mt-4 grid gap-3">{initialCommissions.map(item => <div className="card" key={item.id}><p className="font-medium">{item.service}</p><p className="mt-1 text-sm text-muted">{item.date} · {item.status}</p><p className="mt-2 font-semibold">{money.format(item.amount)}</p></div>)}{initialCommissions.length === 0 && <p className="text-sm text-muted">Nenhuma comissão registrada.</p>}</div></main>;
+    if (view === "finance") return <Finance stats={initialStats} data={financialRows} onNew={() => openEntity("financial", "create")} onAction={(mode, index) => openEntity("financial", mode, index)} onReverse={index => confirmAction("Estornar este movimento? Um lançamento de compensação será registrado.", () => { setFinancialRows(current => current.map((item, i) => i === index ? { ...item, status: "Estornado" } : item)); notify("Movimento estornado por compensação; registro original preservado."); })} />;
+    if (view === "packages" && professionalMode) return <main className="page-content"><h2 className="text-xl font-semibold">Pacotes das minhas clientes</h2><p className="mt-2 text-sm text-muted">Acompanhamento individual de pacotes em preparação. Dados financeiros de outras profissionais não são exibidos.</p></main>;
+    if (view === "packages") return <PackageCatalogContent />;
+    if (view === "inventory" && professionalMode) return <main className="page-content"><h2 className="text-xl font-semibold">Estoque</h2><p className="mt-2 text-sm text-muted">Gestão de estoque reservada à gestora até a definição de permissões.</p></main>;
     if (view === "inventory") return <Inventory data={productRows} onNew={() => openEntity("product", "create")} onAction={(mode, index) => openEntity("product", mode, index)} onDelete={(index) => { openEntity("product", "edit", index); notify("Atualize o campo \"Saldo atual\" para corrigir o estoque."); }} />;
+    if (view === "automations" && professionalMode) return <main className="page-content"><h2 className="text-xl font-semibold">Recuperação de clientes</h2><p className="mt-2 text-sm text-muted">O envio de mensagens será liberado após validação da lista de clientes vinculadas, consentimento e permissões de comunicação.</p></main>;
     if (view === "automations") return <Automations go={setView} tenant={tenant} />;
+    if (view === "reports" && professionalMode) return <main className="page-content"><h2 className="text-xl font-semibold">Meus relatórios</h2><div className="mt-4 grid gap-3 sm:grid-cols-2"><div className="card">Agendamentos: {rows.length}</div><div className="card">Concluídos: {rows.filter(a => a.status === "Concluído").length}</div></div></main>;
     if (view === "reports") return <Reports data={reportsData} />;
-    if (view === "online") return <OnlineBooking slug="gabi-ludwig" orgName={tenant?.orgName || "Gabi Ludwig Nails"} />;
+    if (view === "online") return tenant?.orgSlug ? <OnlineBooking slug={tenant.orgSlug} orgName={tenant?.orgName || "Salão"} /> : <main className="page-content"><div className="card"><p className="text-sm text-muted">O agendamento online deste salão ainda não está configurado.</p></div></main>;
   })();
 
   return (
     <div className="min-h-screen bg-bg">
-      <Sidebar view={view} setView={setView} open={menu} close={() => setMenu(false)} tenant={tenant} />
+      <Sidebar view={view} setView={setView} open={menu} close={() => setMenu(false)} tenant={tenant} professionalMode={professionalMode} role={role} permissionRows={permissionRows} />
       <div className="min-w-0 lg:ml-60">
         <Header view={view} onMenu={() => setMenu(true)} tenant={tenant} />
         {content}
@@ -1721,7 +1769,7 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
         </div>
       </div>}
       {toast && <Toast text={toast} />}
-      {systemAlertMessage && <SystemAlertModal message={systemAlertMessage} close={() => setSystemAlertMessage(null)} />}
+      {systemAlertMessage && <SystemAlertModal title={systemAlertMessage.startsWith("Este número já está vinculado") ? "WhatsApp já cadastrado" : "Aviso do Sistema"} message={systemAlertMessage} close={() => setSystemAlertMessage(null)} />}
     </div>
   );
 }

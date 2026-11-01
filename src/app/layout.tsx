@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Ateliê Gabi Ludwig | Gestão",
+  title: "Bellaris | Gestão",
   description: "Gestão completa para nail designer e salão de beleza"
 };
 

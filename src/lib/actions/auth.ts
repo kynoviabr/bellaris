@@ -94,10 +94,19 @@ export async function register(prevState: any, formData: FormData) {
     // Auto-confirm user email so login works immediately without requiring email confirmation link
     await adminClient.auth.admin.updateUserById(user.id, { email_confirm: true });
 
+    // Identificador público do salão (usado no link de agendamento). Se já existir, acrescenta um número.
+    const baseSlug = orgName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') || 'salao';
+    let slug = baseSlug;
+    for (let i = 2; i < 100; i++) {
+      const { data: taken } = await adminClient.from('organizations').select('id').eq('slug', slug).maybeSingle();
+      if (!taken) break;
+      slug = `${baseSlug}-${i}`;
+    }
+
     // Create new organization
     const { data: org } = await adminClient.from('organizations').insert([{
       name: orgName,
-      slug: orgName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, ''),
+      slug,
       timezone: 'America/Sao_Paulo'
     }]).select('id').single();
 

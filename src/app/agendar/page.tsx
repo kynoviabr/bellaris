@@ -1,5 +1,6 @@
-import { redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 
-export default function AgendarLegacyRedirect() {
-  redirect("/agendar/gabi-ludwig");
+// Cada salão tem seu próprio link: /agendar/<identificador-do-salão>.
+export default function AgendarRoot() {
+  notFound();
 }

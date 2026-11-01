@@ -373,7 +373,7 @@ export async function getClientDetails(clientId: string): Promise<ClientDetailsR
         timeZone: "America/Sao_Paulo"
       }),
       status: a.status === 'completed' ? 'Concluído' : a.status === 'cancelled' ? 'Cancelado' : 'Agendado',
-      professional: a.professional?.name || "Gabi",
+      professional: a.professional?.name || "Profissional",
       services: a.items?.map((i: any) => i.service?.name).join(" + ") || "Serviço",
       price,
       paid

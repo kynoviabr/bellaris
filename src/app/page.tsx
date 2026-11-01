@@ -10,12 +10,15 @@ import { getServices } from "@/lib/actions/services";
 import { getFinance } from "@/lib/actions/finance";
 import { getInventory } from "@/lib/actions/inventory";
 import { getReports } from "@/lib/actions/reports";
+import type { PermissionRow, StudioRole } from "@/lib/authorization/permissions";
 
 export default async function Page() {
   const supabase = await createClient();
-  
+
   // Protect route
-  let tenantContext = { profileName: "Usuário", orgName: "Studio", email: "" };
+  let tenantContext: { profileName: string; orgName: string; email: string; orgSlug: string } = { profileName: "Usuário", orgName: "Studio", email: "", orgSlug: "" };
+  let viewerRole: string = "owner";
+  let viewerOrg: string | null = null;
   if (supabase) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -24,12 +27,20 @@ export default async function Page() {
     tenantContext.email = user.email || "";
     
     // Fetch tenant profile and organization
-    const { data: profile } = await supabase.from('profiles').select('full_name, organization_id').eq('id', user.id).single();
+    const { data: profile } = await supabase.from('profiles').select('full_name, organization_id, role').eq('id', user.id).single();
+    if (profile?.role === "professional") redirect("/profissional");
+    if (profile?.role === "platform_master") redirect("/plataforma");
+    if (!profile || !["owner", "admin", "staff"].includes(profile.role)) redirect("/login");
+    viewerRole = profile.role;
+    viewerOrg = profile.organization_id ?? null;
     let organization = { name: "Nail Studio" };
     tenantContext.profileName = profile?.full_name || "Usuário";
     if (profile?.organization_id) {
-      const { data: org } = await supabase.from('organizations').select('name').eq('id', profile.organization_id).single();
-      if (org) tenantContext.orgName = org.name;
+      const { data: org } = await supabase.from('organizations').select('name, slug').eq('id', profile.organization_id).single();
+      if (org) {
+        tenantContext.orgName = org.name;
+        tenantContext.orgSlug = org.slug || "";
+      }
     }
     
     // Pass to component (we will add to props)
@@ -43,9 +54,15 @@ export default async function Page() {
   const specialties = await getSpecialties();
   const appointments = await getAppointments();
   const services = await getServices();
-  const financialData = await getFinance();
+  // A recepcionista não carrega dados financeiros nem relatórios (somente a gestora).
+  // Matriz de permissões da organização (editada pela gestora em Configurações).
+  const permissionRows = supabase && viewerOrg
+    ? ((await supabase.from("role_permissions").select("role,module,operation,enabled").eq("organization_id", viewerOrg)).data ?? [])
+    : [];
+  const isStaff = viewerRole === "staff";
+  const financialData = isStaff ? { data: [], stats: { revenue: 0, expenses: 0, commissions: 0, balance: 0 } } : await getFinance();
   const inventory = await getInventory();
-  const reports = await getReports();
+  const reports = isStaff ? {} : await getReports();
 
   return <NailStudioApp 
     initialClients={clients} 
@@ -58,5 +75,7 @@ export default async function Page() {
     initialInventory={inventory}
     initialReports={reports}
     tenant={tenantContext}
+    role={viewerRole as StudioRole}
+    permissionRows={permissionRows as PermissionRow[]}
   />;
 }

@@ -21,6 +21,10 @@ export async function getAppointments(): Promise<Appointment[]> {
   const supabase = await createClient();
   if (!supabase) return [];
 
+  // Profissional não recebe telefone nem observações dos clientes (ocultado no servidor, não só na tela).
+  const { data: viewer } = await supabase.from("profiles").select("role").maybeSingle();
+  const hideContact = viewer?.role === "professional";
+
   const { data, error } = await supabase
     .from("appointments")
     .select(`
@@ -29,6 +33,7 @@ export async function getAppointments(): Promise<Appointment[]> {
       ends_at,
       status,
       source,
+      service_completed_at,
       client_id,
       client:clients(name, phone, notes),
       professional:professionals(name),
@@ -44,8 +49,8 @@ export async function getAppointments(): Promise<Appointment[]> {
     .order("starts_at", { ascending: true });
 
   if (error) {
-    console.error("Error fetching appointments:", error);
-    return [];
+    console.error("Error fetching appointments:", { code: error.code, message: error.message, details: error.details, hint: error.hint });
+    throw new Error(`Falha ao carregar agendamentos (${error.code || "consulta"}): ${error.message}`);
   }
 
   // Filter out legacy system block appointments from normal list
@@ -91,8 +96,8 @@ export async function getAppointments(): Promise<Appointment[]> {
       end,
       client: row.client?.name || "Desconhecida",
       clientId: row.client_id,
-      phone: row.client?.phone || "",
-      clientNotes: row.client?.notes || "",
+      phone: hideContact ? "" : row.client?.phone || "",
+      clientNotes: hideContact ? "" : row.client?.notes || "",
       professional: row.professional?.name || "Desconhecida",
       service: serviceName,
       status: (statusMap[row.status] || "Pendente") as AppointmentStatus,
@@ -100,6 +105,7 @@ export async function getAppointments(): Promise<Appointment[]> {
       paid,
       packageCovered,
       source: row.source === "online" ? "Online" : "Interno",
+      serviceCompletedAt: row.service_completed_at || null,
       items: row.items?.map((i: any) => ({ id: i.id, name: i.service?.name || i.description || "Serviço", price: Number(i.unit_price) })) || []
     };
   });
@@ -144,6 +150,19 @@ export async function getAppointments(): Promise<Appointment[]> {
   return [...mappedAppointments, ...mappedAvailBlocks];
 }
 
+async function checkProfessionalBlock(supabase: any, organizationId: string, professionalId: string, startsAt: string, endsAt: string) {
+  const { data, error } = await supabase.from("professional_availability")
+    .select("id")
+    .eq("organization_id", organizationId)
+    .eq("professional_id", professionalId)
+    .eq("kind", "block")
+    .lt("starts_at", endsAt)
+    .gt("ends_at", startsAt)
+    .limit(1);
+  if (error) return "Não foi possível verificar a disponibilidade da profissional: " + error.message;
+  return data?.length ? "A profissional possui um bloqueio de agenda nesse horário." : null;
+}
+
 export async function createAppointmentRecord(data: {
   clientId: string;
   professionalId: string;
@@ -165,6 +184,9 @@ export async function createAppointmentRecord(data: {
     return { success: false, error: "Não é permitido criar agendamentos em datas ou horários passados. Selecione um horário futuro." };
   }
   const endsAt = new Date(new Date(startsAt).getTime() + data.durationMinutes * 60000).toISOString();
+
+  const blockError = await checkProfessionalBlock(supabase, organizationId, data.professionalId, startsAt, endsAt);
+  if (blockError) return { success: false, error: blockError };
 
   // Insert appointment
   const { data: appointment, error: appError } = await supabase
@@ -245,6 +267,28 @@ export async function updateAppointmentStatus(id: string, status: string) {
   return { success: true };
 }
 
+// A profissional informa que terminou o serviço. Não altera status, pagamento nem comissão:
+// o recebimento e a comissão continuam sendo gerados pela recepção no checkout.
+export async function markServiceCompleted(id: string) {
+  const supabase = await createClient();
+  if (!supabase) return { success: false, error: "Sessão indisponível." };
+  const { data, error } = await supabase
+    .from("appointments")
+    .update({ service_completed_at: new Date().toISOString() })
+    .eq("id", id)
+    .in("status", ["in_progress", "arrived"])
+    .select("id");
+  if (error) {
+    console.error(error);
+    return { success: false, error: error.message };
+  }
+  if (!data || data.length === 0) {
+    return { success: false, error: "Este atendimento não está em andamento." };
+  }
+  revalidatePath("/");
+  return { success: true };
+}
+
 export async function updateAppointmentRecord(appointmentId: string, data: {
   clientId: string;
   professionalId: string;
@@ -262,6 +306,9 @@ export async function updateAppointmentRecord(appointmentId: string, data: {
 
   const startsAt = new Date(`${data.dateStr}T${data.timeStr}:00-03:00`).toISOString();
   const endsAt = new Date(new Date(startsAt).getTime() + data.durationMinutes * 60000).toISOString();
+
+  const blockError = await checkProfessionalBlock(supabase, organizationId, data.professionalId, startsAt, endsAt);
+  if (blockError) return { success: false, error: blockError };
 
   // Update appointment
   const { error: appError } = await supabase

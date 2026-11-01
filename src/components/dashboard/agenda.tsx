@@ -15,9 +15,11 @@ export function Agenda({
   onCancel,
   onStatusChange,
   onToggleBlockDay,
-  onPaymentsUpdated
+  onPaymentsUpdated,
+  readOnly = false
 }: {
   rows: Appointment[];
+  readOnly?: boolean;
   onNew: (dateStr: string) => void;
   onAttendance: (a: Appointment) => void;
   onAction: (mode: "view" | "edit", index: number) => void;
@@ -193,7 +195,7 @@ export function Agenda({
         </div>
 
         <div className="flex items-center gap-2">
-          {onToggleBlockDay && (
+          {onToggleBlockDay && !readOnly && (
             <button
               type="button"
               onClick={handleOpenBlockModal}
@@ -208,11 +210,11 @@ export function Agenda({
               {blocking ? "Processando..." : isDayBlocked ? "Desbloquear Dia" : "Bloquear Dia Inteiro"}
             </button>
           )}
-          <button type="button" className="btn-outline" onClick={() => setShowPartialBlock(true)}><Lock size={15} /> Bloquear horário</button>
-          <button onClick={() => onNew(selectedDate)} className="btn-primary">
+          {!readOnly && <button type="button" className="btn-outline" onClick={() => setShowPartialBlock(true)}><Lock size={15} /> Bloquear horário</button>}
+          {!readOnly && <button onClick={() => onNew(selectedDate)} className="btn-primary">
             <Plus size={16} />
             Novo agendamento
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -260,7 +262,7 @@ export function Agenda({
               </p>
             </div>
           </div>
-          {onToggleBlockDay && (
+          {onToggleBlockDay && !readOnly && (
             <button
               type="button"
               onClick={handleOpenBlockModal}
@@ -486,12 +488,12 @@ export function Agenda({
                   <div className="min-w-0 flex-1"><p className="font-medium">Bloqueio de Agenda</p><p className="text-xs text-muted">{a.service} · {a.professional}</p></div>
                   <Badge tone="amber">Bloqueado</Badge>
                 </div>
-                {calendarView === "dia" && <button type="button" disabled={partialBusy} className="btn-outline !px-2 !text-xs" onClick={async () => { if (!confirm(`Desbloquear ${a.time}–${a.end}?`)) return; setPartialBusy(true); try { const result = await removePartialAgendaBlock({ date: a.dateStr, start: a.time, end: a.end }); if (!result.success) alert(result.error || "Erro ao desbloquear"); else onPaymentsUpdated?.(await getAppointments()); } finally { setPartialBusy(false); } }}>Desbloquear</button>}
+                {!readOnly && calendarView === "dia" && <button type="button" disabled={partialBusy} className="btn-outline !px-2 !text-xs" onClick={async () => { if (!confirm(`Desbloquear ${a.time}–${a.end}?`)) return; setPartialBusy(true); try { const result = await removePartialAgendaBlock({ date: a.dateStr, start: a.time, end: a.end }); if (!result.success) alert(result.error || "Erro ao desbloquear"); else onPaymentsUpdated?.(await getAppointments()); } finally { setPartialBusy(false); } }}>Desbloquear</button>}
               </div>
             ) : (
               <div key={a.id} className="flex w-full items-center gap-3 px-4 py-3 hover:bg-bg sm:px-5">
                 <button
-                  onClick={a.status === "Em atendimento" || a.status === "Cliente chegou" ? () => onAttendance(a) : () => onAction("view", rows.indexOf(a))}
+                  onClick={readOnly ? undefined : a.status === "Em atendimento" || a.status === "Cliente chegou" ? () => onAttendance(a) : () => onAction("view", rows.indexOf(a))}
                   className="flex min-w-0 flex-1 items-center gap-3 text-left"
                 >
                   <div className="w-16 shrink-0">
@@ -532,7 +534,7 @@ export function Agenda({
                 <select
                   aria-label={`Status do atendimento de ${a.client}`}
                   value={a.status}
-                  disabled={a.status === "Concluído" || a.service?.includes("Bloqueio")}
+                  disabled={readOnly || a.status === "Concluído" || a.service?.includes("Bloqueio")}
                   onChange={(e) => onStatusChange(a, e.target.value)}
                   className="field-input h-8 w-[126px] shrink-0 !py-1 !text-xs disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-50 sm:w-32"
                 >
@@ -543,13 +545,13 @@ export function Agenda({
                   <option value="Em atendimento">Em atendimento</option>
                   <option value="Concluído">Concluído</option>
                 </select>
-                {a.status !== "Concluído" && a.status !== "Cancelado" && (
+                {!readOnly && a.status !== "Concluído" && a.status !== "Cancelado" && (
                   <button type="button" className="btn-outline !px-2 !text-xs" disabled={Boolean((a as Appointment & { packageCovered?: boolean }).packageCovered) || Number(a.price || 0) <= Number(a.paid || 0)} title={(a as Appointment & { packageCovered?: boolean }).packageCovered ? "Atendimento coberto por pacote" : Number(a.price || 0) <= Number(a.paid || 0) ? "Atendimento sem saldo devedor" : "Gerar mensagem de pagamento"} onClick={async () => { const pix = await import("@/lib/actions/settings").then(m=>m.getOrganizationPixKey()); setMessageAppointment(a);setMessageMode("integral");setMessageValue("50");setMessageText(`Olá, ${a.client.split(" ")[0]}! 💕💅\n\nSeu agendamento de ${a.service} está reservado!\n\nPara confirmar e garantir seu horário, solicitamos o pagamento antecipado de {valor_pagamento}.\n\n💳 Dados para pagamento via Pix:\nChave Pix: ${pix.pixKey || "[Cadastre a chave Pix em Configurações]"}\n\nApós realizar o pagamento, pedimos que envie o comprovante por aqui para confirmarmos sua reserva.\n\nSerá um prazer receber você! 💖\n\nGabi Ludwig Nails ✨`); }}>Gerar mensagem</button>
                 )}
-                {a.status !== "Concluído" && a.status !== "Cancelado" && Number(a.price) > Number(a.paid || 0) && (
+                {!readOnly && a.status !== "Concluído" && a.status !== "Cancelado" && Number(a.price) > Number(a.paid || 0) && (
                   <button type="button" className="btn-outline !px-2 !text-xs" onClick={() => { setAdvance(a); setAdvanceAmount(""); setAdvanceMethod("pix"); }}>Receber parcial</button>
                 )}
-                {a.status === "Concluído" && (
+                {!readOnly && a.status === "Concluído" && (
                   <button type="button" className="btn-outline !px-2 !text-xs" disabled={correctionBusy} onClick={async()=>{
                     setCorrectionBusy(true); setCorrectionError("");
                     try {
@@ -560,12 +562,12 @@ export function Agenda({
                     finally { setCorrectionBusy(false); }
                   }}>Corrigir fechamento</button>
                 )}
-                <RowActions
+                {!readOnly && <RowActions
                   onView={() => onAction("edit", rows.indexOf(a))}
                   onEdit={() => onAction("edit", rows.indexOf(a))}
                   onDelete={() => onCancel(rows.indexOf(a), a.id)}
                   deleteLabel="Cancelar"
-                />
+                />}
               </div>
             ))
           )}
