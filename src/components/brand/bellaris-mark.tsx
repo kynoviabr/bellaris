@@ -1,4 +1,5 @@
-// Marca do Bellaris: unha em amêndoa com a letra B. Cores fixas para ficar legível sobre a barra lateral escura.
+// Marca do Bellaris: espelho de mão, objeto comum a salões de cabelo, unha e estética.
+// Cores fixas para ficar legível sobre a barra lateral escura.
 export function BellarisMark({ size = 32, className }: { size?: number; className?: string }) {
   return (
     <svg
@@ -9,18 +10,16 @@ export function BellarisMark({ size = 32, className }: { size?: number; classNam
       aria-label="Bellaris"
       className={className}
     >
+      <ellipse cx="80" cy="60" rx="46" ry="54" fill="#E9CFDD" />
+      <ellipse cx="80" cy="60" rx="34" ry="42" fill="#33252C" />
       <path
-        d="M80 150 C36 150 30 88 44 50 C54 24 68 12 80 12 C92 12 106 24 116 50 C130 88 124 150 80 150 Z"
-        fill="#E9CFDD"
-      />
-      <path
-        d="M68 58 H88 C98 58 100 72 88 78 H68 M68 78 H92 C104 78 106 96 92 102 H68 M68 58 V102"
+        d="M58 42 Q66 30 80 28"
         fill="none"
-        stroke="#33252C"
-        strokeWidth={8}
+        stroke="#E9CFDD"
+        strokeWidth={6}
         strokeLinecap="round"
-        strokeLinejoin="round"
       />
+      <rect x="71" y="112" width="18" height="38" rx="9" fill="#E9CFDD" />
     </svg>
   );
 }
