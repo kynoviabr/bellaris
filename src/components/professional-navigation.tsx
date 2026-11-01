@@ -8,7 +8,7 @@ export function ProfessionalNavigation({ name, section }: { name: string; sectio
   const [open, setOpen] = useState(false);
   const links = [
     { id: "dashboard", label: "Painel", icon: LayoutDashboard, href: "/profissional?aba=painel" },
-    { id: "appointments", label: "Meus agendamentos", icon: CalendarDays, href: "/profissional?aba=agendamentos" },
+    { id: "appointments", label: "Minha agenda", icon: CalendarDays, href: "/profissional?aba=agenda" },
     { id: "commissions", label: "Minhas comissões", icon: Wallet, href: "/profissional?aba=comissoes" },
   ];
   return <>
