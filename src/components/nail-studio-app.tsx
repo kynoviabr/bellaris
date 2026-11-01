@@ -16,6 +16,7 @@ import { Services } from "./dashboard/services";
 import { PackageCatalogContent } from "./dashboard/package-catalog";
 import { Agenda } from "./dashboard/agenda";
 import { ProfessionalClients } from "./dashboard/professional-clients";
+import { listMyClientBirthdays } from "@/lib/actions/professional-clients";
 import { canOpenView, type PermissionRow, type StudioRole } from "@/lib/authorization/permissions";
 import { RolePermissionsManager } from "./dashboard/role-permissions-manager";
 import { updateAppointmentRecord, addServiceToAppointment, removeServiceFromAppointment } from "@/lib/actions/appointments";
@@ -1472,7 +1473,7 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
   const content = (() => {
     if (!canOpenView(role, view, permissionRows)) return <main className="page-content"><div className="card"><h2 className="text-lg font-semibold">Acesso restrito</h2><p className="mt-2 text-sm text-muted">Este módulo não está liberado para o seu perfil. Fale com a gestora do salão.</p></div></main>;
     if (professionalMode && !["dashboard", "agenda", "services", "attendance", "clients", "packages", "reports", "automations", "commissions", "professionals", "finance", "inventory", "settings", "online"].includes(view)) return <main className="page-content"><div className="card"><h2 className="text-lg font-semibold">Acesso restrito</h2><p className="mt-2 text-sm text-muted">Este módulo está visível no menu, mas o acesso aos dados e às operações depende das permissões do seu perfil. Nenhum dado de outras profissionais ou salões será exibido.</p></div></main>;
-    if (view === "dashboard" && professionalMode) return <main className="page-content"><h2 className="mb-5 text-xl font-semibold">Meu painel</h2><div className="grid gap-4 sm:grid-cols-3"><div className="card"><p className="text-sm text-muted">Meus agendamentos</p><p className="mt-2 text-3xl font-bold">{rows.length}</p></div><div className="card"><p className="text-sm text-muted">Em atendimento</p><p className="mt-2 text-3xl font-bold">{rows.filter(a => a.status === "Em atendimento" || a.status === "Cliente chegou").length}</p></div><div className="card"><p className="text-sm text-muted">Concluídos</p><p className="mt-2 text-3xl font-bold">{rows.filter(a => a.status === "Concluído").length}</p></div></div><div className="mt-5 flex flex-wrap gap-3"><button className="btn-primary" onClick={() => setView("agenda")}>Abrir minha agenda</button><button className="btn-outline" onClick={() => setView("attendance")}>Meus atendimentos</button></div></main>;
+    if (view === "dashboard" && professionalMode) return <ProfessionalDashboard rows={rows} services={serviceRows} commissions={initialCommissions} onOpen={setView} onAgenda={() => setView("agenda")} onAttendances={() => setView("attendance")} />;
     if (view === "dashboard") return <Dashboard stats={initialStats} go={setView} appointments={rows} clients={clientRows} tenant={tenant} onAttendance={(a) => { setActiveAppointment(a); setView("attendance"); }} />;
     if (view === "settings" && professionalMode) return <main className="page-content"><h2 className="text-xl font-semibold">Configurações</h2><p className="mt-2 text-sm text-muted">Tela administrativa visível para avaliação. Alterações de gestão estão reservadas à proprietária.</p></main>;
     if (view === "settings") return <SettingsView tenant={tenant} updateToast={(t) => { setToast(t); setTimeout(() => setToast(""), 3000); }} />;
@@ -1776,6 +1777,172 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
   );
 }
 
+
+const OCCUPATION_BASE_MINUTES_UI = 480; // mesma base usada no cálculo do card da gestora
+
+function toMinutes(hhmm: string) {
+  const [h, m] = (hhmm || "00:00").split(":").map(Number);
+  return h * 60 + m;
+}
+
+function ProfessionalDashboard({ rows, services, commissions, onOpen, onAgenda, onAttendances }: {
+  rows: Appointment[];
+  services: { name: string; maintenance?: number }[];
+  commissions: { amount: number; status: string; date: string }[];
+  onOpen: (view: View) => void;
+  onAgenda: () => void;
+  onAttendances: () => void;
+}) {
+  const [birthdays, setBirthdays] = useState<{ id: string; name: string; day: number; month: number }[]>([]);
+  useEffect(() => {
+    listMyClientBirthdays().then(res => setBirthdays(res.rows));
+  }, []);
+
+  const now = new Date();
+  const todayKey = now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+  const todayPt = now.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+  const nowTime = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Sao_Paulo" }).format(now);
+  const nowMinutes = toMinutes(nowTime);
+
+  const todays = rows.filter(a => a.dateStr === todayKey).sort((a, b) => a.time.localeCompare(b.time));
+  const valid = todays.filter(a => a.status !== "Cancelado");
+  const active = todays.filter(a => a.status !== "Cancelado" && a.status !== "Concluído");
+  const inProgress = active.find(a => a.status === "Em atendimento" || a.status === "Cliente chegou");
+  const next = inProgress ?? active.find(a => toMinutes(a.time) >= nowMinutes) ?? null;
+  const minutesUntilNext = next ? toMinutes(next.time) - nowMinutes : null;
+
+  const bookedMinutes = valid.reduce((sum, a) => sum + Math.max(0, toMinutes(a.end) - toMinutes(a.time)), 0);
+  const occupation = Math.min(100, Math.round((bookedMinutes / OCCUPATION_BASE_MINUTES_UI) * 100));
+
+  const producedToday = valid.filter(a => a.status === "Concluído").reduce((sum, a) => sum + Number(a.price || 0), 0);
+  const commissionToday = commissions.filter(c => c.date === todayPt).reduce((sum, c) => sum + Number(c.amount || 0), 0);
+  const toReceive = commissions.filter(c => c.status === "generated").reduce((sum, c) => sum + Number(c.amount || 0), 0);
+
+  // Retornos: última visita concluída de cada cliente com cada serviço, somada à periodicidade do cadastro
+  const lastVisit = new Map<string, { date: string; service: string; client: string; clientId?: string | null; days: number }>();
+  for (const a of rows) {
+    if (a.status !== "Concluído" || !a.dateStr || !a.clientId) continue;
+    const days = Number(services.find(s => s.name === a.service)?.maintenance || 0);
+    if (days <= 0) continue;
+    const key = `${a.clientId}|${a.service}`;
+    const current = lastVisit.get(key);
+    if (!current || a.dateStr > current.date) lastVisit.set(key, { date: a.dateStr, service: a.service, client: a.client, clientId: a.clientId, days });
+  }
+  const dueSoon = Array.from(lastVisit.values())
+    .map(v => {
+      const d = new Date(`${v.date}T12:00:00Z`);
+      d.setUTCDate(d.getUTCDate() + v.days);
+      return { ...v, due: d.toISOString().slice(0, 10) };
+    })
+    .filter(v => v.due >= todayKey && v.due <= shiftDateKey(todayKey, 7))
+    .sort((a, b) => a.due.localeCompare(b.due));
+
+  const todayDay = Number(todayKey.slice(8, 10));
+  const birthdaysSorted = [...birthdays].sort((a, b) => ((a.day - todayDay + 31) % 31) - ((b.day - todayDay + 31) % 31));
+
+  const Card = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
+    <div className={`rounded-xl border border-[#E8D9C7] bg-white p-5 ${className}`}>{children}</div>
+  );
+
+  return (
+    <main className="page-content">
+      <div className="mb-5 flex flex-wrap gap-3">
+        <button className="btn-primary" onClick={onAgenda}>Abrir minha agenda</button>
+        <button className="btn-outline" onClick={onAttendances}>Meus atendimentos</button>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card>
+          <p className="text-xs text-muted">Próximo atendimento</p>
+          {next ? (
+            <>
+              <p className="mt-2 text-2xl font-bold text-ink">{next.time} · {next.client}</p>
+              <p className="mt-1 text-sm text-muted">{next.service}</p>
+              <p className="mt-2 text-xs text-primary">
+                {inProgress ? "Em andamento agora" : minutesUntilNext !== null && minutesUntilNext > 0 ? `Começa em ${minutesUntilNext} min` : "Começando agora"}
+              </p>
+            </>
+          ) : (
+            <p className="mt-2 text-sm text-muted">Nenhum atendimento pendente hoje.</p>
+          )}
+        </Card>
+        <Card>
+          <p className="text-xs text-muted">Ocupação de hoje</p>
+          <p className="mt-2 text-2xl font-bold text-ink">{occupation}%</p>
+          <div className="mt-3 h-1.5 w-full rounded-full bg-[#E7EDF3]"><div className="h-full rounded-full bg-primary" style={{ width: `${occupation}%` }} /></div>
+          <p className="mt-2 text-xs text-muted">{Math.round(bookedMinutes)} min agendados de {OCCUPATION_BASE_MINUTES_UI} min</p>
+        </Card>
+        <Card>
+          <p className="text-xs text-muted">Hoje</p>
+          <p className="mt-2 text-2xl font-bold text-ink">{money.format(producedToday)}</p>
+          <p className="mt-1 text-sm text-muted">produção concluída</p>
+          <p className="mt-3 text-sm"><span className="text-muted">Comissão gerada hoje: </span><span className="font-semibold">{money.format(commissionToday)}</span></p>
+        </Card>
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-ink">Agenda de hoje</h3>
+            <button className="text-xs text-primary underline" onClick={onAgenda}>Ver agenda</button>
+          </div>
+          {todays.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted">Nenhum atendimento marcado para hoje.</p>
+          ) : (
+            <ul className="divide-y divide-[#E8D9C7]">
+              {todays.map(a => (
+                <li key={a.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                  <div className="min-w-0">
+                    <p className="font-medium text-ink">{a.time} · {a.client}</p>
+                    <p className="truncate text-xs text-muted">{a.service}</p>
+                  </div>
+                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${a.status === "Concluído" ? "bg-green-50 text-green-800" : a.status === "Cancelado" ? "bg-red-50 text-red-700" : "bg-bg text-ink"}`}>{a.status}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+
+        <div className="grid gap-4">
+          <Card>
+            <h3 className="text-sm font-semibold text-ink">Aniversariantes do mês</h3>
+            {birthdaysSorted.length === 0 ? (
+              <p className="mt-2 text-sm text-muted">Nenhuma aniversariante neste mês.</p>
+            ) : (
+              <ul className="mt-2 space-y-1.5 text-sm">
+                {birthdaysSorted.slice(0, 6).map(b => (
+                  <li key={b.id} className="flex justify-between"><span>{b.name}</span><span className="text-muted">{String(b.day).padStart(2, "0")}/{String(b.month).padStart(2, "0")}{b.day === todayDay ? " · hoje" : ""}</span></li>
+                ))}
+              </ul>
+            )}
+          </Card>
+          <Card>
+            <h3 className="text-sm font-semibold text-ink">Retornos nos próximos 7 dias</h3>
+            {dueSoon.length === 0 ? (
+              <p className="mt-2 text-sm text-muted">Nenhum retorno previsto.</p>
+            ) : (
+              <ul className="mt-2 space-y-1.5 text-sm">
+                {dueSoon.slice(0, 6).map(v => (
+                  <li key={`${v.clientId}|${v.service}`} className="flex justify-between gap-2"><span className="truncate">{v.client} · {v.service}</span><span className="shrink-0 text-muted">{v.due.slice(8, 10)}/{v.due.slice(5, 7)}</span></li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </div>
+      </div>
+
+      <div className="mt-4">
+        <Card className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs text-muted">Comissão a receber</p>
+            <p className="mt-1 text-2xl font-bold text-amber-900">{money.format(toReceive)}</p>
+          </div>
+          <button className="btn-outline" onClick={() => onOpen("reports")}>Ver financeiro</button>
+        </Card>
+      </div>
+    </main>
+  );
+}
 
 const REPORT_PERIODS = [
   { id: "today", label: "Hoje" },
