@@ -19,8 +19,8 @@ const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL
 export function OnlineBooking({
   professionals = [],
   services = [],
-  slug = "gabi-ludwig",
-  orgName = "Gabi Ludwig Nail Studio",
+  slug = "",
+  orgName = "Salão",
 }: {
   professionals?: any[];
   services?: any[];
@@ -381,7 +381,7 @@ export function OnlineBooking({
               </p>
               <div className="mt-4 rounded-md bg-bg p-3 text-xs text-left space-y-1 text-muted">
                 <p><b>Cliente:</b> {clientName}</p>
-                <p><b>Profissional:</b> {selectedProfessional || "Equipe Gabi Ludwig"}</p>
+                <p><b>Profissional:</b> {selectedProfessional || `Equipe ${orgName}`}</p>
                 <p><b>Confirmação:</b> Notificação enviada para o WhatsApp {clientPhone}</p>
               </div>
 

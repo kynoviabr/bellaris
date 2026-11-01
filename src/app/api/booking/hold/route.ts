@@ -7,7 +7,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const {
-      slug = "gabi-ludwig",
+      slug = "",
       clientName,
       clientPhone,
       professionalId,

@@ -7,7 +7,7 @@ import { getOrgBySlug } from "@/lib/services/public-booking.service";
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const slug = searchParams.get("slug") || "gabi-ludwig";
+    const slug = searchParams.get("slug") || "";
     const date = searchParams.get("date") || new Date().toISOString().split("T")[0];
     const serviceDuration = parseInt(searchParams.get("duration") || "60", 10);
     const professionalId = searchParams.get("professionalId");

@@ -26,6 +26,3 @@ export async function getPublicBookingDataBySlug(slug: string) {
   };
 }
 
-export async function getPublicBookingData() {
-  return getPublicBookingDataBySlug("gabi-ludwig");
-}

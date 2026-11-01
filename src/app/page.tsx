@@ -16,7 +16,7 @@ export default async function Page() {
   const supabase = await createClient();
 
   // Protect route
-  let tenantContext = { profileName: "Usuário", orgName: "Studio", email: "" };
+  let tenantContext: { profileName: string; orgName: string; email: string; orgSlug: string } = { profileName: "Usuário", orgName: "Studio", email: "", orgSlug: "" };
   let viewerRole: string = "owner";
   let viewerOrg: string | null = null;
   if (supabase) {
@@ -36,8 +36,11 @@ export default async function Page() {
     let organization = { name: "Nail Studio" };
     tenantContext.profileName = profile?.full_name || "Usuário";
     if (profile?.organization_id) {
-      const { data: org } = await supabase.from('organizations').select('name').eq('id', profile.organization_id).single();
-      if (org) tenantContext.orgName = org.name;
+      const { data: org } = await supabase.from('organizations').select('name, slug').eq('id', profile.organization_id).single();
+      if (org) {
+        tenantContext.orgName = org.name;
+        tenantContext.orgSlug = org.slug || "";
+      }
     }
     
     // Pass to component (we will add to props)
