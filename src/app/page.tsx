@@ -89,8 +89,22 @@ export default async function Page() {
   const inventory = await getInventory();
   const reports = isStaff ? {} : await getReports();
 
-  return <NailStudioApp 
-    initialClients={clients} 
+  // Situação da mensalidade do salão: aviso (vencida) ou somente leitura (bloqueio de escrita).
+  const { data: billingStatus } = supabase
+    ? await supabase.rpc("salon_billing_status")
+    : { data: null as string | null };
+  const billingBanner = billingStatus === "somente_leitura" ? (
+    <div className="mx-4 mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+      <strong>Assinatura em atraso.</strong> O salão está em modo somente leitura. Você pode consultar agenda, clientes e histórico, mas não pode criar nem alterar atendimentos, pagamentos, comissões, clientes, despesas, estoque ou pacotes. Regularize a mensalidade para liberar o sistema.
+    </div>
+  ) : billingStatus === "aviso" ? (
+    <div className="mx-4 mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+      <strong>Mensalidade vencida.</strong> Regularize para evitar o bloqueio de alterações.
+    </div>
+  ) : null;
+
+  return <>{billingBanner}<NailStudioApp
+    initialClients={clients}
     initialProfessionals={professionals} 
     initialSpecialties={specialties}
     initialAppointments={appointments}
@@ -102,5 +116,5 @@ export default async function Page() {
     tenant={tenantContext}
     role={viewerRole as StudioRole}
     permissionRows={permissionRows as PermissionRow[]}
-  />;
+  /></>;
 }
