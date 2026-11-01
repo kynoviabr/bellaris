@@ -13,6 +13,7 @@ import { Clients } from "./dashboard/clients";
 import { Services } from "./dashboard/services";
 import { PackageCatalogContent } from "./dashboard/package-catalog";
 import { Agenda } from "./dashboard/agenda";
+import { ProfessionalClients } from "./dashboard/professional-clients";
 import { RolePermissionsManager } from "./dashboard/role-permissions-manager";
 import { updateAppointmentRecord, addServiceToAppointment, removeServiceFromAppointment } from "@/lib/actions/appointments";
 
@@ -1479,7 +1480,7 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
     }
   }}
   onCancel={(_index, id) => { const item = rows.find(row => row.id === id); if (item) setCancelPending({ id, client: item.client, date: bookingDate, time: item.time }); }} />;
-    if (view === "clients" && professionalMode) return <main className="page-content"><h2 className="text-xl font-semibold">Minhas clientes</h2><p className="mt-2 text-sm text-muted">O cadastro e a recuperação das suas clientes serão habilitados após a validação do vínculo entre cliente e profissional no banco de dados.</p></main>;
+    if (view === "clients" && professionalMode) return <ProfessionalClients />;
     if (view === "clients") return <Clients
       data={clientRows}
       onNew={() => openEntity("client", "create")}
