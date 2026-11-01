@@ -9,8 +9,10 @@ export function Services({
   onNew,
   onAction,
   onDelete,
-  onConsumables
+  onConsumables,
+  readOnly = false
 }: {
+  readOnly?: boolean;
   data: any[];
   inventory: any[];
   onNew: () => void;
@@ -21,10 +23,10 @@ export function Services({
   return (
     <main className="page-content">
       <div className="mb-5 flex justify-end">
-        <button onClick={onNew} className="btn-primary">
+        {!readOnly && <button onClick={onNew} className="btn-primary">
           <Plus size={16} />
           Novo serviço
-        </button>
+        </button>}
       </div>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {data.map((s, index) => {
@@ -40,7 +42,7 @@ export function Services({
 
           return (
             <div className="card transition hover:border-primary/40 flex flex-col" key={s.id || s.name}>
-              <button onClick={() => onAction("view", index)} className="w-full text-left flex-1">
+              <button onClick={readOnly ? undefined : () => onAction("view", index)} className="w-full text-left flex-1">
                 <div className="flex justify-between">
                   <Badge tone="primary">{s.category}</Badge>
                   <Badge tone={s.active ? "success" : "neutral"}>{s.active ? "Ativo" : "Inativo"}</Badge>
@@ -61,7 +63,7 @@ export function Services({
                   </div>
                 </div>
               </button>
-              <div className="mt-4 flex items-center justify-between border-t border-[#E7EDF3] pt-3">
+              {!readOnly && <div className="mt-4 flex items-center justify-between border-t border-[#E7EDF3] pt-3">
                 <RowActions onView={() => onAction("view", index)} onEdit={() => onAction("edit", index)} onDelete={() => onDelete(index)} />
                 <button
                   onClick={() => onConsumables(index)}
@@ -70,7 +72,7 @@ export function Services({
                 >
                   Configurar Consumo <span className="ml-1 text-muted">({consumablesCount})</span>
                 </button>
-              </div>
+              </div>}
             </div>
           );
         })}
