@@ -11,16 +11,43 @@ export default function ResetPasswordPage() {
   const [confirmation, setConfirmation] = useState("");
   const [message, setMessage] = useState("Verificando link de recuperação...");
   const [pending, setPending] = useState(false);
+
   useEffect(() => {
     const client = createClient();
     if (!client) { setMessage("Serviço de autenticação indisponível."); return; }
+    let active = true;
+    const hash = new URLSearchParams(window.location.hash.slice(1));
+    const query = new URLSearchParams(window.location.search);
+    const isRecovery = hash.get("type") === "recovery" || Boolean(query.get("code"));
+    const linkError = hash.get("error_description") || query.get("error_description");
+    if (linkError) { setMessage("O link expirou ou é inválido. Solicite um novo e-mail."); return; }
     const { data: { subscription } } = client.auth.onAuthStateChange((event, session) => {
-      if (event === "PASSWORD_RECOVERY" && session) {
+      if (active && event === "PASSWORD_RECOVERY" && session) {
         setValid(true);
         setMessage("");
       }
     });
-    return () => subscription.unsubscribe();
+    async function verify() {
+      if (!isRecovery) {
+        if (active) setMessage("Abra esta página pelo link de recuperação enviado ao seu e-mail.");
+        return;
+      }
+      const code = query.get("code");
+      if (code) {
+        const { error } = await client!.auth.exchangeCodeForSession(code);
+        if (error) { if (active) setMessage("O link expirou ou é inválido. Solicite outro."); return; }
+      }
+      const { data, error } = await client!.auth.getSession();
+      if (!active) return;
+      if (!error && data.session) {
+        setValid(true);
+        setMessage("");
+      } else {
+        setMessage("Não foi possível validar o link. Solicite outro e-mail de recuperação.");
+      }
+    }
+    void verify();
+    return () => { active = false; subscription.unsubscribe(); };
   }, []);
 
   async function save(event: FormEvent<HTMLFormElement>) {
@@ -44,9 +71,7 @@ export default function ResetPasswordPage() {
     <main className="flex min-h-screen items-center justify-center bg-bg p-4 sm:p-8">
       <section className="w-full max-w-sm rounded-lg border border-[#DBE3EC] bg-white p-6 shadow-card sm:p-8">
         <div className="flex flex-col items-center text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary">
-            <Sparkles size={24} className="text-white" />
-          </div>
+          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary"><Sparkles size={24} className="text-white" /></div>
           <h1 className="mt-5 text-xl font-bold text-ink">Redefinir senha</h1>
           <p className="mt-2 text-sm text-muted">Cadastre uma nova senha para acessar sua conta.</p>
         </div>
@@ -62,9 +87,7 @@ export default function ResetPasswordPage() {
             <LockKeyhole size={16} /> {pending ? "Salvando..." : "Salvar nova senha"}
           </button>
         </form>}
-        <Link href="/login" className="mt-6 flex items-center justify-center gap-2 text-sm font-medium text-primary hover:underline">
-          <ArrowLeft size={16} /> Voltar ao login
-        </Link>
+        <Link href="/login" className="mt-6 flex items-center justify-center gap-2 text-sm font-medium text-primary hover:underline"><ArrowLeft size={16} /> Voltar ao login</Link>
       </section>
     </main>
   );
