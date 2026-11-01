@@ -7,6 +7,7 @@ import { submitOwnerOnboarding, type PlanOption } from "@/lib/actions/onboarding
 import { OwnerFormFields, PlanPicker } from "@/components/onboarding/owner-form-fields";
 
 type Props = {
+  isOwner: boolean;
   accessStatus: "aguardando_dados" | "aguardando_aprovacao";
   accessNote: string | null;
   requestedPlanCode: string | null;
@@ -15,11 +16,11 @@ type Props = {
 };
 
 /**
- * Tela exibida ao dono enquanto o salão não está liberado.
- * aguardando_dados: formulário com os dados do responsável e o plano.
- * aguardando_aprovacao: mensagem de espera (sem formulário).
+ * Tela exibida enquanto o salão não está liberado.
+ * Dono + aguardando_dados: formulário com os dados do responsável e o plano.
+ * Demais casos: mensagem de espera, sem formulário e sem dados do salão.
  */
-export function OwnerOnboardingScreen({ accessStatus, accessNote, requestedPlanCode, plans, owner }: Props) {
+export function OwnerOnboardingScreen({ isOwner, accessStatus, accessNote, requestedPlanCode, plans, owner }: Props) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(submitOwnerOnboarding, undefined);
 
@@ -27,7 +28,7 @@ export function OwnerOnboardingScreen({ accessStatus, accessNote, requestedPlanC
     if (state && "ok" in state && state.ok) router.refresh();
   }, [state, router]);
 
-  if (accessStatus === "aguardando_aprovacao") {
+  if (!isOwner || accessStatus === "aguardando_aprovacao") {
     return (
       <div className="mx-auto mt-16 max-w-lg rounded-lg border border-[#DBE3EC] bg-white p-8 text-center shadow-card">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-amber-100">
@@ -35,7 +36,9 @@ export function OwnerOnboardingScreen({ accessStatus, accessNote, requestedPlanC
         </div>
         <h1 className="mt-5 text-xl font-bold text-ink">Cadastro em análise</h1>
         <p className="mt-2 text-sm text-muted">
-          Recebemos os dados do seu salão. Assim que a análise for concluída, o acesso será liberado por aqui.
+          {isOwner
+            ? "Recebemos os dados do seu salão. Assim que a análise for concluída, o acesso será liberado por aqui."
+            : "O cadastro deste salão ainda está em análise. Assim que for liberado, você terá acesso ao sistema."}
         </p>
       </div>
     );

@@ -63,6 +63,7 @@ export default async function Page() {
           </form>
         </header>
         <OwnerOnboardingScreen
+          isOwner={onboarding.isOwner}
           accessStatus={onboarding.accessStatus}
           accessNote={onboarding.accessNote}
           requestedPlanCode={onboarding.requestedPlanCode}

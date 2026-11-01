@@ -58,7 +58,7 @@ export async function submitOwnerOnboarding(_prev: unknown, formData: FormData) 
   return { ok: true as const };
 }
 
-/** Estado de liberação do salão para o dono logado. Null para quem não é dono de salão. */
+/** Estado de liberação do salão para quem está logado num salão. Null para master ou sem salão. */
 export async function getOwnerOnboardingState() {
   const supabase = await createClient();
   if (!supabase) return null;
@@ -71,7 +71,8 @@ export async function getOwnerOnboardingState() {
     .select("role, organization_id")
     .eq("id", user.id)
     .single();
-  if (!profile?.organization_id || profile.role !== "owner") return null;
+  if (!profile?.organization_id) return null;
+  const isOwner = profile.role === "owner";
 
   const { data: org } = await supabase
     .from("organizations")
@@ -79,13 +80,17 @@ export async function getOwnerOnboardingState() {
     .eq("id", profile.organization_id)
     .single();
 
-  const { data: owner } = await supabase
-    .from("organization_owner_data")
-    .select("full_name, whatsapp, cpf, cep, logradouro, numero, complemento, bairro, cidade, uf")
-    .eq("organization_id", profile.organization_id)
-    .maybeSingle();
+  // Dados do dono só são lidos pelo próprio dono (RLS).
+  const { data: owner } = isOwner
+    ? await supabase
+        .from("organization_owner_data")
+        .select("full_name, whatsapp, cpf, cep, logradouro, numero, complemento, bairro, cidade, uf")
+        .eq("organization_id", profile.organization_id)
+        .maybeSingle()
+    : { data: null };
 
   return {
+    isOwner,
     accessStatus: (org?.access_status ?? "ativo") as "aguardando_dados" | "aguardando_aprovacao" | "ativo",
     accessNote: (org?.access_note ?? null) as string | null,
     requestedPlanCode: (org?.requested_plan_code ?? null) as string | null,
