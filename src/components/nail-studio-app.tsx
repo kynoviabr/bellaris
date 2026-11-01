@@ -1576,7 +1576,7 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
     if (view === "services") return <Services readOnly={professionalMode} data={serviceRows} inventory={productRows} onNew={() => openEntity("service", "create")} onAction={(mode, index) => openEntity("service", mode, index)} onDelete={index => confirmAction("Excluir este serviço?", async () => { const item = serviceRows[index]; if (item.id && !item.id.startsWith("demo-")) { await deleteServiceRecord(item.id); } setServiceRows(current => current.filter((_, i) => i !== index)); notify("Serviço removido."); })} onConsumables={(index) => openEntity("service_consumables" as any, "edit", index)} />;
     if (view === "professionals" && professionalMode) return <main className="page-content"><h2 className="text-xl font-semibold">Profissionais</h2><p className="mt-2 text-sm text-muted">Cadastro e gestão da equipe exclusivos da gestora do salão.</p></main>;
     if (view === "professionals") return <Professionals data={professionalRows} onCommissions={index => setClosingCommissionFor(professionalRows[index])} onNew={() => openEntity("professional", "create")} onAction={(mode, index) => openEntity("professional", mode, index)} onDelete={index => confirmAction("Arquivar esta profissional? Agendamentos anteriores serão preservados.", async () => { const item = professionalRows[index]; if (item.id) await archiveProfessionalRecord(item.id); setProfessionalRows(current => current.filter((_, i) => i !== index)); notify("Profissional arquivada."); })} />;
-    if (view === "attendance" && professionalMode) return <main className="page-content"><h2 className="mb-4 text-xl font-semibold">Meus atendimentos</h2><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{rows.filter(a => a.status === "Em atendimento" || a.status === "Cliente chegou" || a.status === "Concluído").sort((x, y) => (x.dateStr || "").localeCompare(y.dateStr || "") || professionalStatusOrder(x.status) - professionalStatusOrder(y.status) || x.time.localeCompare(y.time)).map(a => <div key={a.id} className="card"><p className="font-medium">{a.client}</p><p className="mt-1 text-sm text-muted">{a.dateStr ? a.dateStr.split("-").reverse().join("/") : ""} · {a.time} às {a.end} · {a.status}</p><p className="mt-1 text-sm">{a.service}</p>{(a.status === "Em atendimento" || a.status === "Cliente chegou") && (a.serviceCompletedAt ? <p className="mt-3 text-sm text-muted">Serviço finalizado. A recepção fará o recebimento.</p> : <button type="button" className="btn-primary mt-3 justify-center" onClick={async () => { const res = await markServiceCompleted(a.id); if (!res.success) { notify(res.error || "Não foi possível marcar o serviço."); return; } setRows(current => current.map(r => r.id === a.id ? { ...r, serviceCompletedAt: new Date().toISOString() } : r)); notify("Serviço marcado como finalizado."); }}>Marcar serviço como finalizado</button>)}</div>)}{!rows.some(a => ["Em atendimento","Cliente chegou","Concluído"].includes(a.status)) && <p className="text-sm text-muted">Nenhum atendimento encontrado.</p>}</div></main>;
+    if (view === "attendance" && professionalMode) return <ProfessionalAttendances rows={rows} onCompleted={async (id) => { const res = await markServiceCompleted(id); if (!res.success) { notify(res.error || "Não foi possível marcar o serviço."); return; } setRows(current => current.map(r => r.id === id ? { ...r, serviceCompletedAt: new Date().toISOString() } : r)); notify("Serviço marcado como finalizado."); }} />;
     if (view === "attendance") return (
       <Attendance
         appointment={activeAppointment}
@@ -1939,6 +1939,113 @@ function ProfessionalDashboard({ rows, services, commissions, onOpen, onAgenda, 
           </div>
           <button className="btn-outline" onClick={() => onOpen("reports")}>Ver financeiro</button>
         </Card>
+      </div>
+    </main>
+  );
+}
+
+function ProfessionalAttendances({ rows, onCompleted }: { rows: Appointment[]; onCompleted: (id: string) => Promise<void> }) {
+  const [period, setPeriod] = useState<ReportPeriod>("today");
+  const [tab, setTab] = useState<"progress" | "done">("progress");
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const now = new Date();
+  const todayKey = now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+  const range = periodRange(period, todayKey);
+  const inRange = (key?: string | null) => !range || (!!key && key >= range.start && key <= range.end);
+
+  const relevant = rows.filter(a => inRange(a.dateStr) && (a.status === "Em atendimento" || a.status === "Cliente chegou" || a.status === "Concluído"));
+  const inProgress = relevant.filter(a => a.status === "Em atendimento" || a.status === "Cliente chegou");
+  const done = relevant.filter(a => a.status === "Concluído");
+  const production = done.reduce((sum, a) => sum + Number(a.price || 0), 0);
+  const visible = (tab === "progress" ? inProgress : done)
+    .slice()
+    .sort((x, y) => (y.dateStr || "").localeCompare(x.dateStr || "") || x.time.localeCompare(y.time));
+
+  const groups: { key: string; items: Appointment[] }[] = [];
+  for (const a of visible) {
+    const key = a.dateStr || "";
+    const last = groups[groups.length - 1];
+    if (last && last.key === key) last.items.push(a); else groups.push({ key, items: [a] });
+  }
+  const dayLabel = (key: string) => {
+    if (!key) return "Sem data";
+    if (key === todayKey) return "Hoje";
+    const label = new Date(`${key}T12:00:00Z`).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", timeZone: "America/Sao_Paulo" });
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  };
+  const pill = (status: string) => status === "Concluído"
+    ? "bg-green-50 text-green-800 border-green-200"
+    : status === "Cliente chegou" ? "bg-amber-50 text-amber-800 border-amber-200" : "bg-primary/10 text-primary border-primary/20";
+
+  const Stat = ({ label, value }: { label: string; value: string }) => (
+    <div className="rounded-xl border border-[#E8D9C7] bg-white p-4">
+      <p className="text-xs text-muted">{label}</p>
+      <p className="mt-1 text-2xl font-bold text-ink">{value}</p>
+    </div>
+  );
+
+  return (
+    <main className="page-content">
+      <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Período">
+        {REPORT_PERIODS.map(p => (
+          <button key={p.id} type="button" onClick={() => setPeriod(p.id)} aria-pressed={period === p.id}
+            className={`rounded-full border px-3.5 py-1.5 text-sm transition-colors ${period === p.id ? "border-primary bg-primary text-white" : "border-[#E8D9C7] bg-white text-ink hover:bg-bg"}`}>
+            {p.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Stat label="Em andamento" value={String(inProgress.length)} />
+        <Stat label="Concluídos" value={String(done.length)} />
+        <Stat label="Produção" value={money.format(production)} />
+      </div>
+
+      <div className="mt-5 inline-flex rounded-full border border-[#E8D9C7] bg-white p-1">
+        {([["progress", `Em andamento (${inProgress.length})`], ["done", `Concluídos (${done.length})`]] as const).map(([id, label]) => (
+          <button key={id} type="button" onClick={() => setTab(id)} aria-pressed={tab === id}
+            className={`rounded-full px-4 py-1.5 text-sm transition-colors ${tab === id ? "bg-primary text-white" : "text-ink hover:bg-bg"}`}>{label}</button>
+        ))}
+      </div>
+
+      <div className="mt-5 space-y-6">
+        {groups.length === 0 && (
+          <p className="rounded-xl border border-dashed border-[#E8D9C7] bg-white py-10 text-center text-sm text-muted">
+            {tab === "progress" ? "Nenhum atendimento em andamento neste período." : "Nenhum atendimento concluído neste período."}
+          </p>
+        )}
+        {groups.map(group => (
+          <section key={group.key || "sem-data"}>
+            <h3 className="mb-2 text-sm font-semibold text-ink">{dayLabel(group.key)}</h3>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {group.items.map(a => (
+                <article key={a.id} className="flex flex-col rounded-xl border border-[#E8D9C7] border-l-4 bg-white p-4 shadow-sm"
+                  style={{ borderLeftColor: a.status === "Concluído" ? "#16a34a" : a.status === "Cliente chegou" ? "#d97706" : "#7A4A6A" }}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-ink">{a.client}</p>
+                      <p className="mt-0.5 text-xs text-muted">{a.time} – {a.end}</p>
+                    </div>
+                    <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${pill(a.status)}`}>{a.status}</span>
+                  </div>
+                  <p className="mt-2 text-sm text-ink">{a.service}</p>
+                  <div className="mt-auto pt-3">
+                    {a.status === "Concluído" ? (
+                      <p className="text-sm font-medium text-green-800">{money.format(Number(a.price || 0))}</p>
+                    ) : a.serviceCompletedAt ? (
+                      <p className="text-sm text-muted">Serviço finalizado. A recepção fará o recebimento.</p>
+                    ) : (
+                      <button type="button" disabled={busyId === a.id} className="btn-primary w-full justify-center disabled:opacity-60"
+                        onClick={async () => { setBusyId(a.id); try { await onCompleted(a.id); } finally { setBusyId(null); } }}>
+                        {busyId === a.id ? "Salvando..." : "Marcar serviço como finalizado"}
+                      </button>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        ))}
       </div>
     </main>
   );
