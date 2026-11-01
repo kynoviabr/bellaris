@@ -13,7 +13,6 @@ import { Automations } from "./dashboard/automations";
 import { Reports } from "./dashboard/reports";
 import { Clients } from "./dashboard/clients";
 import { Services } from "./dashboard/services";
-import { PackageCatalogContent } from "./dashboard/package-catalog";
 import { Agenda } from "./dashboard/agenda";
 import { ProfessionalClients } from "./dashboard/professional-clients";
 import { listMyClientBirthdays } from "@/lib/actions/professional-clients";
@@ -51,7 +50,7 @@ const nav: { id: View; label: string; icon: typeof Home }[] = [
   { id: "dashboard", label: "Painel", icon: Home }, { id: "agenda", label: "Agenda", icon: CalendarDays },
   { id: "clients", label: "Clientes", icon: Users }, { id: "services", label: "Serviços", icon: Sparkles },
   { id: "professionals", label: "Profissionais", icon: UserRound }, { id: "attendance", label: "Atendimentos", icon: ClipboardCheck },
-  { id: "finance", label: "Financeiro", icon: Wallet }, { id: "commissions", label: "Comissões", icon: CircleDollarSign }, { id: "packages", label: "Catálogo de Pacotes", icon: Package }, { id: "inventory", label: "Estoque", icon: Package },
+  { id: "finance", label: "Financeiro", icon: Wallet }, { id: "commissions", label: "Comissões", icon: CircleDollarSign }, { id: "inventory", label: "Estoque", icon: Package },
   { id: "automations", label: "Automações", icon: WandSparkles }, { id: "reports", label: "Relatórios", icon: BarChart3 }, { id: "online", label: "Agendamento online", icon: ShoppingBag }
 ];
 
@@ -1729,7 +1728,6 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
     if (view === "finance" && professionalMode) return <main className="page-content"><h2 className="text-xl font-semibold">Financeiro</h2><p className="mt-2 text-sm text-muted">Somente as suas comissões.</p><div className="mt-4 grid gap-3">{initialCommissions.map(item => <div className="card" key={item.id}><p className="font-medium">{item.service}</p><p className="mt-1 text-sm text-muted">{item.date} · {item.status === 'paid' ? 'Pago' : item.status === 'generated' ? 'Pendente' : item.status}</p><p className="mt-2 font-semibold">{money.format(item.amount)}</p></div>)}{initialCommissions.length === 0 && <p className="text-sm text-muted">Nenhuma comissão registrada.</p>}</div></main>;
     if (view === "finance") return <Finance stats={initialStats} data={financialRows} onNew={() => openEntity("financial", "create")} onAction={(mode, index) => openEntity("financial", mode, index)} onReverse={index => confirmAction("Estornar este movimento? Um lançamento de compensação será registrado.", () => { setFinancialRows(current => current.map((item, i) => i === index ? { ...item, status: "Estornado" } : item)); notify("Movimento estornado por compensação; registro original preservado."); })} />;
     if (view === "packages" && professionalMode) return <main className="page-content"><h2 className="text-xl font-semibold">Pacotes das minhas clientes</h2><p className="mt-2 text-sm text-muted">Acompanhamento individual de pacotes em preparação. Dados financeiros de outras profissionais não são exibidos.</p></main>;
-    if (view === "packages") return <PackageCatalogContent />;
     if (view === "inventory" && professionalMode) return <main className="page-content"><h2 className="text-xl font-semibold">Estoque</h2><p className="mt-2 text-sm text-muted">Gestão de estoque reservada à gestora até a definição de permissões.</p></main>;
     if (view === "inventory") return <Inventory data={productRows} onNew={() => openEntity("product", "create")} onAction={(mode, index) => openEntity("product", mode, index)} onDelete={(index) => { openEntity("product", "edit", index); notify("Atualize o campo \"Saldo atual\" para corrigir o estoque."); }} />;
     if (view === "automations" && professionalMode) return <main className="page-content"><h2 className="text-xl font-semibold">Recuperação de clientes</h2><p className="mt-2 text-sm text-muted">O envio de mensagens será liberado após validação da lista de clientes vinculadas, consentimento e permissões de comunicação.</p></main>;
