@@ -427,6 +427,7 @@ function ProfessionalCommissionsModal({ professional, close, onPaid }: { profess
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [monthFilter, setMonthFilter] = useState<string>("all");
   const [paidMessage, setPaidMessage] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "generated" | "paid">("all");
 
   useEffect(() => {
     if (professional?.id) {
@@ -459,7 +460,10 @@ function ProfessionalCommissionsModal({ professional, close, onPaid }: { profess
     return { count: pend.length, total: pend.reduce((sum, c) => sum + Number(c.amount || 0), 0) };
   };
 
-  const visibleRows = monthFilter === "all" ? data.commissions : data.commissions.filter(c => monthKeyOf(c) === monthFilter);
+  // Lista exibida: filtra por mês e por status (todas, pendentes ou pagas). Não altera pagamentos.
+  const visibleRows = data.commissions
+    .filter(c => monthFilter === "all" || monthKeyOf(c) === monthFilter)
+    .filter(c => statusFilter === "all" || c.status === statusFilter);
   const visiblePending = visibleRows.filter(c => c.status === "generated");
   const allVisibleSelected = visiblePending.length > 0 && visiblePending.every(c => selectedIds.includes(c.id));
   const selectedTotal = pendingRows.filter(c => selectedIds.includes(c.id)).reduce((sum, c) => sum + Number(c.amount || 0), 0);
@@ -539,6 +543,12 @@ function ProfessionalCommissionsModal({ professional, close, onPaid }: { profess
                 })}
               </div>
             )}
+
+            <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Filtro por status">
+              <button type="button" onClick={() => setStatusFilter("all")} aria-pressed={statusFilter === "all"} className={chipClass(statusFilter === "all")}>Todas</button>
+              <button type="button" onClick={() => setStatusFilter("generated")} aria-pressed={statusFilter === "generated"} className={chipClass(statusFilter === "generated")}>Pendentes</button>
+              <button type="button" onClick={() => setStatusFilter("paid")} aria-pressed={statusFilter === "paid"} className={chipClass(statusFilter === "paid")}>Pagas</button>
+            </div>
 
             <div className="overflow-y-auto flex-1 border rounded-lg border-[#E7EDF3]">
               <table className="data-table !min-w-0 table-fixed">
