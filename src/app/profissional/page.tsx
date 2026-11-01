@@ -1,3 +1,4 @@
+import { ProfessionalNavigation } from "@/components/professional-navigation";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { logout } from "@/lib/actions/auth";
@@ -29,7 +30,7 @@ export default async function ProfessionalHome() {
   const dateOnly = (value: string) => new Date(value).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
 
   return (
-    <div className="min-h-screen bg-bg">
+    <div className="min-h-screen bg-bg lg:pl-60"><ProfessionalNavigation name={name} />
       <header className="border-b border-[#E8D9C7] bg-white">
         <div className="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
@@ -39,7 +40,7 @@ export default async function ProfessionalHome() {
           <form action={logout}><button className="btn-outline" type="submit"><LogOut size={16} /> Sair</button></form>
         </div>
       </header>
-      <main className="mx-auto max-w-[1200px] space-y-6 px-4 py-7 sm:px-6 sm:py-10">
+      <main id="painel" className="mx-auto max-w-[1200px] space-y-6 px-4 py-7 sm:px-6 sm:py-10">
         <div>
           <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-primary"><ShieldCheck size={15} /> Acesso profissional</p>
           <h1 className="text-2xl font-bold text-ink sm:text-3xl">Olá, {name}</h1>
@@ -52,11 +53,11 @@ export default async function ProfessionalHome() {
           <div className="card"><div className="flex items-center gap-2 text-sm text-muted"><Wallet size={18} className="text-primary" /> Valor das comissões listadas</div><p className="mt-3 text-2xl font-bold text-ink">{currency(total)}</p><p className="mt-1 text-xs text-muted">Soma dos registros exibidos, não saldo a receber</p></div>
         </div>
         <div className="grid items-start gap-5 lg:grid-cols-2">
-          <section className="card">
+          <section id="agendamentos" className="card">
             <h2 className="flex items-center gap-2 text-lg font-bold text-ink"><CalendarDays size={19} className="text-primary" /> Meus agendamentos</h2>
             {appointmentsResult.error ? <p className="mt-5 text-sm text-danger">Não foi possível consultar seus agendamentos.</p> : appointments.length === 0 ? <div className="mt-5 rounded-lg bg-[#FAF6F0] px-5 py-10 text-center"><Clock3 className="mx-auto mb-3 text-primary" size={28} /><p className="font-medium">Nenhum agendamento encontrado</p><p className="mt-1 text-sm text-muted">Seus próximos atendimentos aparecerão aqui quando forem cadastrados.</p></div> : <ul className="mt-5 divide-y divide-[#E8D9C7]">{appointments.map(a => <li key={a.id} className="flex justify-between gap-4 py-3 text-sm"><span>{dateTime(a.starts_at)}</span><span className="font-medium text-primary">{a.status}</span></li>)}</ul>}
           </section>
-          <section className="card">
+          <section id="comissoes" className="card">
             <h2 className="flex items-center gap-2 text-lg font-bold text-ink"><Wallet size={19} className="text-primary" /> Minhas comissões</h2>
             {commissionsResult.error ? <p className="mt-5 text-sm text-danger">Não foi possível consultar suas comissões.</p> : commissions.length === 0 ? <div className="mt-5 rounded-lg bg-[#FAF6F0] px-5 py-10 text-center"><Wallet className="mx-auto mb-3 text-primary" size={28} /><p className="font-medium">Nenhuma comissão encontrada</p><p className="mt-1 text-sm text-muted">Suas comissões serão exibidas aqui após o registro dos atendimentos.</p></div> : <ul className="mt-5 divide-y divide-[#E8D9C7]">{commissions.map(c => <li key={c.id} className="flex justify-between gap-4 py-3 text-sm"><span>{dateOnly(c.created_at)} · {c.status}</span><strong>{currency(Number(c.amount))}</strong></li>)}</ul>}
           </section>
