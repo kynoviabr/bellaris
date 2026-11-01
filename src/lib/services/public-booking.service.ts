@@ -1,10 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+/** Situações da assinatura que impedem o agendamento online. */
+const BOOKING_BLOCKED_BILLING = ["somente_leitura", "cancelada", "sem_plano"];
+
 export async function getOrgBySlug(supabase: SupabaseClient, slug: string) {
   if (!slug || !supabase) return null;
   const { data: org, error } = await supabase
     .from("organizations")
-    .select("id, name, slug")
+    .select("id, name, slug, access_status")
     .eq("slug", slug.toLowerCase().trim())
     .maybeSingle();
 
@@ -13,6 +16,25 @@ export async function getOrgBySlug(supabase: SupabaseClient, slug: string) {
     return null;
   }
   if (!org) return null;
+  // Cadastro ainda em análise: o salão não aparece para o público.
+  if (org.access_status && org.access_status !== "ativo") return null;
+  return org;
+}
+
+/**
+ * Salão que pode receber agendamento online: liberado pelo master e com assinatura que permite operar.
+ * Em dúvida (erro ao consultar a assinatura), não libera.
+ */
+export async function getBookableOrgBySlug(supabase: SupabaseClient, slug: string) {
+  const org = await getOrgBySlug(supabase, slug);
+  if (!org) return null;
+
+  const { data: status, error } = await supabase.rpc("platform_billing_status_of", { p_org: org.id });
+  if (error) {
+    console.error("[PublicBooking] Billing status lookup failed:", { code: error.code, message: error.message });
+    return null;
+  }
+  if (BOOKING_BLOCKED_BILLING.includes(String(status))) return null;
   return org;
 }
 
@@ -21,7 +43,7 @@ export async function fetchPublicBookingDataBySlug(supabase: SupabaseClient, slu
     return { success: false, services: [], professionals: [], orgName: "", orgId: null, slug: "", error: "Missing configuration" };
   }
 
-  const org = await getOrgBySlug(supabase, slug);
+  const org = await getBookableOrgBySlug(supabase, slug);
   if (!org) {
     return { success: false, services: [], professionals: [], orgName: "", orgId: null, slug: "", error: "Organization not found" };
   }

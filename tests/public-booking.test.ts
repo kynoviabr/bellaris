@@ -121,6 +121,7 @@ test("fetchPublicBookingData & Multi-Tenant Slug Tests", async (t) => {
     };
 
     const supabaseMock: any = {
+      rpc: async () => ({ data: "em_dia", error: null }),
       from: (table: string) => ({
         select: () => ({
           eq: (col1: string, val1: string) => {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/server";
 import { findAvailableProfessionalForSlot } from "@/lib/availability-engine";
-import { getOrgBySlug } from "@/lib/services/public-booking.service";
+import { getBookableOrgBySlug } from "@/lib/services/public-booking.service";
 
 export async function POST(request: Request) {
   try {
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     }
 
     // Resolve organization exclusively on the server by slug
-    const org = await getOrgBySlug(supabase, slug);
+    const org = await getBookableOrgBySlug(supabase, slug);
     if (!org) {
       return NextResponse.json({ error: "Salão não encontrado ou inativo." }, { status: 404 });
     }

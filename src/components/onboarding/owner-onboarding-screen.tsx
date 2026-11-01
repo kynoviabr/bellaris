@@ -38,7 +38,7 @@ export function OwnerOnboardingScreen({ isOwner, accessStatus, accessNote, reque
         <p className="mt-2 text-sm text-muted">
           {isOwner
             ? "Recebemos os dados do seu salão. Assim que a análise for concluída, o acesso será liberado por aqui."
-            : "O cadastro deste salão ainda está em análise. Assim que for liberado, você terá acesso ao sistema."}
+            : "Este salão ainda não está liberado para uso, porque o cadastro está em análise. Assim que for liberado, você terá acesso ao sistema."}
         </p>
       </div>
     );
