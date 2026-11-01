@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import type { PermissionRow } from "@/lib/authorization/permissions";
 import { getOwnerOnboardingState } from "@/lib/actions/onboarding";
 import { OwnerOnboardingScreen } from "@/components/onboarding/owner-onboarding-screen";
+import { AccessSuspendedScreen } from "@/components/onboarding/access-suspended-screen";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,16 @@ export default async function ProfessionalHome() {
           owner={null}
         />
       </div>
+    );
+  }
+
+  const { data: billingStatus } = await supabase.rpc("salon_billing_status");
+  if (billingStatus === "cancelada" || billingStatus === "sem_plano") {
+    return (
+      <AccessSuspendedScreen
+        email={user.email || ""}
+        logout={async () => { "use server"; const { logout } = await import("@/lib/actions/auth"); await logout(); }}
+      />
     );
   }
 

@@ -13,6 +13,7 @@ import { getReports } from "@/lib/actions/reports";
 import type { PermissionRow, StudioRole } from "@/lib/authorization/permissions";
 import { getActivePlans, getOwnerOnboardingState } from "@/lib/actions/onboarding";
 import { OwnerOnboardingScreen } from "@/components/onboarding/owner-onboarding-screen";
+import { AccessSuspendedScreen } from "@/components/onboarding/access-suspended-screen";
 
 export default async function Page() {
   const supabase = await createClient();
@@ -74,6 +75,19 @@ export default async function Page() {
     );
   }
 
+  // Situação da mensalidade do salão: cancelado ou sem plano perde o acesso; aviso e somente leitura mostram banner.
+  const { data: billingStatus } = supabase
+    ? await supabase.rpc("salon_billing_status")
+    : { data: null as string | null };
+  if (billingStatus === "cancelada" || billingStatus === "sem_plano") {
+    return (
+      <AccessSuspendedScreen
+        email={tenantContext.email}
+        logout={async () => { "use server"; const { logout } = await import("@/lib/actions/auth"); await logout(); }}
+      />
+    );
+  }
+
   // Load real data
   const clients = await getClients();
   const professionals = await getProfessionals();
@@ -90,10 +104,6 @@ export default async function Page() {
   const inventory = await getInventory();
   const reports = isStaff ? {} : await getReports();
 
-  // Situação da mensalidade do salão: aviso (vencida) ou somente leitura (bloqueio de escrita).
-  const { data: billingStatus } = supabase
-    ? await supabase.rpc("salon_billing_status")
-    : { data: null as string | null };
   const billingBanner = billingStatus === "somente_leitura" ? (
     <div className="mx-4 mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
       <strong>Assinatura em atraso.</strong> O salão está em modo somente leitura. Você pode consultar agenda, clientes e histórico, mas não pode criar nem alterar atendimentos, pagamentos, comissões, clientes, despesas, estoque ou pacotes. Regularize a mensalidade para liberar o sistema.
