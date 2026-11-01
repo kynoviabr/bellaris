@@ -477,13 +477,13 @@ function ProfessionalCommissionsModal({ professional, close }: { professional: a
             </div>
 
             <div className="overflow-y-auto flex-1 border rounded-lg border-[#E7EDF3]">
-              <table className="data-table">
+              <table className="data-table !min-w-0 table-fixed">
                 <thead className="sticky top-0 bg-white">
                   <tr>
-                    <th>Data</th>
+                    <th className="w-[24%]">Data</th>
                     <th>Serviço</th>
-                    <th>Status</th>
-                    <th>Valor</th>
+                    <th className="w-[22%]">Status</th>
+                    <th className="w-[20%] text-right">Valor</th>
                   </tr>
                 </thead>
                 <tbody>
