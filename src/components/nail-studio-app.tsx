@@ -425,6 +425,7 @@ function ProfessionalCommissionsModal({ professional, close }: { professional: a
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [monthFilter, setMonthFilter] = useState<string>("all");
 
   useEffect(() => {
     if (professional?.id) {
@@ -439,11 +440,42 @@ function ProfessionalCommissionsModal({ professional, close }: { professional: a
     }
   }, [professional]);
 
+  // Data da comissão vem como dd/mm/aaaa; a chave do mês é aaaa-mm.
+  const monthKeyOf = (c: any) => {
+    const [dd, mm, yyyy] = String(c.date || "").split("/");
+    return dd && mm && yyyy ? `${yyyy}-${mm}` : "";
+  };
+  const monthLabelOf = (key: string) => {
+    const [yyyy, mm] = key.split("-").map(Number);
+    const label = new Date(Date.UTC(yyyy, mm - 1, 1)).toLocaleDateString("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" });
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  };
+
   const pendingRows = data.commissions.filter(c => c.status === "generated");
+  const months = Array.from(new Set(data.commissions.map(monthKeyOf).filter(Boolean))).sort().reverse();
+  const monthSummary = (key: string) => {
+    const pend = pendingRows.filter(c => monthKeyOf(c) === key);
+    return { count: pend.length, total: pend.reduce((sum, c) => sum + Number(c.amount || 0), 0) };
+  };
+
+  const visibleRows = monthFilter === "all" ? data.commissions : data.commissions.filter(c => monthKeyOf(c) === monthFilter);
+  const visiblePending = visibleRows.filter(c => c.status === "generated");
+  const allVisibleSelected = visiblePending.length > 0 && visiblePending.every(c => selectedIds.includes(c.id));
   const selectedTotal = pendingRows.filter(c => selectedIds.includes(c.id)).reduce((sum, c) => sum + Number(c.amount || 0), 0);
-  const allSelected = pendingRows.length > 0 && pendingRows.every(c => selectedIds.includes(c.id));
+
   const toggle = (id: string) => setSelectedIds(current => current.includes(id) ? current.filter(x => x !== id) : [...current, id]);
-  const toggleAll = () => setSelectedIds(allSelected ? [] : pendingRows.map(c => c.id));
+  const toggleVisible = () => {
+    const ids = visiblePending.map(c => c.id);
+    setSelectedIds(current => allVisibleSelected
+      ? current.filter(id => !ids.includes(id))
+      : Array.from(new Set([...current, ...ids])));
+  };
+  // Escolhe um mês: mostra só as comissões dele e marca apenas as pendentes desse mês.
+  const pickMonth = (key: string) => {
+    setMonthFilter(key);
+    setSelectedIds(pendingRows.filter(c => monthKeyOf(c) === key).map(c => c.id));
+  };
+  const showAll = () => setMonthFilter("all");
 
   const handlePay = async () => {
     if (!professional?.id || selectedIds.length === 0) return;
@@ -456,6 +488,8 @@ function ProfessionalCommissionsModal({ professional, close }: { professional: a
       alert("Erro ao pagar comissões: " + ("error" in res ? res.error : "Erro desconhecido"));
     }
   };
+
+  const chipClass = (active: boolean) => `rounded-full border px-3 py-1.5 text-xs transition-colors ${active ? "border-primary bg-primary text-white" : "border-[#E8D9C7] bg-white text-ink hover:bg-bg"}`;
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
@@ -484,12 +518,27 @@ function ProfessionalCommissionsModal({ professional, close }: { professional: a
               </div>
             </div>
 
+            {months.length > 0 && (
+              <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Fechamento por mês">
+                <button type="button" onClick={showAll} aria-pressed={monthFilter === "all"} className={chipClass(monthFilter === "all")}>Todos os meses</button>
+                {months.map(key => {
+                  const sum = monthSummary(key);
+                  return (
+                    <button key={key} type="button" onClick={() => pickMonth(key)} aria-pressed={monthFilter === key}
+                      className={chipClass(monthFilter === key)} disabled={sum.count === 0}>
+                      {monthLabelOf(key)}{sum.count > 0 ? ` · ${money.format(sum.total)}` : " · pago"}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             <div className="overflow-y-auto flex-1 border rounded-lg border-[#E7EDF3]">
               <table className="data-table !min-w-0 table-fixed">
                 <thead className="sticky top-0 bg-white">
                   <tr>
                     <th className="w-[8%]">
-                      <input type="checkbox" aria-label="Selecionar todas as pendentes" checked={allSelected} disabled={pendingRows.length === 0} onChange={toggleAll} className="h-4 w-4 accent-primary" />
+                      <input type="checkbox" aria-label="Selecionar todas as pendentes exibidas" checked={allVisibleSelected} disabled={visiblePending.length === 0} onChange={toggleVisible} className="h-4 w-4 accent-primary" />
                     </th>
                     <th className="w-[20%]">Data</th>
                     <th>Serviço</th>
@@ -498,9 +547,9 @@ function ProfessionalCommissionsModal({ professional, close }: { professional: a
                   </tr>
                 </thead>
                 <tbody>
-                  {data.commissions.length === 0 ? (
+                  {visibleRows.length === 0 ? (
                     <tr><td colSpan={5} className="text-center py-8 text-muted">Nenhuma comissão registrada.</td></tr>
-                  ) : data.commissions.map((c: any) => (
+                  ) : visibleRows.map((c: any) => (
                     <tr key={c.id}>
                       <td>
                         {c.status === "generated" && (
