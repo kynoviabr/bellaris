@@ -26,10 +26,10 @@ export type SalonAdminRow = {
 
 export type PlanChoice = { code: string; name: string; monthly_price: number };
 
-const inputClass = "h-10 w-full rounded-md border border-[#E8D9C7] bg-[#FFFCF8] px-3 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15";
-const labelClass = "mb-1 block text-xs font-medium text-muted";
-const btnPrimary = "inline-flex h-10 items-center justify-center rounded-lg bg-primary px-5 text-sm font-semibold text-white disabled:opacity-50";
-const btnOutline = "inline-flex h-10 items-center justify-center rounded-lg border border-[#E8D9C7] bg-white px-5 text-sm font-semibold text-ink";
+const inputClass = "field-input";
+const labelClass = "field-label";
+const btnPrimary = "btn-primary";
+const btnOutline = "btn-outline";
 
 /** Dados do responsável como defaults do formulário. */
 export function ownerDefaults(row: SalonAdminRow) {
@@ -74,7 +74,7 @@ export function ApprovalCard({ row, plans }: { row: SalonAdminRow; plans: PlanCh
   const rejectError = rejectState && "error" in rejectState ? rejectState.error : null;
 
   return (
-    <article className="rounded-xl border border-[#E8D9C7] bg-white p-5 shadow-sm space-y-5">
+    <article className="card space-y-5">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="font-semibold text-ink">{row.salon_name}</h3>
@@ -82,7 +82,7 @@ export function ApprovalCard({ row, plans }: { row: SalonAdminRow; plans: PlanCh
             Plano escolhido pelo dono: <strong>{plans.find(p => p.code === row.requested_plan_code)?.name ?? "—"}</strong>
           </p>
         </div>
-        <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+        <span className="badge bg-amber-50 text-amber-800">
           {row.access_status === "aguardando_aprovacao" ? "Aguardando aprovação" : "Aguardando correção"}
         </span>
       </header>
