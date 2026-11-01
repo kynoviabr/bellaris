@@ -166,6 +166,14 @@ test('Fase 4 - Clientes: createClientRecordService e updateClientRecordService r
   let rpcParams: any = null;
 
   const mockSupabaseRpc: any = {
+    // createClientRecordService consulta duplicidade de WhatsApp antes do RPC.
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          limit: async () => ({ data: [], error: null })
+        })
+      })
+    }),
     rpc: async (name: string, params: any) => {
       rpcName = name;
       rpcParams = params;
