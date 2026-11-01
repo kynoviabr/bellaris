@@ -1777,21 +1777,63 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
 }
 
 
-function ProfessionalReport({ rows, commissions }: { rows: Appointment[]; commissions: { amount: number; status: string }[] }) {
+const REPORT_PERIODS = [
+  { id: "today", label: "Hoje" },
+  { id: "week", label: "Esta semana" },
+  { id: "month", label: "Este mês" },
+  { id: "last_month", label: "Mês anterior" },
+  { id: "30days", label: "Últimos 30 dias" },
+  { id: "all", label: "Todos" },
+] as const;
+type ReportPeriod = typeof REPORT_PERIODS[number]["id"];
+
+function shiftDateKey(key: string, days: number) {
+  const d = new Date(`${key}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function periodRange(period: ReportPeriod, todayKey: string): { start: string; end: string } | null {
+  if (period === "all") return null;
+  if (period === "today") return { start: todayKey, end: todayKey };
+  if (period === "week") {
+    const dow = new Date(`${todayKey}T12:00:00Z`).getUTCDay(); // 0 = domingo
+    return { start: shiftDateKey(todayKey, -(dow === 0 ? 6 : dow - 1)), end: todayKey };
+  }
+  if (period === "month") return { start: `${todayKey.slice(0, 7)}-01`, end: todayKey };
+  if (period === "last_month") {
+    const [y, m] = todayKey.split("-").map(Number);
+    const first = new Date(Date.UTC(y, m - 2, 1));
+    const last = new Date(Date.UTC(y, m - 1, 0));
+    return { start: first.toISOString().slice(0, 10), end: last.toISOString().slice(0, 10) };
+  }
+  return { start: shiftDateKey(todayKey, -29), end: todayKey }; // 30days
+}
+
+function ProfessionalReport({ rows, commissions }: { rows: Appointment[]; commissions: { amount: number; status: string; date: string }[] }) {
+  const [period, setPeriod] = useState<ReportPeriod>("month");
   const now = new Date();
-  const monthKey = now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }).slice(0, 7);
+  const todayKey = now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+  const range = periodRange(period, todayKey);
+  const inRange = (key?: string | null) => !range || (!!key && key >= range.start && key <= range.end);
+  const periodLabel = REPORT_PERIODS.find(p => p.id === period)?.label ?? "";
   const monthLabel = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: "America/Sao_Paulo" }).format(now);
 
-  const monthRows = rows.filter(a => a.dateStr?.startsWith(monthKey));
-  const completed = monthRows
+  const periodRows = rows.filter(a => inRange(a.dateStr));
+  const completed = periodRows
     .filter(a => a.status === "Concluído")
     .sort((a, b) => `${b.dateStr}${b.time}`.localeCompare(`${a.dateStr}${a.time}`));
   const production = completed.reduce((sum, a) => sum + Number(a.price || 0), 0);
   const ticket = completed.length > 0 ? production / completed.length : 0;
-  const scheduled = monthRows.filter(a => a.status !== "Concluído" && a.status !== "Cancelado").length;
-  const cancelled = monthRows.filter(a => a.status === "Cancelado").length;
-  const toReceive = commissions.filter(c => c.status === "generated").reduce((sum, c) => sum + Number(c.amount || 0), 0);
-  const received = commissions.filter(c => c.status === "paid").reduce((sum, c) => sum + Number(c.amount || 0), 0);
+  const scheduled = periodRows.filter(a => a.status !== "Concluído" && a.status !== "Cancelado").length;
+  const cancelled = periodRows.filter(a => a.status === "Cancelado").length;
+
+  const commissionsInPeriod = commissions.filter(c => {
+    const [dd, mm, yyyy] = (c.date || "").split("/");
+    return inRange(dd && mm && yyyy ? `${yyyy}-${mm}-${dd}` : null);
+  });
+  const toReceive = commissionsInPeriod.filter(c => c.status === "generated").reduce((sum, c) => sum + Number(c.amount || 0), 0);
+  const received = commissionsInPeriod.filter(c => c.status === "paid").reduce((sum, c) => sum + Number(c.amount || 0), 0);
 
   const ReportStat = ({ label, value, hint }: { label: string; value: string; hint?: string }) => (
     <div className="rounded-xl border border-[#E8D9C7] bg-white p-4">
@@ -1803,16 +1845,25 @@ function ProfessionalReport({ rows, commissions }: { rows: Appointment[]; commis
 
   return (
     <main className="page-content">
+      <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Período">
+        {REPORT_PERIODS.map(p => (
+          <button key={p.id} type="button" onClick={() => setPeriod(p.id)} aria-pressed={period === p.id}
+            className={`rounded-full border px-3.5 py-1.5 text-sm transition-colors ${period === p.id ? "border-primary bg-primary text-white" : "border-[#E8D9C7] bg-white text-ink hover:bg-bg"}`}>
+            {p.label}
+          </button>
+        ))}
+      </div>
+
       <div className="mb-5">
-        <h2 className="text-lg font-semibold">{monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)}</h2>
-        <p className="text-xs text-muted">Seus atendimentos e comissões neste mês.</p>
+        <h2 className="text-lg font-semibold">{period === "month" ? monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1) : periodLabel}</h2>
+        <p className="text-xs text-muted">Seus atendimentos e comissões no período selecionado.</p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <ReportStat label="Atendimentos concluídos" value={String(completed.length)} />
-        <ReportStat label="Produção do mês" value={money.format(production)} hint="Soma dos serviços concluídos" />
+        <ReportStat label="Produção" value={money.format(production)} hint="Soma dos serviços concluídos" />
         <ReportStat label="Ticket médio" value={money.format(ticket)} />
-        <ReportStat label="Agendados no mês" value={String(scheduled)} hint={cancelled > 0 ? `${cancelled} cancelado(s)` : undefined} />
+        <ReportStat label="Agendados" value={String(scheduled)} hint={cancelled > 0 ? `${cancelled} cancelado(s)` : undefined} />
       </div>
 
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -1827,7 +1878,7 @@ function ProfessionalReport({ rows, commissions }: { rows: Appointment[]; commis
       </div>
 
       <section className="mt-6">
-        <h3 className="mb-3 text-sm font-semibold text-ink">Atendimentos concluídos no mês</h3>
+        <h3 className="mb-3 text-sm font-semibold text-ink">Atendimentos concluídos</h3>
         <div className="overflow-x-auto rounded-lg border border-[#E7EDF3]">
           <table className="data-table !min-w-0 table-fixed">
             <thead>
@@ -1840,7 +1891,7 @@ function ProfessionalReport({ rows, commissions }: { rows: Appointment[]; commis
             </thead>
             <tbody>
               {completed.length === 0 ? (
-                <tr><td colSpan={4} className="py-8 text-center text-muted">Nenhum atendimento concluído neste mês.</td></tr>
+                <tr><td colSpan={4} className="py-8 text-center text-muted">Nenhum atendimento concluído neste período.</td></tr>
               ) : completed.map(a => (
                 <tr key={a.id}>
                   <td>{a.dateStr ? `${a.dateStr.slice(8, 10)}/${a.dateStr.slice(5, 7)} · ${a.time}` : a.time}</td>
