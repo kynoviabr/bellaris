@@ -10,12 +10,14 @@ import { getServices } from "@/lib/actions/services";
 import { getFinance } from "@/lib/actions/finance";
 import { getInventory } from "@/lib/actions/inventory";
 import { getReports } from "@/lib/actions/reports";
+import type { StudioRole } from "@/lib/authorization/permissions";
 
 export default async function Page() {
   const supabase = await createClient();
-  
+
   // Protect route
   let tenantContext = { profileName: "Usuário", orgName: "Studio", email: "" };
+  let viewerRole: string = "owner";
   if (supabase) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -27,7 +29,8 @@ export default async function Page() {
     const { data: profile } = await supabase.from('profiles').select('full_name, organization_id, role').eq('id', user.id).single();
     if (profile?.role === "professional") redirect("/profissional");
     if (profile?.role === "platform_master") redirect("/plataforma");
-    if (!profile || !["owner", "admin"].includes(profile.role)) redirect("/login");
+    if (!profile || !["owner", "admin", "staff"].includes(profile.role)) redirect("/login");
+    viewerRole = profile.role;
     let organization = { name: "Nail Studio" };
     tenantContext.profileName = profile?.full_name || "Usuário";
     if (profile?.organization_id) {
@@ -46,9 +49,11 @@ export default async function Page() {
   const specialties = await getSpecialties();
   const appointments = await getAppointments();
   const services = await getServices();
-  const financialData = await getFinance();
+  // A recepcionista não carrega dados financeiros nem relatórios (somente a gestora).
+  const isStaff = viewerRole === "staff";
+  const financialData = isStaff ? { data: [], stats: { revenue: 0, expenses: 0, commissions: 0, balance: 0 } } : await getFinance();
   const inventory = await getInventory();
-  const reports = await getReports();
+  const reports = isStaff ? {} : await getReports();
 
   return <NailStudioApp 
     initialClients={clients} 
@@ -61,5 +66,6 @@ export default async function Page() {
     initialInventory={inventory}
     initialReports={reports}
     tenant={tenantContext}
+    role={viewerRole as StudioRole}
   />;
 }

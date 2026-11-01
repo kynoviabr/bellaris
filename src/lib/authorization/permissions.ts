@@ -34,3 +34,29 @@ export function canAccess(role: StudioRole, module: StudioModule, operation: Stu
   if (role === "staff") return staffAccess[module]?.includes(operation) ?? false;
   return false;
 }
+
+// Telas (menus) da interface mapeadas para o módulo de permissão.
+// "commissions" é a parte de comissões do módulo financeiro.
+export const viewModule: Record<string, StudioModule> = {
+  dashboard: "dashboard",
+  agenda: "agenda",
+  clients: "clients",
+  services: "services",
+  professionals: "professionals",
+  attendance: "attendance",
+  finance: "finance",
+  commissions: "finance",
+  packages: "packages",
+  inventory: "inventory",
+  automations: "automations",
+  reports: "reports",
+  online: "online",
+  settings: "settings",
+};
+
+export function canOpenView(role: StudioRole, view: string): boolean {
+  if (role === "owner" || role === "admin") return true;
+  const moduleName = viewModule[view];
+  if (!moduleName) return false;
+  return canAccess(role, moduleName, "view");
+}
