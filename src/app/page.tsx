@@ -11,6 +11,8 @@ import { getFinance } from "@/lib/actions/finance";
 import { getInventory } from "@/lib/actions/inventory";
 import { getReports } from "@/lib/actions/reports";
 import type { PermissionRow, StudioRole } from "@/lib/authorization/permissions";
+import { getActivePlans, getOwnerOnboardingState } from "@/lib/actions/onboarding";
+import { OwnerOnboardingScreen } from "@/components/onboarding/owner-onboarding-screen";
 
 export default async function Page() {
   const supabase = await createClient();
@@ -46,6 +48,29 @@ export default async function Page() {
     // Pass to component (we will add to props)
 
 
+  }
+
+  // Salão ainda não liberado pelo master: o dono vê só o cadastro (ou a espera). Nenhum dado do salão é carregado.
+  const onboarding = await getOwnerOnboardingState();
+  if (onboarding && onboarding.accessStatus !== "ativo") {
+    const plans = await getActivePlans();
+    return (
+      <div className="min-h-screen bg-bg p-4 sm:p-8">
+        <header className="mx-auto flex max-w-2xl items-center justify-between pb-4">
+          <span className="text-sm text-muted">{tenantContext.email}</span>
+          <form action={async () => { "use server"; const { logout } = await import("@/lib/actions/auth"); await logout(); }}>
+            <button type="submit" className="inline-flex h-10 items-center rounded-lg border border-[#E8D9C7] bg-[#FFFCF8] px-5 text-sm font-semibold">Sair</button>
+          </form>
+        </header>
+        <OwnerOnboardingScreen
+          accessStatus={onboarding.accessStatus}
+          accessNote={onboarding.accessNote}
+          requestedPlanCode={onboarding.requestedPlanCode}
+          plans={plans}
+          owner={onboarding.owner as Record<string, string | null> | null}
+        />
+      </div>
+    );
   }
 
   // Load real data

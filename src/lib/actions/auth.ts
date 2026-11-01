@@ -1,7 +1,8 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { validateOwnerData } from "@/lib/validation/owner-data.ts";
 
 export async function login(prevState: any, formData: FormData) {
   const email = (formData.get("email") as string)?.trim();
@@ -63,8 +64,27 @@ export async function register(prevState: any, formData: FormData) {
     return { error: "Preencha todos os campos." };
   }
 
+  // Dados do responsável e do plano são obrigatórios e validados antes de criar qualquer conta.
+  const ownerInput = Object.fromEntries(
+    ["whatsapp", "cpf", "cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf", "planCode"]
+      .map((key) => [key, String(formData.get(key) ?? "")])
+  ) as Record<string, string>;
+  const ownerParsed = validateOwnerData({ ...ownerInput, fullName });
+  if ("error" in ownerParsed) return { error: ownerParsed.error };
+  const owner = ownerParsed.value;
+
   const supabase = await createClient();
   if (!supabase) return { error: "Supabase não configurado" };
+
+  const planAdmin = await createAdminClient();
+  if (!planAdmin) return { error: "Serviço indisponível. Tente novamente." };
+  const { data: plan } = await planAdmin
+    .from("platform_plans")
+    .select("code")
+    .eq("code", owner.planCode)
+    .eq("active", true)
+    .maybeSingle();
+  if (!plan) return { error: "Escolha um plano válido." };
 
   // 1. Create the user using standard client
   const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -87,7 +107,6 @@ export async function register(prevState: any, formData: FormData) {
   }
 
   // 2. We use admin client to set up Org and Profile bypassing RLS, and confirm user email
-  const { createAdminClient } = await import("@/lib/supabase/server");
   const adminClient = await createAdminClient();
   
   if (adminClient) {
@@ -103,14 +122,34 @@ export async function register(prevState: any, formData: FormData) {
       slug = `${baseSlug}-${i}`;
     }
 
-    // Create new organization
+    // Create new organization. Nasce aguardando a aprovação do master, com os dados do dono já preenchidos.
     const { data: org } = await adminClient.from('organizations').insert([{
       name: orgName,
       slug,
-      timezone: 'America/Sao_Paulo'
+      timezone: 'America/Sao_Paulo',
+      access_status: 'aguardando_aprovacao',
+      requested_plan_code: owner.planCode,
     }]).select('id').single();
 
     if (org?.id) {
+      const { error: ownerError } = await adminClient.from('organization_owner_data').insert([{
+        organization_id: org.id,
+        full_name: owner.fullName,
+        whatsapp: owner.whatsapp,
+        cpf: owner.cpf,
+        cep: owner.cep,
+        logradouro: owner.logradouro,
+        numero: owner.numero,
+        complemento: owner.complemento,
+        bairro: owner.bairro,
+        cidade: owner.cidade,
+        uf: owner.uf,
+        updated_by: user.id,
+      }]);
+      if (ownerError) {
+        return { error: "Não foi possível salvar os dados do responsável. Tente novamente." };
+      }
+
       // Check if profile exists (from trigger)
       const { data: existingProfile } = await adminClient.from('profiles').select('id').eq('id', user.id).single();
       
