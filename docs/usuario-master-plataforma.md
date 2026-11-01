@@ -1,7 +1,7 @@
 # Usuário master da plataforma
 
 - Papel: `platform_master`, sem salão (`profiles.organization_id` nulo).
-- Acesso: página `/plataforma`. Não lê dados de nenhum salão: o RLS nega tudo quando `organization_id` é nulo.
+- Acesso: página `/plataforma`, somente leitura. Mostra a lista de salões (nome, slug, fuso e data de criação) pela função `platform_list_salons`. Não lê clientes, agendas nem financeiro de nenhum salão: o RLS nega tudo quando `organization_id` é nulo.
 - Regra no banco: `platform_master` não pode ter salão, e nenhum outro papel pode ficar sem salão.
 - Não há criação automática pela aplicação. Criação é manual, feita por quem administra o projeto.
 
