@@ -1,0 +1,48 @@
+-- A visão do master passa a devolver os campos que o formulário "Editar assinatura" precisa:
+-- cancelada e dia de vencimento. Antes o formulário abria sempre desmarcado e com o padrão.
+
+drop function if exists public.platform_billing_overview();
+
+create function public.platform_billing_overview()
+returns table (
+  organization_id uuid,
+  salon_name text,
+  plan_code text,
+  plan_name text,
+  billing_mode text,
+  status text,
+  due_date date,
+  days_overdue integer,
+  last_payment_on date,
+  monthly_price numeric,
+  cancelled boolean,
+  due_business_day integer
+)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select
+    o.id,
+    o.name,
+    s.plan_code,
+    pl.name,
+    coalesce(s.billing_mode, 'mensalidade'),
+    public.platform_billing_status_of(o.id),
+    s.current_period_end,
+    case when s.current_period_end is null then 0
+         else greatest(0, ((now() at time zone 'America/Sao_Paulo')::date - s.current_period_end)) end,
+    (select max(p.paid_at) from public.platform_payments p where p.organization_id = o.id),
+    pl.monthly_price,
+    coalesce(s.cancelled, false),
+    s.due_business_day
+  from public.organizations o
+  left join public.platform_subscriptions s on s.organization_id = o.id
+  left join public.platform_plans pl on pl.code = s.plan_code
+  where private.is_platform_master()
+  order by o.name
+$$;
+
+revoke execute on function public.platform_billing_overview() from public, anon;
+grant execute on function public.platform_billing_overview() to authenticated;

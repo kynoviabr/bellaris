@@ -14,6 +14,7 @@ export type SalonBilling = {
   last_payment_on: string | null;
   monthly_price: number | null;
   due_business_day: number | null;
+  cancelled: boolean;
 };
 export type PlanOption = { code: string; name: string; monthly_price: number };
 
@@ -118,7 +119,7 @@ export function SalonRowActions({ salon, plans }: { salon: SalonBilling; plans: 
               <option value="0">Último dia útil do mês</option>
               {Array.from({ length: 10 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n}º dia útil do mês</option>)}
             </select></div>
-          <label className="flex items-center gap-2 self-end text-sm"><input type="checkbox" name="cancelled" className="h-4 w-4 accent-primary" /> Assinatura cancelada</label>
+          <label className="flex items-center gap-2 self-end text-sm"><input type="checkbox" name="cancelled" defaultChecked={salon.cancelled} className="h-4 w-4 accent-primary" /> Assinatura cancelada</label>
           <div className="sm:col-span-2"><label className={labelClass}>Observação</label><input name="notes" className={inputClass} /></div>
           <div className="sm:col-span-2 flex gap-2"><button type="submit" disabled={pending} className={btnPrimary}>{pending ? "Salvando..." : "Salvar assinatura"}</button><button type="button" className={btnOutline} onClick={() => setOpen(null)}>Cancelar</button></div>
         </form>
