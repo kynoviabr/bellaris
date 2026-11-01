@@ -1614,7 +1614,7 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
     if (view === "inventory") return <Inventory data={productRows} onNew={() => openEntity("product", "create")} onAction={(mode, index) => openEntity("product", mode, index)} onDelete={(index) => { openEntity("product", "edit", index); notify("Atualize o campo \"Saldo atual\" para corrigir o estoque."); }} />;
     if (view === "automations" && professionalMode) return <main className="page-content"><h2 className="text-xl font-semibold">Recuperação de clientes</h2><p className="mt-2 text-sm text-muted">O envio de mensagens será liberado após validação da lista de clientes vinculadas, consentimento e permissões de comunicação.</p></main>;
     if (view === "automations") return <Automations go={setView} tenant={tenant} />;
-    if (view === "reports" && professionalMode) return <main className="page-content"><h2 className="text-xl font-semibold">Meus relatórios</h2><div className="mt-4 grid gap-3 sm:grid-cols-2"><div className="card">Agendamentos: {rows.length}</div><div className="card">Concluídos: {rows.filter(a => a.status === "Concluído").length}</div></div></main>;
+    if (view === "reports" && professionalMode) return <ProfessionalReport rows={rows} commissions={initialCommissions} />;
     if (view === "reports") return <Reports data={reportsData} />;
     if (view === "online") return tenant?.orgSlug ? <OnlineBooking slug={tenant.orgSlug} orgName={tenant?.orgName || "Salão"} /> : <main className="page-content"><div className="card"><p className="text-sm text-muted">O agendamento online deste salão ainda não está configurado.</p></div></main>;
   })();
@@ -1750,7 +1750,87 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
 }
 
 
-function FinishModal({ appointment, close, done }: { appointment: Appointment; close: () => void; done: (method: string, val: number, packageId?: string) => void }) {
+function ProfessionalReport({ rows, commissions }: { rows: Appointment[]; commissions: { amount: number; status: string }[] }) {
+  const now = new Date();
+  const monthKey = now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }).slice(0, 7);
+  const monthLabel = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: "America/Sao_Paulo" }).format(now);
+
+  const monthRows = rows.filter(a => a.dateStr?.startsWith(monthKey));
+  const completed = monthRows
+    .filter(a => a.status === "Concluído")
+    .sort((a, b) => `${b.dateStr}${b.time}`.localeCompare(`${a.dateStr}${a.time}`));
+  const production = completed.reduce((sum, a) => sum + Number(a.price || 0), 0);
+  const ticket = completed.length > 0 ? production / completed.length : 0;
+  const scheduled = monthRows.filter(a => a.status !== "Concluído" && a.status !== "Cancelado").length;
+  const cancelled = monthRows.filter(a => a.status === "Cancelado").length;
+  const toReceive = commissions.filter(c => c.status === "generated").reduce((sum, c) => sum + Number(c.amount || 0), 0);
+  const received = commissions.filter(c => c.status === "paid").reduce((sum, c) => sum + Number(c.amount || 0), 0);
+
+  const ReportStat = ({ label, value, hint }: { label: string; value: string; hint?: string }) => (
+    <div className="rounded-xl border border-[#E8D9C7] bg-white p-4">
+      <p className="text-xs text-muted">{label}</p>
+      <p className="mt-1 text-2xl font-bold text-ink">{value}</p>
+      {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
+    </div>
+  );
+
+  return (
+    <main className="page-content">
+      <div className="mb-5">
+        <h2 className="text-lg font-semibold capitalize">{monthLabel}</h2>
+        <p className="text-xs text-muted">Seus atendimentos e comissões neste mês.</p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <ReportStat label="Atendimentos concluídos" value={String(completed.length)} />
+        <ReportStat label="Produção do mês" value={money.format(production)} hint="Soma dos serviços concluídos" />
+        <ReportStat label="Ticket médio" value={money.format(ticket)} />
+        <ReportStat label="Agendados no mês" value={String(scheduled)} hint={cancelled > 0 ? `${cancelled} cancelado(s)` : undefined} />
+      </div>
+
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
+          <p className="text-xs text-amber-800">Comissão a receber</p>
+          <p className="mt-1 text-2xl font-bold text-amber-900">{money.format(toReceive)}</p>
+        </div>
+        <div className="rounded-xl border border-green-100 bg-green-50 p-4">
+          <p className="text-xs text-green-800">Comissão já recebida</p>
+          <p className="mt-1 text-2xl font-bold text-green-900">{money.format(received)}</p>
+        </div>
+      </div>
+
+      <section className="mt-6">
+        <h3 className="mb-3 text-sm font-semibold text-ink">Atendimentos concluídos no mês</h3>
+        <div className="overflow-x-auto rounded-lg border border-[#E7EDF3]">
+          <table className="data-table !min-w-0 table-fixed">
+            <thead>
+              <tr>
+                <th className="w-[20%]">Data</th>
+                <th>Serviço</th>
+                <th className="w-[24%]">Cliente</th>
+                <th className="w-[18%] text-right">Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              {completed.length === 0 ? (
+                <tr><td colSpan={4} className="py-8 text-center text-muted">Nenhum atendimento concluído neste mês.</td></tr>
+              ) : completed.map(a => (
+                <tr key={a.id}>
+                  <td>{a.dateStr ? `${a.dateStr.slice(8, 10)}/${a.dateStr.slice(5, 7)} · ${a.time}` : a.time}</td>
+                  <td>{a.service}</td>
+                  <td>{a.client}</td>
+                  <td className="text-right font-medium">{money.format(Number(a.price || 0))}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function FinishModal({ appointment, close, done }:{ appointment: Appointment; close: () => void; done: (method: string, val: number, packageId?: string) => void }) {
   const [method, setMethod] = useState("PIX");
   const [submitting, setSubmitting] = useState(false);
   const [packages, setPackages] = useState<any[]>([]);
