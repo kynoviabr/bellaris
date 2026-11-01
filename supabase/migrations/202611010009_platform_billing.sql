@@ -18,7 +18,7 @@ create table if not exists public.platform_subscriptions (
   organization_id uuid primary key references public.organizations(id) on delete cascade,
   plan_code text references public.platform_plans(code),
   billing_mode text not null default 'mensalidade' check (billing_mode in ('mensalidade', 'isento')),
-  due_business_day integer check (due_business_day between 1 and 23),
+  due_business_day integer check (due_business_day between 0 and 23),
   current_period_end date,
   cancelled boolean not null default false,
   notes text,
@@ -61,7 +61,8 @@ insert into public.platform_plans (code, name, monthly_price, max_professionals,
   ('completo', 'Completo', 249.00, null, 'Profissional + agendamento online e suporte prioritário.')
 on conflict (code) do nothing;
 
--- N-ésimo dia útil (seg a sex) do mês de p_month. Se p_n passar do último dia útil, retorna o último.
+-- N-ésimo dia útil (seg a sex) do mês de p_month. p_n = 0 significa o último dia útil.
+-- Se p_n passar do último dia útil, retorna o último.
 create or replace function private.nth_business_day(p_month date, p_n integer)
 returns date language plpgsql immutable set search_path = ''
 as $$
@@ -75,7 +76,7 @@ begin
     if extract(isodow from d) < 6 then
       cnt := cnt + 1;
       last_bd := d;
-      if cnt = p_n then return d; end if;
+      if p_n > 0 and cnt = p_n then return d; end if;
     end if;
   end loop;
   return last_bd;
@@ -229,7 +230,14 @@ grant execute on function public.platform_register_payment(uuid, date, numeric, 
 grant execute on function public.platform_set_subscription(uuid, text, text, integer, boolean, text) to authenticated;
 grant execute on function public.salon_billing_status() to authenticated;
 
--- Gabi Ludwig Nail Studio: plano Profissional, isenta de mensalidade (decisão do Fernando).
+-- Gabi Ludwig Nail Studio: plano Completo, isenta de mensalidade (decisão do Fernando).
 insert into public.platform_subscriptions (organization_id, plan_code, billing_mode, notes)
-values ('11111111-1111-4111-8111-111111111111', 'profissional', 'isento', 'Não paga mensalidade. Decisão do Fernando.')
+values ('11111111-1111-4111-8111-111111111111', 'completo', 'isento', 'Não paga mensalidade. Decisão do Fernando.')
+on conflict (organization_id) do update set plan_code = excluded.plan_code, billing_mode = 'isento', notes = excluded.notes;
+
+-- Flavia Sobrancelhas: Essencial. Ana Belon Estética: Profissional. Vencimento: último dia útil do mês.
+insert into public.platform_subscriptions (organization_id, plan_code, billing_mode, due_business_day, current_period_end, notes)
+values
+  ('54b6d09d-ad23-4358-a2be-7b3c2471541e', 'essencial', 'mensalidade', 0, private.nth_business_day((now() at time zone 'America/Sao_Paulo')::date, 0), 'Vencimento: último dia útil do mês.'),
+  ('87f85f80-4e59-4d49-a057-1408e4453d85', 'profissional', 'mensalidade', 0, private.nth_business_day((now() at time zone 'America/Sao_Paulo')::date, 0), 'Vencimento: último dia útil do mês.')
 on conflict (organization_id) do nothing;
