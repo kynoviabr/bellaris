@@ -1767,6 +1767,9 @@ function FinishModal({ appointment, close, done }: { appointment: Appointment; c
     }
   }, [appointment.clientId]);
 
+  const alreadyPaid = Math.max(0, Number(appointment.paid || 0));
+  const remaining = Math.max(0, Number(appointment.price || 0) - alreadyPaid);
+
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center bg-navy-dark/45 sm:items-center sm:p-4">
       <div className="w-full max-w-lg rounded-t-lg bg-white p-5 sm:rounded-lg">
@@ -1782,9 +1785,15 @@ function FinishModal({ appointment, close, done }: { appointment: Appointment; c
             <span>Total do atendimento</span>
             <b>{money.format(appointment.price)}</b>
           </div>
+          {alreadyPaid > 0 && (
+            <div className="mt-2 flex justify-between text-sm text-muted">
+              <span>Já recebido (antecipado)</span>
+              <b>- {money.format(alreadyPaid)}</b>
+            </div>
+          )}
           <div className="mt-3 flex justify-between border-t border-[#DBE3EC] pt-3 text-base">
             <b>A receber</b>
-            <b>{money.format(appointment.price)}</b>
+            <b>{money.format(remaining)}</b>
           </div>
         </div>
         <label className="mt-4 block">
@@ -1821,7 +1830,7 @@ function FinishModal({ appointment, close, done }: { appointment: Appointment; c
         </div>
         <button disabled={submitting} onClick={async () => {
           setSubmitting(true);
-          await done(method, appointment.price, method === "Pacote" ? selectedPkg : undefined);
+          await done(method, remaining, method === "Pacote" ? selectedPkg : undefined);
         }} className="btn-primary mt-5 w-full">
           <Check size={16} />{submitting ? "Processando..." : "Confirmar e concluir"}
         </button>
