@@ -3,11 +3,11 @@ export type AppointmentStatus = "Pendente" | "Agendado" | "Confirmado" | "Client
 export interface Appointment { clientId?: string | null; items?: { id: string; name: string; price: number }[]; id: string; time: string; end: string; client: string; phone: string; service: string; professional: string; status: AppointmentStatus; price: number; paid?: number; source: string; }
 
 export const appointments: Appointment[] = [
-  { id: "a1", time: "08:00", end: "09:15", client: "Mariana Costa", phone: "(51) 99912-3044", service: "Alongamento em gel", professional: "Gabi Ludwig", status: "Concluído", price: 185, paid: 185, source: "Instagram" },
-  { id: "a2", time: "09:30", end: "10:30", client: "Ana Paula Souza", phone: "(51) 99103-8872", service: "Manutenção em gel", professional: "Gabi Ludwig", status: "Em atendimento", price: 130, paid: 30, source: "Retorno" },
+  { id: "a1", time: "08:00", end: "09:15", client: "Mariana Costa", phone: "(51) 99912-3044", service: "Alongamento em gel", professional: "Profissional Demo", status: "Concluído", price: 185, paid: 185, source: "Instagram" },
+  { id: "a2", time: "09:30", end: "10:30", client: "Ana Paula Souza", phone: "(51) 99103-8872", service: "Manutenção em gel", professional: "Profissional Demo", status: "Em atendimento", price: 130, paid: 30, source: "Retorno" },
   { id: "a3", time: "10:45", end: "11:30", client: "Clara Martins", phone: "(51) 99841-2210", service: "Esmaltação em gel", professional: "Júlia Mendes", status: "Confirmado", price: 85, source: "WhatsApp" },
   { id: "a4", time: "13:30", end: "14:30", client: "Beatriz Alves", phone: "(51) 99742-1733", service: "Spa dos pés + pedicure", professional: "Camila Rocha", status: "Agendado", price: 105, source: "Indicação" },
-  { id: "a5", time: "15:00", end: "16:30", client: "Fernanda Lima", phone: "(51) 99655-0871", service: "Blindagem + nail art", professional: "Gabi Ludwig", status: "Aguardando sinal", price: 165, source: "Online" },
+  { id: "a5", time: "15:00", end: "16:30", client: "Fernanda Lima", phone: "(51) 99655-0871", service: "Blindagem + nail art", professional: "Profissional Demo", status: "Aguardando sinal", price: 165, source: "Online" },
   { id: "a6", time: "17:00", end: "18:00", client: "Luiza Torres", phone: "(51) 99488-3102", service: "Manicure + pedicure", professional: "Nina Duarte", status: "Confirmado", price: 92, source: "Retorno" }
 ];
 
@@ -32,7 +32,7 @@ export const services = [
 ];
 
 export const professionals = [
-  { name: "Gabi Ludwig", initials: "GL", specialty: "Gel e nail art", today: 5, production: 8120, occupation: 87, commission: 3248 },
+  { name: "Profissional Demo", initials: "PD", specialty: "Gel e nail art", today: 5, production: 8120, occupation: 87, commission: 3248 },
   { name: "Júlia Mendes", initials: "JM", specialty: "Fibra e gel", today: 4, production: 5940, occupation: 78, commission: 2079 },
   { name: "Camila Rocha", initials: "CR", specialty: "Pedicure e spa", today: 4, production: 4280, occupation: 72, commission: 1498 },
   { name: "Nina Duarte", initials: "ND", specialty: "Manicure e blindagem", today: 3, production: 3860, occupation: 68, commission: 1351 }

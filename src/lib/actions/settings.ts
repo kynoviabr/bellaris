@@ -78,13 +78,13 @@ export async function updateAuthCredentials(email?: string, password?: string) {
 
 export async function getOrganizationPixKey() {
   const supabase = await createClient();
-  if (!supabase) return { error: "Supabase não configurado", pixKey: "" };
+  if (!supabase) return { error: "Supabase não configurado", pixKey: "", orgName: "" };
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Não autenticado", pixKey: "" };
+  if (!user) return { error: "Não autenticado", pixKey: "", orgName: "" };
   const { data: profile } = await supabase.from("profiles").select("organization_id").eq("id", user.id).single();
-  if (!profile?.organization_id) return { error: "Organização não encontrada", pixKey: "" };
-  const { data, error } = await supabase.from("organizations").select("pix_key").eq("id", profile.organization_id).single();
-  return error ? { error: error.message, pixKey: "" } : { pixKey: data?.pix_key || "" };
+  if (!profile?.organization_id) return { error: "Organização não encontrada", pixKey: "", orgName: "" };
+  const { data, error } = await supabase.from("organizations").select("pix_key, name").eq("id", profile.organization_id).single();
+  return error ? { error: error.message, pixKey: "", orgName: "" } : { pixKey: data?.pix_key || "", orgName: data?.name || "" };
 }
 
 export async function updateOrganizationPixKey(pixKey: string) {

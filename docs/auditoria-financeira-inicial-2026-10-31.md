@@ -1,4 +1,4 @@
-# Gabi Nails — Auditoria financeira inicial (homologação)
+# Bellaris — Auditoria financeira inicial (homologação)
 
 Data: 31/10/2026. Escopo: inspeção estática de `src/lib/actions/finance.ts`, `src/lib/actions/appointments.ts` e estrutura de `payments`, `packages`, `package_sessions`, `checkout_corrections` no Supabase de homologação.
 

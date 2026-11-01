@@ -1,4 +1,4 @@
-# Gabi Nails — Estado atual e auditoria do MVP
+# Bellaris — Estado atual e auditoria do MVP
 
 **Data da revisão:** 31/10/2026  
 **Ambiente de referência:** branch `homolog`, Vercel `gabinails-homolog`, Supabase `pnvhqvspziujrpagsclx`.  

@@ -1,6 +1,6 @@
-# Gabi Ludwig Nails — Documentação do Sistema
+# Bellaris — Documentação do Sistema
 
-Sistema de gestão completo para o salão **Gabi Ludwig Nail Studio**, desenvolvido em Next.js (App Router), TypeScript, Tailwind CSS e Supabase.
+Sistema de gestão para salões de beleza, desenvolvido em Next.js (App Router), TypeScript, Tailwind CSS e Supabase.
 
 ---
 
