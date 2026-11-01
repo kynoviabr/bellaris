@@ -13,6 +13,7 @@ import { Clients } from "./dashboard/clients";
 import { Services } from "./dashboard/services";
 import { PackageCatalogContent } from "./dashboard/package-catalog";
 import { Agenda } from "./dashboard/agenda";
+import { RolePermissionsManager } from "./dashboard/role-permissions-manager";
 import { updateAppointmentRecord, addServiceToAppointment, removeServiceFromAppointment } from "@/lib/actions/appointments";
 
 import { useState, useEffect, useRef } from "react";
@@ -1165,6 +1166,7 @@ function SettingsView({ tenant, updateToast }: { tenant: any; updateToast: (t: s
   return (
     <div className="mx-auto max-w-4xl p-4 sm:p-6 space-y-6">
 
+      <RolePermissionsManager />
       <div className="bg-white rounded-lg border shadow-sm p-6">
         <div className="flex items-center gap-3 mb-6 border-b pb-4">
           <div className="bg-primary/10 text-primary p-2 rounded-lg"><Settings size={20} /></div>
