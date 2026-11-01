@@ -42,38 +42,17 @@ export async function getProfessionalCommissions(profId: string) {
   return { commissions, stats: { pending, paid } };
 }
 
-export async function payCommissions(profId: string, commissionIds: string[], totalAmount: number) {
+// Marca as comissões pendentes como pagas e grava a despesa correspondente
+// numa única transação no banco (função public.pay_commissions). O total é
+// calculado no banco, não recebido da tela.
+export async function payCommissions(profId: string) {
   const supabase = await createClient();
-  if (!supabase) return { success: false };
+  if (!supabase) return { success: false, error: "Sem conexão com o banco" };
 
-  const { data: profile } = await supabase.from('profiles').select('organization_id').single();
-  if (!profile?.organization_id) return { success: false };
+  const { data, error } = await supabase.rpc("pay_commissions", { p_professional_id: profId });
 
-  // Update commissions to paid
-  const { error: commErr } = await supabase
-    .from("commissions")
-    .update({ status: 'paid', paid_at: new Date().toISOString() })
-    .in('id', commissionIds);
-
-  if (commErr) return { success: false, error: commErr.message };
-
-  // Create an expense record for the payout
-  const { data: prof } = await supabase.from('professionals').select('name').eq('id', profId).single();
-  const profName = prof?.name || "Profissional";
-
-  await supabase
-    .from('expenses')
-    .insert([{
-      organization_id: profile.organization_id,
-      description: `Pagamento de comissões - ${profName}`,
-      category: 'Comissões',
-      competence_date: new Date().toISOString().split('T')[0],
-      due_date: new Date().toISOString().split('T')[0],
-      paid_at: new Date().toISOString().split('T')[0], // Paid immediately
-      amount: totalAmount,
-      status: 'paid'
-    }]);
+  if (error) return { success: false, error: error.message };
 
   revalidatePath("/");
-  return { success: true };
+  return { success: true, total: Number(data) };
 }

@@ -437,11 +437,10 @@ function ProfessionalCommissionsModal({ professional, close }: { professional: a
 
   const handlePay = async () => {
     if (!professional?.id) return;
-    const pendingIds = data.commissions.filter(c => c.status === 'generated').map(c => c.id);
-    if (pendingIds.length === 0) return;
+    if (!data.commissions.some(c => c.status === 'generated')) return;
 
     setPaying(true);
-    const res = await payCommissions(professional.id, pendingIds, data.stats.pending);
+    const res = await payCommissions(professional.id);
     setPaying(false);
     if (res.success) {
       window.location.reload();
