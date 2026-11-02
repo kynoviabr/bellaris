@@ -661,6 +661,8 @@ function ClientModal({ mode, client, close, save }: { mode: "create" | "edit" | 
   const [anamnesis, setAnamnesis] = useState(initialAnamnesis);
   const [packages, setPackages] = useState<any[]>([]);
   const [isAddingPackage, setIsAddingPackage] = useState(false);
+  const [catalogTemplates, setCatalogTemplates] = useState<any[]>([]);
+  const [catalogChoice, setCatalogChoice] = useState("");
 
   useEffect(() => {
     if (client?.id && !client.id.startsWith("demo-")) {
@@ -818,7 +820,7 @@ function ClientModal({ mode, client, close, save }: { mode: "create" | "edit" | 
                           <h4 className="font-semibold text-emerald-900">Vender Novo Pacote</h4>
                           <p className="text-xs text-emerald-700">O valor entrará no financeiro como receita hoje.</p>
                         </div>
-                        <button type="button" onClick={() => setIsAddingPackage(true)} className="btn-primary bg-emerald-600 hover:bg-emerald-700 border-emerald-600 text-xs py-1.5">
+                        <button type="button" onClick={() => { setIsAddingPackage(true); setCatalogChoice(""); import("@/lib/actions/package-catalog").then(m => m.getPackageTemplates()).then(list => setCatalogTemplates((list ?? []).filter((t: any) => t.active))).catch(() => setCatalogTemplates([])); }} className="btn-primary bg-emerald-600 hover:bg-emerald-700 border-emerald-600 text-xs py-1.5">
                           + Adicionar Pacote
                         </button>
                       </div>
@@ -827,6 +829,19 @@ function ClientModal({ mode, client, close, save }: { mode: "create" | "edit" | 
                     {isAddingPackage && (
                       <div className="border border-emerald-200 bg-white p-4 rounded-lg shadow-sm">
                         <h4 className="font-medium text-emerald-900 mb-3 text-sm">Dados do Novo Pacote</h4>
+                        <div className="mb-3">
+                          <label className="field-label">Modelo do catálogo (opcional)</label>
+                          <select className="field-input" value={catalogChoice} onChange={e => {
+                            const id = e.target.value; setCatalogChoice(id);
+                            const t = catalogTemplates.find((x: any) => x.id === id);
+                            if (!t) return;
+                            const sessions = (t.package_template_items ?? []).reduce((sum: number, i: any) => sum + Number(i.sessions || 0), 0);
+                            setNewPkg({ name: t.name, total: sessions || 1, price: Number(t.price), method: newPkg.method });
+                          }}>
+                            <option value="">Venda avulsa (sem modelo)</option>
+                            {catalogTemplates.map((t: any) => <option key={t.id} value={t.id}>{t.name} · R$ {Number(t.price).toFixed(2).replace(".", ",")}</option>)}
+                          </select>
+                        </div>
                         <div className="grid grid-cols-2 gap-3 mb-3">
                           <div>
                             <label className="field-label">Nome ou Serviço</label>
