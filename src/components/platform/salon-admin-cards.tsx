@@ -123,6 +123,8 @@ export function ApprovalCard({ row, plans }: { row: SalonAdminRow; plans: PlanCh
         </span>
       </header>
 
+      {row.access_status === "aguardando_aprovacao" && <SalonNameForm row={row} />}
+
       {row.access_note && (
         <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><strong>Motivo da última recusa:</strong> {row.access_note}</p>
       )}
@@ -192,8 +194,7 @@ export function ApprovalCard({ row, plans }: { row: SalonAdminRow; plans: PlanCh
       )}
 
       {showEdit && (
-        <div className="space-y-6 rounded-lg bg-[#FAF6F0] p-4">
-          {row.access_status === "aguardando_aprovacao" && <SalonNameForm row={row} />}
+        <div className="rounded-lg bg-[#FAF6F0] p-4">
           <OwnerEditForm row={row} />
         </div>
       )}
