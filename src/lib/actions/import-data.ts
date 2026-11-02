@@ -12,7 +12,7 @@ export type ImportResult =
   | { ok: true; imported: number; skipped: { line: number; reason: string }[] }
   | { ok: false; error: string };
 
-const KINDS: ImportKind[] = ["services", "professionals", "clients"];
+const KINDS: ImportKind[] = ["services", "professionals", "products", "clients"];
 
 /**
  * Grava as linhas válidas de um arquivo CSV. As linhas são validadas de novo aqui no servidor.
@@ -52,6 +52,60 @@ export async function importRows(kind: ImportKind, rows: CsvRow[], fileName = ""
       const res = await createProfessionalRecord({ ...d, notes: undefined });
       if (res.success) { imported++; existing.add(d.name.toLowerCase()); }
       else skipped.push({ line: row.line, reason: res.error ?? "Erro ao salvar." });
+    }
+  }
+
+  if (kind === "products") {
+    const supabase = await createClient();
+    const organizationId = await currentOrganizationId();
+    if (!supabase || !organizationId) return { ok: false, error: "Organização não encontrada." };
+
+    const { data: current } = await supabase.from("products").select("name");
+    const existing = new Set((current ?? []).map((p: { name: string }) => p.name.trim().toLowerCase()));
+    const toInsert = [];
+    for (const row of valid) {
+      const d = row.data as { name: string; category: string; baseUnit: string; minimum: number; ideal: number; cost: number; initialStock: number; supplier?: string };
+      if (existing.has(d.name.toLowerCase())) {
+        skipped.push({ line: row.line, reason: "Já existe um produto com este nome." });
+        continue;
+      }
+      toInsert.push({ row, d });
+    }
+
+    const CHUNK = 500;
+    for (let i = 0; i < toInsert.length; i += CHUNK) {
+      const chunk = toInsert.slice(i, i + CHUNK);
+      const { data: inserted, error } = await supabase.from("products").insert(chunk.map(({ d }) => ({
+        organization_id: organizationId,
+        name: d.name,
+        category: d.category,
+        base_unit: d.baseUnit,
+        minimum_stock: d.minimum,
+        ideal_stock: d.ideal,
+        unit_cost: d.cost,
+        supplier: d.supplier ?? null,
+      }))).select("id, name");
+      if (error || !inserted) {
+        for (const { row } of chunk) skipped.push({ line: row.line, reason: error?.message ?? "Erro ao salvar." });
+        continue;
+      }
+      const idByName = new Map(inserted.map((p: { id: string; name: string }) => [p.name, p.id]));
+      const movements = chunk
+        .filter(({ d }) => d.initialStock > 0 && idByName.has(d.name))
+        .map(({ d }) => ({
+          organization_id: organizationId,
+          product_id: idByName.get(d.name),
+          movement_type: "positive_adjustment",
+          quantity: d.initialStock,
+          unit_cost: d.cost,
+          source: "initial_stock",
+        }));
+      if (movements.length > 0) {
+        const { error: stockError } = await supabase.from("stock_movements").insert(movements);
+        if (stockError) skipped.push({ line: 0, reason: `Produtos gravados, mas o saldo inicial de ${movements.length} não foi lançado: ${stockError.message}` });
+      }
+      imported += inserted.length;
+      for (const { d } of chunk) existing.add(d.name.toLowerCase());
     }
   }
 

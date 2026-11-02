@@ -1400,6 +1400,7 @@ export function NailStudioApp({ tenant = { profileName: "Usuária", orgName: "Sa
     if (view === "services" && !professionalMode) getServices().then(fresh => setServiceRows(fresh));
     if (view === "professionals" && !professionalMode) getProfessionals().then(fresh => setProfessionalRows(fresh));
     if (view === "clients" && !professionalMode) getClients().then(fresh => setClientRows(fresh));
+    if (view === "inventory" && !professionalMode) import("@/lib/actions/inventory").then(({ getInventory }) => getInventory()).then(fresh => setProductRows(fresh));
   }, [view, professionalMode]);
   const [professionalRows, setProfessionalRows] = useState(() => [...initialProfessionals]); const [productRows, setProductRows] = useState<any[]>(initialInventory);
   const initialTemplates = [{ name: "Lembrete 24h", count: "18 agendadas", tone: "success" }, { name: "Sinal pendente", count: "3 aguardando", tone: "warning" }, { name: "Manutenção vencida", count: "7 oportunidades", tone: "danger" }, { name: "Aniversário", count: "2 nesta semana", tone: "primary" }];

@@ -1,6 +1,6 @@
 import type { CsvRow } from "./csv";
 
-export type ImportKind = "services" | "professionals" | "clients";
+export type ImportKind = "services" | "professionals" | "products" | "clients";
 
 export const IMPORT_KINDS: { id: ImportKind; label: string; headers: string[]; example: string[] }[] = [
   {
@@ -14,6 +14,12 @@ export const IMPORT_KINDS: { id: ImportKind; label: string; headers: string[]; e
     label: "Profissionais",
     headers: ["nome", "email", "telefone", "comissao_percentual", "especialidades"],
     example: ["Maria Silva", "maria@exemplo.com", "11987654321", "40", "Mãos|Pés"],
+  },
+  {
+    id: "products",
+    label: "Produtos",
+    headers: ["nome", "categoria", "unidade", "estoque_minimo", "estoque_ideal", "custo_unitario", "saldo_inicial", "fornecedor"],
+    example: ["Esmalte gel vermelho", "Esmaltes", "un", "5", "20", "18,50", "12", "Distribuidora Beleza"],
   },
   {
     id: "clients",
@@ -51,6 +57,11 @@ function parseBirthDate(raw: string): string | null {
   return iso;
 }
 
+/** Unidades aceitas no CSV (em português) e a unidade gravada no banco. */
+const UNIT_MAP: Record<string, string> = {
+  un: "unit", unidade: "unit", ml: "ml", l: "l", g: "g", kg: "kg", par: "pair", caixa: "box", pacote: "package",
+};
+
 const validators: Record<ImportKind, (v: Record<string, string>) => ValidationResult<{ data: Record<string, unknown>; label: string; dedupeKey: string }>> = {
   services(v) {
     if (v.nome.length < 2) return { ok: false, error: "Nome obrigatório." };
@@ -84,6 +95,37 @@ const validators: Record<ImportKind, (v: Record<string, string>) => ValidationRe
         label: v.nome,
         dedupeKey: v.nome.toLowerCase(),
         data: { name: v.nome, email: v.email || undefined, phone: phone || undefined, default_commission: commission, specialties },
+      },
+    };
+  },
+  products(v) {
+    if (v.nome.length < 2) return { ok: false, error: "Nome obrigatório." };
+    if (!v.categoria) return { ok: false, error: "Categoria obrigatória." };
+    const unit = UNIT_MAP[v.unidade.trim().toLowerCase()];
+    if (!unit) return { ok: false, error: "Unidade inválida (use un, ml, l, g, kg, par, caixa ou pacote)." };
+    const amount = (raw: string): number => (raw.trim() ? parseDecimal(raw) : 0);
+    const minimum = amount(v.estoque_minimo);
+    const ideal = amount(v.estoque_ideal);
+    const cost = amount(v.custo_unitario);
+    const initial = amount(v.saldo_inicial);
+    if ([minimum, ideal, cost, initial].some(n => !Number.isFinite(n) || n < 0)) {
+      return { ok: false, error: "Estoques, custo e saldo devem ser números maiores ou iguais a zero." };
+    }
+    return {
+      ok: true,
+      value: {
+        label: v.nome,
+        dedupeKey: v.nome.toLowerCase(),
+        data: {
+          name: v.nome,
+          category: v.categoria,
+          baseUnit: unit,
+          minimum,
+          ideal,
+          cost,
+          initialStock: initial,
+          supplier: v.fornecedor || undefined,
+        },
       },
     };
   },

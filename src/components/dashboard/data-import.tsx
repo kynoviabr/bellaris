@@ -105,11 +105,9 @@ export function DataImportCard() {
       <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
         <p className="font-semibold">Ordem certa da carga</p>
         <ol className="mt-1 list-decimal pl-5">
-          <li>Serviços</li>
-          <li>Profissionais</li>
-          <li>Clientes</li>
+          {IMPORT_KINDS.map(k => <li key={k.id}>{k.label}</li>)}
         </ol>
-        <p className="mt-2">Importe nessa ordem. Os clientes e os atendimentos dependem de serviços e profissionais já cadastrados.</p>
+        <p className="mt-2">Importe nessa ordem. Os clientes e os atendimentos dependem de serviços e profissionais já cadastrados. Produtos e estoque podem ser importados depois, mas antes de usar o estoque.</p>
       </div>
 
       <div className="flex flex-wrap gap-2 mb-4">
