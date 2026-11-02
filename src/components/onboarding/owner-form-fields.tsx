@@ -120,12 +120,12 @@ export function OwnerFormFields({ defaults = {} }: { defaults?: Defaults }) {
 
       {/* Linha 3: bairro, cidade e UF */}
       <div className="flex flex-wrap gap-4">
-        <div className="w-full sm:min-w-[12rem] sm:flex-1">
+        <div className="w-full sm:min-w-0 sm:flex-1">
           <label className="field-label" htmlFor="owner-bairro">Bairro</label>
           <input id="owner-bairro" name="bairro" type="text" value={bairro}
             onChange={(e) => setBairro(e.target.value)} className="field-input" />
         </div>
-        <div className="w-full sm:w-64">
+        <div className="w-full sm:min-w-0 sm:flex-1">
           <label className="field-label" htmlFor="owner-cidade">Cidade</label>
           <input id="owner-cidade" name="cidade" type="text" required value={cidade}
             onChange={(e) => setCidade(e.target.value)} className="field-input" />
