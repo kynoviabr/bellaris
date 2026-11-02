@@ -1,3 +1,4 @@
+import { recordConsent } from "./consent.service.ts";
 function friendlyClientError(error: { code?: string; message?: string; details?: string; hint?: string }): string {
   const diagnostic = [error.message, error.details, error.hint].filter(Boolean).join(" ").toLowerCase();
   if (
@@ -9,7 +10,7 @@ function friendlyClientError(error: { code?: string; message?: string; details?:
   }
   return "Não foi possível salvar a cliente. Confira os dados e tente novamente.";
 }
-export async function createClientRecordService(supabase: any, client: { name: string; phone: string; notes?: string; birthDate?: string; cep?: string; street?: string; number?: string; complement?: string; neighborhood?: string; city?: string; state?: string }) {
+export async function createClientRecordService(supabase: any, client: { name: string; phone: string; notes?: string; birthDate?: string; cep?: string; street?: string; number?: string; complement?: string; neighborhood?: string; city?: string; state?: string; anamnesisConsent?: boolean }) {
   if (!supabase) {
     return { success: false, error: "Supabase não conectado" };
   }
@@ -38,6 +39,10 @@ export async function createClientRecordService(supabase: any, client: { name: s
       anamnesisObj = parsed.anamnesis;
     }
   } catch(e) {}
+  // Anamnese só é gravada com o consentimento da cliente marcado na ficha.
+  const consentGiven = client.anamnesisConsent === true;
+  const anamnesisInput = anamnesisObj;
+  if (!consentGiven) anamnesisObj = null;
 
   const { data: clientId, error } = await supabase.rpc('save_client_with_anamnesis', {
     p_client_id: null,
@@ -64,10 +69,15 @@ export async function createClientRecordService(supabase: any, client: { name: s
     return { success: false, error: friendlyClientError(error) };
   }
 
+  if (consentGiven && anamnesisInput) {
+    const { data: profile } = await supabase.from("profiles").select("organization_id").single();
+    if (profile?.organization_id) await recordConsent(supabase, profile.organization_id, clientId, "anamnesis");
+  }
+
   return { success: true, mode: "supabase", data: { id: clientId } };
 }
 
-export async function updateClientRecordService(supabase: any, id: string, client: { name: string; phone: string; notes?: string; birthDate?: string; cep?: string; street?: string; number?: string; complement?: string; neighborhood?: string; city?: string; state?: string }) {
+export async function updateClientRecordService(supabase: any, id: string, client: { name: string; phone: string; notes?: string; birthDate?: string; cep?: string; street?: string; number?: string; complement?: string; neighborhood?: string; city?: string; state?: string; anamnesisConsent?: boolean }) {
   if (!supabase) return { success: false, error: "Supabase não conectado" };
   const phoneNormalized = client.phone.replace(/\D/g, "");
   // Validate duplicates before RPC; the database unique index remains the final safeguard.
@@ -93,6 +103,10 @@ export async function updateClientRecordService(supabase: any, id: string, clien
       anamnesisObj = parsed.anamnesis;
     }
   } catch(e) {}
+  // Anamnese só é gravada com o consentimento da cliente marcado na ficha.
+  const consentGiven = client.anamnesisConsent === true;
+  const anamnesisInput = anamnesisObj;
+  if (!consentGiven) anamnesisObj = null;
 
   const { error } = await supabase.rpc('save_client_with_anamnesis', {
     p_client_id: id,
@@ -117,6 +131,11 @@ export async function updateClientRecordService(supabase: any, id: string, clien
 
   if (error) {
     return { success: false, error: friendlyClientError(error) };
+  }
+
+  if (consentGiven && anamnesisInput) {
+    const { data: profile } = await supabase.from("profiles").select("organization_id").single();
+    if (profile?.organization_id) await recordConsent(supabase, profile.organization_id, id, "anamnesis");
   }
 
   return { success: true };

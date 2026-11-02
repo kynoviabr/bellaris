@@ -1,3 +1,4 @@
+import { hasActiveConsent } from './consent.service.ts';
 import { validatePhoto } from '../utils/photos.ts';
 import crypto from 'crypto';
 
@@ -29,6 +30,10 @@ export async function uploadClientPhotoService({ supabase, file, clientId, kind 
   const { data: clientCheck } = await supabase.from('clients').select('id, organization_id').eq('id', clientId).single();
   if (!clientCheck || clientCheck.organization_id !== profile.organization_id) {
     return { success: false, error: "Cliente não encontrado ou acesso negado." };
+  }
+
+  if (!(await hasActiveConsent(supabase, clientId, 'photos'))) {
+    return { success: false, error: "A cliente ainda não autorizou fotos. Registre o consentimento na ficha dela antes de enviar a foto." };
   }
 
   const extension = validation.extension;
