@@ -70,8 +70,8 @@ export async function createClientRecordService(supabase: any, client: { name: s
   }
 
   if (consentGiven && anamnesisInput) {
-    const { data: profile } = await supabase.from("profiles").select("organization_id").single();
-    if (profile?.organization_id) await recordConsent(supabase, profile.organization_id, clientId, "anamnesis");
+    const { data: row } = await supabase.from("clients").select("organization_id").eq("id", clientId).maybeSingle();
+    if (row?.organization_id) await recordConsent(supabase, row.organization_id, clientId, "anamnesis");
   }
 
   return { success: true, mode: "supabase", data: { id: clientId } };
@@ -134,8 +134,8 @@ export async function updateClientRecordService(supabase: any, id: string, clien
   }
 
   if (consentGiven && anamnesisInput) {
-    const { data: profile } = await supabase.from("profiles").select("organization_id").single();
-    if (profile?.organization_id) await recordConsent(supabase, profile.organization_id, id, "anamnesis");
+    const { data: row } = await supabase.from("clients").select("organization_id").eq("id", id).maybeSingle();
+    if (row?.organization_id) await recordConsent(supabase, row.organization_id, id, "anamnesis");
   }
 
   return { success: true };

@@ -6,12 +6,17 @@ import { CONSENT_KINDS, CONSENT_VERSION, type ConsentKind } from "@/lib/privacy/
 import { hasActiveConsent, logOperation, recordConsent } from "@/lib/services/consent.service.ts";
 import { deleteClientPhotoService } from "@/lib/services/photos.service.ts";
 
-async function context() {
+// A organização vem da própria cliente, lida com as regras de acesso do banco.
+async function clientContext(clientId: string) {
   const supabase = await createClient();
-  if (!supabase) return null;
-  const { data: profile } = await supabase.from("profiles").select("organization_id").single();
-  if (!profile?.organization_id) return null;
-  return { supabase, organizationId: profile.organization_id as string };
+  if (!supabase) return { error: "Banco de dados indisponível." } as const;
+  const { data: client, error } = await supabase
+    .from("clients")
+    .select("organization_id")
+    .eq("id", clientId)
+    .maybeSingle();
+  if (error || !client?.organization_id) return { error: "Cliente não encontrada ou sem acesso." } as const;
+  return { supabase, organizationId: client.organization_id as string };
 }
 
 function isKind(value: unknown): value is ConsentKind {
@@ -19,11 +24,9 @@ function isKind(value: unknown): value is ConsentKind {
 }
 
 export async function getClientPrivacyStatus(clientId: string) {
-  const supabase = await createClient();
-  if (!supabase) return { error: "Cliente do banco indisponível neste ambiente." };
-  const { data: profile, error: profileError } = await supabase.from("profiles").select("organization_id").single();
-  if (profileError) return { error: "Erro ao ler o perfil: " + profileError.message };
-  if (!profile?.organization_id) return { error: "Perfil sem organização vinculada." };
+  const ctx = await clientContext(clientId);
+  if ("error" in ctx) return { error: ctx.error };
+  const { supabase } = ctx;
   const [anamnesis, photos, consentAnamnesis, consentPhotos] = await Promise.all([
     supabase.from("client_anamnesis").select("client_id").eq("client_id", clientId).limit(1),
     supabase.from("client_photos").select("id").eq("client_id", clientId).limit(1),
@@ -41,8 +44,8 @@ export async function getClientPrivacyStatus(clientId: string) {
 
 export async function grantClientConsent(clientId: string, kind: string) {
   if (!isKind(kind)) return { success: false, error: "Tipo de consentimento inválido." };
-  const ctx = await context();
-  if (!ctx) return { success: false, error: "Sessão inválida." };
+  const ctx = await clientContext(clientId);
+  if ("error" in ctx) return { success: false, error: ctx.error };
   const res = await recordConsent(ctx.supabase, ctx.organizationId, clientId, kind);
   if (res.success) revalidatePath("/");
   return res;
@@ -51,8 +54,8 @@ export async function grantClientConsent(clientId: string, kind: string) {
 // Retirar o consentimento para o tratamento e apagar o dado sensível correspondente.
 export async function revokeClientConsent(clientId: string, kind: string) {
   if (!isKind(kind)) return { success: false, error: "Tipo de consentimento inválido." };
-  const ctx = await context();
-  if (!ctx) return { success: false, error: "Sessão inválida." };
+  const ctx = await clientContext(clientId);
+  if ("error" in ctx) return { success: false, error: ctx.error };
   const { supabase, organizationId } = ctx;
 
   const { error: revokeError } = await supabase
@@ -95,8 +98,8 @@ export async function revokeClientConsent(clientId: string, kind: string) {
 
 // Exporta, em JSON, tudo o que o sistema guarda sobre a cliente.
 export async function exportClientData(clientId: string) {
-  const ctx = await context();
-  if (!ctx) return { success: false, error: "Sessão inválida." };
+  const ctx = await clientContext(clientId);
+  if ("error" in ctx) return { success: false, error: ctx.error };
   const { supabase, organizationId } = ctx;
 
   const [client, anamnesis, consents, photos, appointments] = await Promise.all([
@@ -126,9 +129,15 @@ export async function exportClientData(clientId: string) {
 
 // Exclusão: apaga anamnese e fotos e anonimiza o cadastro, mantendo os registros financeiros sem identificação.
 export async function anonymizeClientData(clientId: string) {
-  const ctx = await context();
-  if (!ctx) return { success: false, error: "Sessão inválida." };
+  const ctx = await clientContext(clientId);
+  if ("error" in ctx) return { success: false, error: ctx.error };
   const { supabase, organizationId } = ctx;
+
+  const { data: photos } = await supabase.from("client_photos").select("id").eq("client_id", clientId);
+  for (const photo of photos ?? []) {
+    const res = await deleteClientPhotoService(supabase, photo.id);
+    if (!res.success) return { success: false, error: "Não foi possível apagar todas as fotos. Nada foi anonimizado." };
+  }
 
   for (const kind of CONSENT_KINDS) {
     await supabase
@@ -137,12 +146,6 @@ export async function anonymizeClientData(clientId: string) {
       .eq("client_id", clientId)
       .eq("kind", kind)
       .is("revoked_at", null);
-  }
-
-  const { data: photos } = await supabase.from("client_photos").select("id").eq("client_id", clientId);
-  for (const photo of photos ?? []) {
-    const res = await deleteClientPhotoService(supabase, photo.id);
-    if (!res.success) return { success: false, error: "Não foi possível apagar todas as fotos. Nada foi anonimizado." };
   }
 
   await supabase.from("client_anamnesis").delete().eq("client_id", clientId);
