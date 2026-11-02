@@ -4,16 +4,6 @@ import React, { useState } from "react";
 import { Clock, Plus, Users, ArrowRight, ShieldCheck, Clock3, Check, Copy, Sparkles } from "lucide-react";
 import { checkClientWhitelist } from "@/lib/actions/clients";
 import { clients as demoClients } from "@/lib/demo-data";
-// Mock data since it's just a UI layer for now
-const demoServices = [
-  { id: "s1", name: "Alongamento em gel", category: "Alongamento", duration: 90, price: 185 },
-  { id: "s2", name: "Manutenção em gel", category: "Manutenção", duration: 60, price: 130 },
-  { id: "s3", name: "Esmaltação em gel", category: "Esmaltação", duration: 45, price: 85 },
-  { id: "s4", name: "Blindagem", category: "Tratamento", duration: 60, price: 115 },
-  { id: "s5", name: "Manicure tradicional", category: "Mãos", duration: 35, price: 45 },
-  { id: "s6", name: "Pedicure", category: "Pés", duration: 45, price: 55 },
-  { id: "s7", name: "Spa dos pés", category: "Pés", duration: 40, price: 65 }
-];
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
 export function OnlineBooking({
@@ -28,7 +18,7 @@ export function OnlineBooking({
   orgName?: string;
 }) {
   const [step, setStep] = useState(1);
-  const [selectedService, setSelectedService] = useState(services[0] || demoServices[0]);
+  const [selectedService, setSelectedService] = useState<any>(services[0] || null);
   const [selectedProfessional, setSelectedProfessional] = useState<string | null>(null);
   const getTodayStr = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
   const [selectedDate, setSelectedDate] = useState(getTodayStr());
@@ -159,7 +149,12 @@ export function OnlineBooking({
               <h2 className="text-lg font-semibold">Qual serviço você deseja?</h2>
               <p className="mt-1 text-xs text-muted">Escolha um procedimento para ver a disponibilidade.</p>
               <div className="mt-5 space-y-2">
-                {(services.length > 0 ? services : demoServices).map(s => (
+                {services.length === 0 && (
+                  <p className="rounded-md border border-dashed border-[#C8D5E3] p-4 text-center text-sm text-muted">
+                    Nenhum serviço disponível no momento.
+                  </p>
+                )}
+                {services.map(s => (
                   <button
                     onClick={() => { setSelectedService(s); setStep(2); }}
                     key={s.name}

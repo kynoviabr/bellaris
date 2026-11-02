@@ -1726,7 +1726,7 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
     if (view === "automations") return <Automations go={setView} tenant={tenant} />;
     if (view === "reports" && professionalMode) return <ProfessionalReport rows={rows} commissions={initialCommissions} />;
     if (view === "reports") return <Reports data={reportsData} />;
-    if (view === "online") return tenant?.orgSlug ? <OnlineBooking slug={tenant.orgSlug} orgName={tenant?.orgName || "Salão"} /> : <main className="page-content"><div className="card"><p className="text-sm text-muted">O agendamento online deste salão ainda não está configurado.</p></div></main>;
+    if (view === "online") return tenant?.orgSlug ? <OnlineBooking slug={tenant.orgSlug} orgName={tenant?.orgName || "Salão"} services={serviceRows} professionals={professionalRows} /> : <main className="page-content"><div className="card"><p className="text-sm text-muted">O agendamento online deste salão ainda não está configurado.</p></div></main>;
   })();
 
   return (
