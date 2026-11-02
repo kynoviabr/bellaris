@@ -32,6 +32,9 @@ import { appointments as demoAppointments, clients as demoClients, inventory, mo
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { logout } from "@/lib/actions/auth";
 import { createClientRecord, updateClientRecord, archiveClientRecord, type ClientItem } from "@/lib/actions/clients";
+import { getClientPrivacyStatus } from "@/lib/actions/privacy";
+import { ClientPrivacyPanel } from "@/components/dashboard/client-privacy-panel";
+import { CONSENT_TEXTS } from "@/lib/privacy/consent";
 import { createProfessionalRecord, updateProfessionalRecord, archiveProfessionalRecord, getProfessionals, type ProfessionalItem } from "@/lib/actions/professionals";
 import { createSpecialtyRecord } from "@/lib/actions/specialties";
 import { createServiceRecord, type ServiceItem } from "@/lib/actions/services";
@@ -376,6 +379,8 @@ function ClientDetailsModal({ client, close }: { client: any; close: () => void 
                 </div>
               </section>
 
+              <ClientPrivacyPanel clientId={client.id} clientName={client.name} />
+
               {/* Fotos e Galeria */}
               <section className="card p-5 flex flex-col">
                 <div className="flex justify-between items-center mb-4">
@@ -606,6 +611,12 @@ function ProfessionalCommissionsModal({ professional, close, onPaid }: { profess
 
 function ClientModal({ mode, client, close, save }: { mode: "create" | "edit" | "view"; client?: any; close: () => void; save: (data: any) => Promise<void> }) {
   const [tab, setTab] = useState<"info"|"anamnese"|"pacotes">("info");
+  const [anamnesisConsent, setAnamnesisConsent] = useState(false);
+  useEffect(() => {
+    if (client?.id && !String(client.id).startsWith("demo-")) {
+      getClientPrivacyStatus(client.id).then(st => { if (st?.consentAnamnesis) setAnamnesisConsent(true); });
+    }
+  }, [client?.id]);
   const [name, setName] = useState(client?.name || "");
   const [phone, setPhone] = useState(formatBrazilPhone(client?.phone || ""));
   const [birthDate, setBirthDate] = useState(client?.birthDate || "");
@@ -723,7 +734,7 @@ function ClientModal({ mode, client, close, save }: { mode: "create" | "edit" | 
           e.preventDefault();
           setSubmitting(true);
           const finalNotes = JSON.stringify({ text: notes, anamnesis });
-          await save({ name, phone, birthDate, cep, street, number, complement, neighborhood, city, state, notes: finalNotes, email });
+          await save({ name, phone, birthDate, cep, street, number, complement, neighborhood, city, state, notes: finalNotes, email, anamnesisConsent });
           setSubmitting(false);
         }} className="flex-1 min-h-0 flex flex-col overflow-hidden">
 
@@ -762,6 +773,10 @@ function ClientModal({ mode, client, close, save }: { mode: "create" | "edit" | 
 
             {tab === "anamnese" && (
               <div className="grid gap-4 sm:grid-cols-2">
+                <div className="sm:col-span-2 rounded-md border border-[#E7EDF3] bg-bg p-3 text-sm space-y-2">
+                  <label className="flex items-start gap-2"><input type="checkbox" checked={anamnesisConsent} onChange={e => setAnamnesisConsent(e.target.checked)} disabled={readOnly} className="mt-1 h-4 w-4 accent-primary" /><span>{CONSENT_TEXTS.anamnesis}</span></label>
+                  {!anamnesisConsent && <p className="text-xs text-muted">Sem este consentimento, as informações de saúde não são salvas.</p>}
+                </div>
                 <div className="sm:col-span-2 bg-rose-50 border border-rose-100 p-3 rounded text-sm text-rose-800">
                   <strong>Atenção:</strong> Respostas de saúde gerarão alertas visuais automáticos na tela da Agenda.
                 </div>
@@ -838,7 +853,7 @@ function ClientModal({ mode, client, close, save }: { mode: "create" | "edit" | 
                             if (!newPkg.name) return alert("Digite o nome do pacote");
                             const btn = e.target as HTMLButtonElement; btn.disabled = true; btn.innerText = "Processando...";
                             try {
-                              await save({ name, phone, birthDate, cep, street, number, complement, neighborhood, city, state, notes: JSON.stringify({ text: notes, anamnesis }), email });
+                              await save({ name, phone, birthDate, cep, street, number, complement, neighborhood, city, state, notes: JSON.stringify({ text: notes, anamnesis }), email, anamnesisConsent });
                               const { sellPackage, getActivePackages } = await import("@/lib/actions/packages");
                               const res = await sellPackage(client.id, newPkg.name, newPkg.total, newPkg.price, newPkg.method);
                               if (res.success) {
