@@ -144,7 +144,8 @@ export async function register(prevState: any, formData: FormData) {
         bairro: owner.bairro,
         cidade: owner.cidade,
         uf: owner.uf,
-        updated_by: user.id,
+        // updated_by referencia profiles, que só é criado logo depois. Na criação inicial fica nulo.
+        updated_by: null,
       }]);
       if (ownerError) {
         return { error: "Não foi possível salvar os dados do responsável. Tente novamente." };
