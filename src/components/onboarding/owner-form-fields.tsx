@@ -165,6 +165,9 @@ export function PlanPicker({ plans, defaultCode }: { plans: PlanOption[]; defaul
               <span className="block text-xs text-muted">
                 {plan.max_professionals ? `Até ${plan.max_professionals} profissionais` : "Profissionais ilimitados"}
               </span>
+              {plan.description && (
+                <span className="mt-1 block text-xs text-muted">{plan.description}</span>
+              )}
             </span>
           </span>
           <span className="text-right font-semibold text-ink">
