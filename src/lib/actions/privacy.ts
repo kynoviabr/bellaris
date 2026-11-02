@@ -19,9 +19,11 @@ function isKind(value: unknown): value is ConsentKind {
 }
 
 export async function getClientPrivacyStatus(clientId: string) {
-  const ctx = await context();
-  if (!ctx) return null;
-  const { supabase } = ctx;
+  const supabase = await createClient();
+  if (!supabase) return { error: "Cliente do banco indisponível neste ambiente." };
+  const { data: profile, error: profileError } = await supabase.from("profiles").select("organization_id").single();
+  if (profileError) return { error: "Erro ao ler o perfil: " + profileError.message };
+  if (!profile?.organization_id) return { error: "Perfil sem organização vinculada." };
   const [anamnesis, photos, consentAnamnesis, consentPhotos] = await Promise.all([
     supabase.from("client_anamnesis").select("client_id").eq("client_id", clientId).limit(1),
     supabase.from("client_photos").select("id").eq("client_id", clientId).limit(1),
