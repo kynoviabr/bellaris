@@ -24,13 +24,12 @@ export async function uploadClientPhotoService({ supabase, file, clientId, kind 
   const validation = await validatePhoto(file);
   if (!validation.success) return validation;
 
-  const { data: profile } = await supabase.from('profiles').select('organization_id').single();
-  if (!profile?.organization_id) return { success: false, error: "Sessão inválida." };
-
-  const { data: clientCheck } = await supabase.from('clients').select('id, organization_id').eq('id', clientId).single();
-  if (!clientCheck || clientCheck.organization_id !== profile.organization_id) {
+  // A organização vem da própria cliente (o RLS só deixa ver clientes da organização do usuário).
+  const { data: clientCheck } = await supabase.from('clients').select('id, organization_id').eq('id', clientId).maybeSingle();
+  if (!clientCheck?.organization_id) {
     return { success: false, error: "Cliente não encontrado ou acesso negado." };
   }
+  const organizationId = clientCheck.organization_id;
 
   if (!(await hasActiveConsent(supabase, clientId, 'photos'))) {
     return { success: false, error: "A cliente ainda não autorizou fotos. Registre o consentimento na ficha dela antes de enviar a foto." };
@@ -38,7 +37,7 @@ export async function uploadClientPhotoService({ supabase, file, clientId, kind 
 
   const extension = validation.extension;
   const uuid = crypto.randomUUID();
-  const storagePath = `${profile.organization_id}/${clientId}/${uuid}.${extension}`;
+  const storagePath = `${organizationId}/${clientId}/${uuid}.${extension}`;
 
   const buffer = await file.arrayBuffer();
 
@@ -51,7 +50,7 @@ export async function uploadClientPhotoService({ supabase, file, clientId, kind 
   const { error: dbError } = await supabase
     .from('client_photos')
     .insert([{
-      organization_id: profile.organization_id,
+      organization_id: organizationId,
       client_id: clientId,
       kind,
       storage_path: storagePath
@@ -71,20 +70,14 @@ export async function uploadClientPhotoService({ supabase, file, clientId, kind 
 export async function deleteClientPhotoService(supabase: any, photoId: string) {
   if (photoId.startsWith("mock-")) return { success: true };
   
-  const { data: profile } = await supabase.from('profiles').select('organization_id').single();
-  if (!profile?.organization_id) return { success: false, error: "Sessão inválida." };
-
+  // O RLS só deixa ler fotos da organização do usuário; foto de outra organização não aparece.
   const { data: photo } = await supabase
     .from('client_photos')
     .select('id, storage_path, organization_id')
     .eq('id', photoId)
-    .single();
+    .maybeSingle();
 
   if (!photo) return { success: true };
-
-  if (photo.organization_id !== profile.organization_id) {
-    return { success: false, error: "Acesso negado." };
-  }
 
   let storageRemoved = false;
   if (!photo.storage_path.startsWith('data:image/')) {
