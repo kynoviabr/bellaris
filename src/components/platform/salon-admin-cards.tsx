@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { approveSalon, rejectSalon, updateSalonOwner } from "@/lib/actions/platform-onboarding";
+import { approveSalon, rejectSalon, updateSalonName, updateSalonOwner } from "@/lib/actions/platform-onboarding";
 import { OwnerFormFields } from "@/components/onboarding/owner-form-fields";
 
 export type SalonAdminRow = {
@@ -30,6 +30,42 @@ const inputClass = "field-input";
 const labelClass = "field-label";
 const btnPrimary = "btn-primary";
 const btnOutline = "btn-outline";
+
+/** WhatsApp para exibição: (11) 93220-8384. */
+function formatWhatsappDisplay(value: string | null) {
+  const d = (value ?? "").replace(/\D/g, "");
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return value ?? "";
+}
+
+/** CPF para exibição: 073.455.368-40. */
+function formatCpfDisplay(value: string | null) {
+  const d = (value ?? "").replace(/\D/g, "");
+  if (d.length !== 11) return value ?? "";
+  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+}
+
+/** Nome do salão, editável só enquanto o cadastro aguarda aprovação. */
+function SalonNameForm({ row }: { row: SalonAdminRow }) {
+  const [state, formAction, pending] = useActionState(updateSalonName, undefined);
+  return (
+    <form action={formAction} className="flex flex-wrap items-end gap-3">
+      <input type="hidden" name="organizationId" value={row.organization_id} />
+      <div className="min-w-[240px] flex-1">
+        <label className={labelClass} htmlFor={`name-${row.organization_id}`}>Nome do salão</label>
+        <input id={`name-${row.organization_id}`} name="salonName" required minLength={3} defaultValue={row.salon_name} className={inputClass} />
+      </div>
+      <button type="submit" disabled={pending} className={btnOutline}>{pending ? "Salvando..." : "Salvar nome"}</button>
+      {state && "error" in state && state.error && (
+        <p className="w-full rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-danger">{state.error}</p>
+      )}
+      {state && "ok" in state && state.ok && (
+        <p className="w-full rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-800">Nome salvo.</p>
+      )}
+    </form>
+  );
+}
 
 /** Dados do responsável como defaults do formulário. */
 export function ownerDefaults(row: SalonAdminRow) {
@@ -99,11 +135,11 @@ export function ApprovalCard({ row, plans }: { row: SalonAdminRow; plans: PlanCh
           </div>
           <div>
             <dt className="text-xs font-semibold uppercase tracking-wide text-primary">WhatsApp</dt>
-            <dd className="mt-1 text-ink">{row.owner_whatsapp}</dd>
+            <dd className="mt-1 text-ink">{formatWhatsappDisplay(row.owner_whatsapp)}</dd>
           </div>
           <div>
             <dt className="text-xs font-semibold uppercase tracking-wide text-primary">CPF</dt>
-            <dd className="mt-1 text-ink">{row.owner_cpf}</dd>
+            <dd className="mt-1 text-ink">{formatCpfDisplay(row.owner_cpf)}</dd>
           </div>
           <div className="sm:col-span-2 lg:col-span-3">
             <dt className="text-xs font-semibold uppercase tracking-wide text-primary">Endereço</dt>
@@ -156,7 +192,8 @@ export function ApprovalCard({ row, plans }: { row: SalonAdminRow; plans: PlanCh
       )}
 
       {showEdit && (
-        <div className="rounded-lg bg-[#FAF6F0] p-4">
+        <div className="space-y-6 rounded-lg bg-[#FAF6F0] p-4">
+          {row.access_status === "aguardando_aprovacao" && <SalonNameForm row={row} />}
           <OwnerEditForm row={row} />
         </div>
       )}

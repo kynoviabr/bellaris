@@ -3,7 +3,7 @@
 - Papel: `platform_master`, sem salão (`profiles.organization_id` nulo).
 - Acesso: página `/plataforma`, com menu lateral: Aprovações, Salões, Financeiro e Planos.
   - Aprovações: fila de cadastros aguardando aprovação. Aprova com plano e dia de vencimento, recusa com motivo e corrige os dados do responsável.
-  - Salões: lista de salões com os dados do responsável, editáveis. O nome do salão não é editável.
+  - Salões: lista de salões com os dados do responsável, editáveis. O nome do salão só pode ser alterado enquanto o cadastro aguarda aprovação.
   - Financeiro: resumo do mês, assinaturas e registro de pagamentos.
   - Planos: valores vigentes.
 - O master não lê clientes, agendas nem lançamentos de nenhum salão. Isso é garantido pelo RLS, porque o `organization_id` é nulo.

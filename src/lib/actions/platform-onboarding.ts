@@ -72,3 +72,19 @@ export async function updateSalonOwner(_prev: unknown, formData: FormData) {
   revalidatePath("/plataforma");
   return { ok: true as const };
 }
+
+/** Master corrige o nome do salão. Só é possível enquanto o cadastro aguarda aprovação. */
+export async function updateSalonName(_prev: unknown, formData: FormData) {
+  const org = str(formData, "organizationId");
+  const name = str(formData, "salonName").trim();
+  if (!org) return { error: "Salão não informado." };
+  if (name.length < 3) return { error: "Informe um nome com pelo menos 3 caracteres." };
+
+  const supabase = await createClient();
+  if (!supabase) return { error: "Supabase não configurado" };
+
+  const { error } = await supabase.rpc("platform_update_salon_name", { p_org: org, p_name: name });
+  if (error) return { error: error.message };
+  revalidatePath("/plataforma");
+  return { ok: true as const };
+}
