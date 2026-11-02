@@ -92,10 +92,20 @@ export function DataImportCard() {
         </div>
       </div>
 
+      <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        <p className="font-semibold">Ordem certa da carga</p>
+        <ol className="mt-1 list-decimal pl-5">
+          <li>Serviços</li>
+          <li>Profissionais</li>
+          <li>Clientes</li>
+        </ol>
+        <p className="mt-2">Importe nessa ordem. Os clientes e os atendimentos dependem de serviços e profissionais já cadastrados.</p>
+      </div>
+
       <div className="flex flex-wrap gap-2 mb-4">
-        {IMPORT_KINDS.map(k => (
+        {IMPORT_KINDS.map((k, index) => (
           <button key={k.id} type="button" onClick={() => changeKind(k.id)}
-            className={kind === k.id ? "btn-primary" : "btn-outline"}>{k.label}</button>
+            className={kind === k.id ? "btn-primary" : "btn-outline"}>{index + 1}. {k.label}</button>
         ))}
       </div>
 
