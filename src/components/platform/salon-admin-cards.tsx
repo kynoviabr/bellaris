@@ -117,34 +117,33 @@ export function ApprovalCard({ row, plans }: { row: SalonAdminRow; plans: PlanCh
         <p className="text-sm text-muted">O dono ainda não enviou os dados do responsável.</p>
       )}
 
-      {row.access_status === "aguardando_aprovacao" && (
-        <form action={approveAction} className="grid gap-4 border-t border-[#EFE6DA] pt-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+      {row.access_status === "aguardando_aprovacao" ? (
+        <form action={approveAction} className="flex flex-wrap items-end gap-3 border-t border-[#EFE6DA] pt-4">
           <input type="hidden" name="organizationId" value={row.organization_id} />
-          <div>
+          <div className="min-w-[180px] flex-1">
             <label className={labelClass} htmlFor={`plan-${row.organization_id}`}>Plano</label>
             <select id={`plan-${row.organization_id}`} name="planCode" required defaultValue={row.requested_plan_code ?? ""} className={inputClass}>
               <option value="">Escolha</option>
               {plans.map(p => <option key={p.code} value={p.code}>{p.name} · R$ {Number(p.monthly_price).toFixed(2).replace(".", ",")}</option>)}
             </select>
           </div>
-          <div>
+          <div className="min-w-[180px] flex-1">
             <label className={labelClass} htmlFor={`due-${row.organization_id}`}>Vencimento</label>
             <select id={`due-${row.organization_id}`} name="dueBusinessDay" defaultValue="0" className={inputClass}>
               <option value="0">Último dia útil do mês</option>
               {Array.from({ length: 10 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n}º dia útil do mês</option>)}
             </select>
           </div>
-          <button type="submit" disabled={approving} className={btnPrimary}>{approving ? "Aprovando..." : "Aprovar e liberar"}</button>
-          {approveError && <p className="sm:col-span-3 rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-danger">{approveError}</p>}
+          <button type="submit" disabled={approving} className={`${btnPrimary} whitespace-nowrap`}>{approving ? "Aprovando..." : "Aprovar e liberar"}</button>
+          <button type="button" onClick={() => setShowReject(v => !v)} className={`${btnOutline} whitespace-nowrap`}>Recusar cadastro</button>
+          <button type="button" onClick={() => setShowEdit(v => !v)} className={`${btnOutline} whitespace-nowrap`}>{showEdit ? "Fechar dados" : "Ver e corrigir dados"}</button>
+          {approveError && <p className="w-full rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-danger">{approveError}</p>}
         </form>
+      ) : (
+        <div className="flex flex-wrap gap-2 border-t border-[#EFE6DA] pt-4">
+          <button type="button" onClick={() => setShowEdit(v => !v)} className={btnOutline}>{showEdit ? "Fechar dados" : "Ver e corrigir dados"}</button>
+        </div>
       )}
-
-      <div className="flex flex-wrap gap-2 border-t border-[#EFE6DA] pt-4">
-        {row.access_status === "aguardando_aprovacao" && (
-          <button type="button" onClick={() => setShowReject(v => !v)} className={btnOutline}>Recusar cadastro</button>
-        )}
-        <button type="button" onClick={() => setShowEdit(v => !v)} className={btnOutline}>{showEdit ? "Fechar dados" : "Ver e corrigir dados"}</button>
-      </div>
 
       {showReject && (
         <form action={rejectAction} className="space-y-3 rounded-lg bg-[#FAF6F0] p-4">
