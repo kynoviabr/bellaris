@@ -28,8 +28,8 @@ export function ClientPrivacyPanel({ clientId, clientName }: { clientId: string;
   async function load() {
     try {
       const res = await getClientPrivacyStatus(clientId);
-      if (res) setStatus(res);
-      else setLoadError("Não foi possível carregar o status de privacidade desta cliente.");
+      if (res && !("error" in res)) setStatus(res);
+      else setLoadError("Privacidade indisponível: " + (res && "error" in res ? res.error : "resposta vazia do servidor."));
     } catch (err) {
       setLoadError("Erro ao carregar privacidade: " + (err instanceof Error ? err.message : String(err)));
     }
