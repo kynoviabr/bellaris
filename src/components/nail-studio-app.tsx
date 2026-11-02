@@ -830,51 +830,49 @@ function ClientModal({ mode, client, close, save }: { mode: "create" | "edit" | 
                       <div className="border border-emerald-200 bg-white p-4 rounded-lg shadow-sm">
                         <h4 className="font-medium text-emerald-900 mb-3 text-sm">Dados do Novo Pacote</h4>
                         <div className="mb-3">
-                          <label className="field-label">Modelo do catálogo (opcional)</label>
-                          <select className="field-input" value={catalogChoice} onChange={e => {
-                            const id = e.target.value; setCatalogChoice(id);
-                            const t = catalogTemplates.find((x: any) => x.id === id);
-                            if (!t) return;
-                            const sessions = (t.package_template_items ?? []).reduce((sum: number, i: any) => sum + Number(i.sessions || 0), 0);
-                            setNewPkg({ name: t.name, total: sessions || 1, price: Number(t.price), method: newPkg.method });
-                          }}>
-                            <option value="">Venda avulsa (sem modelo)</option>
-                            {catalogTemplates.map((t: any) => <option key={t.id} value={t.id}>{t.name} · R$ {Number(t.price).toFixed(2).replace(".", ",")}</option>)}
-                          </select>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3 mb-3">
-                          <div>
-                            <label className="field-label">Nome ou Serviço</label>
-                            <input className="field-input" value={newPkg.name} onChange={e => setNewPkg({...newPkg, name: e.target.value})} placeholder="Ex: 4 Manicures" />
-                          </div>
-                          <div>
-                            <label className="field-label">Qtd. Sessões</label>
-                            <input type="number" className="field-input" value={newPkg.total} onChange={e => setNewPkg({...newPkg, total: Number(e.target.value)})} />
-                          </div>
-                          <div>
-                            <label className="field-label">Valor Cobrado (R$)</label>
-                            <input type="number" className="field-input" value={newPkg.price} onChange={e => setNewPkg({...newPkg, price: Number(e.target.value)})} />
-                          </div>
-                          <div>
-                            <label className="field-label">Pagamento</label>
-                            <select className="field-input" value={newPkg.method} onChange={e => setNewPkg({...newPkg, method: e.target.value})}>
-                              <option value="PIX">PIX</option><option value="Crédito">Crédito</option><option value="Débito">Débito</option><option value="Dinheiro">Dinheiro</option>
+                          <label className="field-label">Pacote do catálogo</label>
+                          {catalogTemplates.length === 0 ? (
+                            <p className="text-sm text-muted">Nenhum pacote ativo no catálogo. Cadastre em Catálogo de Pacotes.</p>
+                          ) : (
+                            <select className="field-input" value={catalogChoice} onChange={e => setCatalogChoice(e.target.value)}>
+                              <option value="">Selecione um pacote</option>
+                              {catalogTemplates.map((t: any) => <option key={t.id} value={t.id}>{t.name} · R$ {Number(t.price).toFixed(2).replace(".", ",")}</option>)}
                             </select>
-                          </div>
+                          )}
                         </div>
+                        {catalogChoice && (() => {
+                          const t = catalogTemplates.find((x: any) => x.id === catalogChoice);
+                          if (!t) return null;
+                          const sessions = (t.package_template_items ?? []).reduce((sum: number, i: any) => sum + Number(i.sessions || 0), 0);
+                          return (
+                            <div className="grid grid-cols-3 gap-3 mb-3 text-sm">
+                              <div><span className="field-label block">Sessões</span><span>{sessions}</span></div>
+                              <div><span className="field-label block">Valor</span><span>R$ {Number(t.price).toFixed(2).replace(".", ",")}</span></div>
+                              <div>
+                                <label className="field-label">Pagamento</label>
+                                <select className="field-input" value={newPkg.method} onChange={e => setNewPkg({...newPkg, method: e.target.value})}>
+                                  <option value="PIX">PIX</option><option value="Crédito">Crédito</option><option value="Débito">Débito</option><option value="Dinheiro">Dinheiro</option>
+                                </select>
+                              </div>
+                            </div>
+                          );
+                        })()}
                         <div className="flex justify-end gap-2 mt-4 pt-3 border-t">
                           <button type="button" onClick={() => setIsAddingPackage(false)} className="px-3 py-1.5 text-sm text-muted hover:text-ink">Cancelar</button>
                           <button type="button" onClick={async (e) => {
-                            if (!newPkg.name) return alert("Digite o nome do pacote");
+                            const tpl = catalogTemplates.find((x: any) => x.id === catalogChoice);
+                            if (!tpl) return alert("Selecione um pacote do catálogo");
+                            const tplSessions = (tpl.package_template_items ?? []).reduce((sum: number, i: any) => sum + Number(i.sessions || 0), 0) || 1;
                             const btn = e.target as HTMLButtonElement; btn.disabled = true; btn.innerText = "Processando...";
                             try {
                               await save({ name, phone, birthDate, cep, street, number, complement, neighborhood, city, state, notes: JSON.stringify({ text: notes, anamnesis }), email, anamnesisConsent });
                               const { sellPackage, getActivePackages } = await import("@/lib/actions/packages");
-                              const res = await sellPackage(client.id, newPkg.name, newPkg.total, newPkg.price, newPkg.method);
+                              const res = await sellPackage(client.id, tpl.name, tplSessions, Number(tpl.price), newPkg.method);
                               if (res.success) {
                                 const pkgs = await getActivePackages(client.id);
                                 setPackages(pkgs);
                                 setIsAddingPackage(false);
+                                setCatalogChoice("");
                                 setNewPkg({ name: "", total: 4, price: 120, method: "PIX" });
                               } else {
                                 alert("Erro ao vender pacote: " + res.error);
