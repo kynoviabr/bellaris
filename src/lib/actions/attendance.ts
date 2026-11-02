@@ -97,8 +97,9 @@ export async function finishAppointment(data: {
   // 4. Handle Atomic Checkout via new RPC
   const { error: rpcErr } = await supabase.rpc('finish_appointment_checkout_full', {
     p_appointment_id: data.appointmentId,
-    p_payment_amount: data.packageId ? 0 : data.amount,
-    p_payment_method: data.packageId ? 'other' : data.paymentMethod,
+    // Com pacote, o banco calcula o valor dos serviços fora do pacote e usa a forma de pagamento informada.
+    p_payment_amount: data.amount,
+    p_payment_method: data.paymentMethod,
     p_package_id: data.packageId || null,
     p_commissions: commissions,
     p_inventory_deductions: inventoryDeductions
@@ -135,4 +136,13 @@ export async function correctCheckoutWithPackage(appointmentId:string,packageId:
   if (error) return { success:false,error:error.message };
   revalidatePath("/");
   return { success:true,alreadyLinked:data==="already_linked" };
+}
+
+export async function previewPackageCheckout(appointmentId: string, packageId: string) {
+  const supabase = await createClient();
+  if (!supabase) return { success: false as const, error: "Sem conexão" };
+  const { data, error } = await supabase.rpc("preview_package_checkout", { p_appointment_id: appointmentId, p_package_id: packageId });
+  if (error) return { success: false as const, error: error.message };
+  const preview = data as { legacy: boolean; covered: { id: string; description: string }[]; uncovered: { id: string; description: string; total: number }[]; charge: number };
+  return { success: true as const, ...preview };
 }

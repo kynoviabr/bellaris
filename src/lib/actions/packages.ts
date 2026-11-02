@@ -74,3 +74,21 @@ export async function updatePackage(packageId: string, name: string, total: numb
   revalidatePath("/");
   return { success: true };
 }
+
+export async function sellPackageFromTemplate(clientId: string, templateId: string, method: string) {
+  if (!templateId) return { success: false, error: "Selecione um pacote do catálogo" };
+  const supabase = await createClient();
+  if (!supabase) return { success: false, error: "No DB" };
+
+  const { data, error } = await supabase.rpc('sell_package_from_template', {
+    p_client_id: clientId,
+    p_template_id: templateId,
+    p_payment_method: method
+  });
+
+  if (error) {
+    console.error("sellPackageFromTemplate error", error);
+    return { success: false, error: error.message };
+  }
+  return { success: true, packageId: data };
+}

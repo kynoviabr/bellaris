@@ -860,14 +860,12 @@ function ClientModal({ mode, client, close, save }: { mode: "create" | "edit" | 
                         <div className="flex justify-end gap-2 mt-4 pt-3 border-t">
                           <button type="button" onClick={() => setIsAddingPackage(false)} className="px-3 py-1.5 text-sm text-muted hover:text-ink">Cancelar</button>
                           <button type="button" onClick={async (e) => {
-                            const tpl = catalogTemplates.find((x: any) => x.id === catalogChoice);
-                            if (!tpl) return alert("Selecione um pacote do catálogo");
-                            const tplSessions = (tpl.package_template_items ?? []).reduce((sum: number, i: any) => sum + Number(i.sessions || 0), 0) || 1;
+                            if (!catalogChoice) return alert("Selecione um pacote do catálogo");
                             const btn = e.target as HTMLButtonElement; btn.disabled = true; btn.innerText = "Processando...";
                             try {
                               await save({ name, phone, birthDate, cep, street, number, complement, neighborhood, city, state, notes: JSON.stringify({ text: notes, anamnesis }), email, anamnesisConsent });
-                              const { sellPackage, getActivePackages } = await import("@/lib/actions/packages");
-                              const res = await sellPackage(client.id, tpl.name, tplSessions, Number(tpl.price), newPkg.method);
+                              const { sellPackageFromTemplate, getActivePackages } = await import("@/lib/actions/packages");
+                              const res = await sellPackageFromTemplate(client.id, catalogChoice, newPkg.method);
                               if (res.success) {
                                 const pkgs = await getActivePackages(client.id);
                                 setPackages(pkgs);
@@ -1878,7 +1876,7 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
       )}
 
       {booking && <BookingModal initialDate={bookingDate} clients={clientRows} onClientCreated={(client) => setClientRows(current => current.some(c => c.id === client.id) ? current : [...current, client].sort((a,b)=>a.name.localeCompare(b.name)))} professionals={professionalRows} services={serviceRows} close={() => setBooking(false)} save={async (a, rawData) => { if(rawData) { const res = await createAppointmentRecord(rawData); if (res.success) { const fresh = await getAppointments(); setRows(fresh); setBooking(false); notify("Agendamento criado com sucesso."); } else { alert(("error" in res ? res.error : "Erro desconhecido")); } } else { setRows(v => [...v, a]); setBooking(false); notify("Agendamento criado (demo)."); } }} />}
-      {finish && activeAppointment && <FinishModal appointment={activeAppointment} close={() => setFinish(false)} done={async (method, val, pkgId) => { const res = await finishAppointment({ appointmentId: activeAppointment.id, amount: val, paymentMethod: method, packageId: pkgId }); if (res.success) { setRows(v => v.map(a => a.id === activeAppointment.id ? { ...a, status: "Concluído", paid: (a.paid || 0) + (pkgId ? 0 : val) } : a)); getProfessionals().then(fresh => setProfessionalRows(fresh as any[])); setFinish(false); setActiveAppointment(null); setView("attendance"); notify("Atendimento concluído e pagamento registrado com sucesso."); } else { alert(("error" in res ? res.error : "Erro desconhecido")); } }} />}
+      {finish && activeAppointment && <FinishModal appointment={activeAppointment} close={() => setFinish(false)} done={async (method, val, pkgId) => { const res = await finishAppointment({ appointmentId: activeAppointment.id, amount: val, paymentMethod: method, packageId: pkgId }); if (res.success) { setRows(v => v.map(a => a.id === activeAppointment.id ? { ...a, status: "Concluído", paid: (a.paid || 0) + val } : a)); getProfessionals().then(fresh => setProfessionalRows(fresh as any[])); setFinish(false); setActiveAppointment(null); setView("attendance"); notify("Atendimento concluído e pagamento registrado com sucesso."); } else { alert(("error" in res ? res.error : "Erro desconhecido")); } }} />}
       {cancelPending && <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 p-4" role="presentation">
         <div role="alertdialog" aria-modal="true" aria-labelledby="cancel-appointment-title" aria-describedby="cancel-appointment-description" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
           <h2 id="cancel-appointment-title" className="text-xl font-semibold text-[#382D32]">Cancelar agendamento?</h2>
@@ -2307,6 +2305,20 @@ function FinishModal({ appointment, close, done }:{ appointment: Appointment; cl
   const [submitting, setSubmitting] = useState(false);
   const [packages, setPackages] = useState<any[]>([]);
   const [selectedPkg, setSelectedPkg] = useState("");
+  const [chargeMethod, setChargeMethod] = useState("PIX");
+  const [preview, setPreview] = useState<null | { legacy: boolean; covered: { id: string; description: string }[]; uncovered: { id: string; description: string; total: number }[]; charge: number }>(null);
+  const [previewError, setPreviewError] = useState("");
+
+  useEffect(() => {
+    if (method !== "Pacote" || !selectedPkg) { setPreview(null); setPreviewError(""); return; }
+    let active = true;
+    import("@/lib/actions/attendance").then(m => m.previewPackageCheckout(appointment.id, selectedPkg)).then(res => {
+      if (!active) return;
+      if (res.success) { setPreview(res); setPreviewError(""); }
+      else { setPreview(null); setPreviewError(res.error); }
+    });
+    return () => { active = false; };
+  }, [method, selectedPkg, appointment.id]);
 
   useEffect(() => {
     if (appointment.clientId) {
@@ -2345,7 +2357,7 @@ function FinishModal({ appointment, close, done }:{ appointment: Appointment; cl
           )}
           <div className="mt-3 flex justify-between border-t border-[#DBE3EC] pt-3 text-base">
             <b>A receber</b>
-            <b>{money.format(remaining)}</b>
+            <b>{money.format(method === "Pacote" ? (preview && !preview.legacy ? preview.charge : 0) : remaining)}</b>
           </div>
         </div>
         <label className="mt-4 block">
@@ -2370,6 +2382,43 @@ function FinishModal({ appointment, close, done }:{ appointment: Appointment; cl
           </label>
         )}
 
+        {method === "Pacote" && previewError && (
+          <p className="mt-3 rounded-md bg-red-50 p-3 text-sm text-red-700">{previewError}</p>
+        )}
+
+        {method === "Pacote" && preview && preview.legacy && (
+          <div className="mt-3 rounded-md border border-[#DBE3EC] p-3 text-sm">
+            <p className="text-muted">Este pacote não tem saldo por serviço. Ele consome 1 sessão por atendimento, como antes.</p>
+          </div>
+        )}
+
+        {method === "Pacote" && preview && !preview.legacy && (
+          <div className="mt-3 space-y-2 rounded-md border border-[#DBE3EC] p-3 text-sm">
+            <p className="font-medium">Serviços cobertos pelo pacote ({preview.covered.length})</p>
+            {preview.covered.length === 0 && <p className="text-muted">Nenhum serviço deste atendimento está no pacote.</p>}
+            {preview.covered.map(c => (
+              <p key={c.id} className="text-emerald-700">✓ {c.description} · debita 1 sessão</p>
+            ))}
+            {preview.uncovered.length > 0 && (
+              <>
+                <p className="pt-2 font-medium text-amber-700">Fora do pacote: será cobrado normalmente</p>
+                {preview.uncovered.map(u => (
+                  <p key={u.id} className="text-amber-700">• {u.description} · {money.format(u.total)}</p>
+                ))}
+                <label className="mt-2 block">
+                  <span className="field-label">Forma de pagamento do valor fora do pacote</span>
+                  <select value={chargeMethod} onChange={e => setChargeMethod(e.target.value)} className="field-input">
+                    <option value="PIX">PIX</option>
+                    <option value="Dinheiro">Dinheiro</option>
+                    <option value="Débito">Débito</option>
+                    <option value="Crédito">Crédito</option>
+                  </select>
+                </label>
+              </>
+            )}
+          </div>
+        )}
+
         <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
           <div className="rounded-md border border-[#DBE3EC] p-3">
             <p className="text-muted">Comissão gerada</p>
@@ -2380,9 +2429,13 @@ function FinishModal({ appointment, close, done }:{ appointment: Appointment; cl
             <b>Caixa aberto</b>
           </div>
         </div>
-        <button disabled={submitting} onClick={async () => {
+        <button disabled={submitting || (method === "Pacote" && (!selectedPkg || !preview))} onClick={async () => {
           setSubmitting(true);
-          await done(method, remaining, method === "Pacote" ? selectedPkg : undefined);
+          if (method === "Pacote") {
+            await done(chargeMethod, preview && !preview.legacy ? preview.charge : 0, selectedPkg);
+          } else {
+            await done(method, remaining, undefined);
+          }
         }} className="btn-primary mt-5 w-full">
           <Check size={16} />{submitting ? "Processando..." : "Confirmar e concluir"}
         </button>
