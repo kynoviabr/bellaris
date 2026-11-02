@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Download, Upload } from "lucide-react";
-import { importRows, type ImportResult } from "@/lib/actions/import-data";
+import { getImportBatches, importRows, type ImportBatch, type ImportResult } from "@/lib/actions/import-data";
 import { parseCsv, type CsvRow } from "@/lib/import/csv";
 import { IMPORT_KINDS, buildTemplate, decodeCsvBytes, validateRows, type ImportKind, type ValidRow, type InvalidRow } from "@/lib/import/rules";
 
@@ -17,6 +17,15 @@ export function DataImportCard() {
   const [fileError, setFileError] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [batches, setBatches] = useState<ImportBatch[]>([]);
+
+  async function loadBatches() {
+    setBatches(await getImportBatches());
+  }
+
+  useEffect(() => {
+    loadBatches();
+  }, []);
 
   const def = IMPORT_KINDS.find(k => k.id === kind)!;
 
@@ -67,9 +76,10 @@ export function DataImportCard() {
     const validLines = new Set(valid.map(v => v.line));
     setBusy(true);
     setResult(null);
-    const res = await importRows(kind, rows.filter(r => validLines.has(r.line)));
+    const res = await importRows(kind, rows.filter(r => validLines.has(r.line)), fileName);
     setBusy(false);
     setResult(res);
+    loadBatches();
     if (res.ok) {
       setValid([]);
       setInvalid([]);
@@ -176,6 +186,40 @@ export function DataImportCard() {
       {result && !result.ok && (
         <p className="mt-5 rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-danger">{result.error}</p>
       )}
+
+      <div className="mt-6 border-t pt-4">
+        <h4 className="font-semibold text-ink">Cargas feitas</h4>
+        {batches.length === 0 ? (
+          <p className="mt-2 text-sm text-muted">Nenhuma carga feita ainda.</p>
+        ) : (
+          <div className="mt-3 overflow-x-auto rounded-md border border-[#E7EDF3]">
+            <table className="w-full text-sm">
+              <thead className="bg-bg text-left text-xs text-muted">
+                <tr>
+                  <th className="px-3 py-2">Data e hora</th>
+                  <th className="px-3 py-2">Carga</th>
+                  <th className="px-3 py-2">Arquivo</th>
+                  <th className="px-3 py-2 text-right">No arquivo</th>
+                  <th className="px-3 py-2 text-right">Gravados</th>
+                  <th className="px-3 py-2 text-right">Ignorados</th>
+                </tr>
+              </thead>
+              <tbody>
+                {batches.map(b => (
+                  <tr key={b.id} className="border-t border-[#E7EDF3]">
+                    <td className="px-3 py-2 whitespace-nowrap">{new Date(b.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</td>
+                    <td className="px-3 py-2">{IMPORT_KINDS.find(k => k.id === b.kind)?.label ?? b.kind}</td>
+                    <td className="px-3 py-2">{b.fileName || "-"}</td>
+                    <td className="px-3 py-2 text-right">{b.totalRows}</td>
+                    <td className="px-3 py-2 text-right text-emerald-700">{b.imported}</td>
+                    <td className="px-3 py-2 text-right text-muted">{b.skipped}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

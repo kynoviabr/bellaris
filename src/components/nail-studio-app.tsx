@@ -1395,6 +1395,12 @@ export function NailStudioApp({ tenant = { profileName: "Usuária", orgName: "Sa
   }, [view]);
 
   const [clientRows, setClientRows] = useState(() => [...initialClients]); const [serviceRows, setServiceRows] = useState(() => [...initialServices]);
+  // Recarrega serviços, profissionais e clientes ao abrir essas telas, para refletir cargas feitas em Configurações
+  useEffect(() => {
+    if (view === "services" && !professionalMode) getServices().then(fresh => setServiceRows(fresh));
+    if (view === "professionals" && !professionalMode) getProfessionals().then(fresh => setProfessionalRows(fresh));
+    if (view === "clients" && !professionalMode) getClients().then(fresh => setClientRows(fresh));
+  }, [view, professionalMode]);
   const [professionalRows, setProfessionalRows] = useState(() => [...initialProfessionals]); const [productRows, setProductRows] = useState<any[]>(initialInventory);
   const initialTemplates = [{ name: "Lembrete 24h", count: "18 agendadas", tone: "success" }, { name: "Sinal pendente", count: "3 aguardando", tone: "warning" }, { name: "Manutenção vencida", count: "7 oportunidades", tone: "danger" }, { name: "Aniversário", count: "2 nesta semana", tone: "primary" }];
 const [automationRows, setAutomationRows] = useState(() => [...initialTemplates]); const [specialtyList, setSpecialtyList] = useState(() => [...initialSpecialties]); const [financialRows, setFinancialRows] = useState(() => [...initialFinancials]);
