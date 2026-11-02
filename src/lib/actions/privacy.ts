@@ -67,7 +67,7 @@ export async function revokeClientConsent(clientId: string, kind: string) {
   if (revokeError) return { success: false, error: "Não foi possível retirar o consentimento." };
 
   if (kind === "anamnesis") {
-    const { error: anamnesisError } = await supabase.from("client_anamnesis").delete().eq("client_id", clientId);
+    const { error: anamnesisError } = await supabase.rpc("delete_client_anamnesis", { p_client_id: clientId });
     if (anamnesisError) return { success: false, error: "Consentimento retirado, mas não foi possível apagar a anamnese." };
 
     // A anamnese também fica guardada no campo de observações, em JSON. Remove só essa parte.
@@ -148,7 +148,8 @@ export async function anonymizeClientData(clientId: string) {
       .is("revoked_at", null);
   }
 
-  await supabase.from("client_anamnesis").delete().eq("client_id", clientId);
+  const { error: anamnesisDeleteError } = await supabase.rpc("delete_client_anamnesis", { p_client_id: clientId });
+  if (anamnesisDeleteError) return { success: false, error: "Não foi possível apagar a anamnese. Nada foi anonimizado." };
 
   const { error } = await supabase
     .from("clients")
