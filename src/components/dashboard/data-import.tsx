@@ -158,6 +158,11 @@ export function DataImportCard() {
       {result && result.ok && (
         <div className="mt-5 rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
           <p><strong>{result.imported}</strong> {def.label.toLowerCase()} importado(s).</p>
+          {result.imported > 0 && (
+            <button type="button" onClick={() => window.location.reload()} className="btn-outline mt-3">
+              Atualizar a tela para ver os dados
+            </button>
+          )}
           {result.skipped.length > 0 && (
             <>
               <p className="mt-2 font-medium">{result.skipped.length} linha(s) ignorada(s):</p>
