@@ -23,17 +23,30 @@ export function ClientPrivacyPanel({ clientId, clientName }: { clientId: string;
   const [accepted, setAccepted] = useState<Record<ConsentKind, boolean>>({ anamnesis: false, photos: false });
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [loadError, setLoadError] = useState("");
 
   async function load() {
-    const res = await getClientPrivacyStatus(clientId);
-    setStatus(res);
+    try {
+      const res = await getClientPrivacyStatus(clientId);
+      if (res) setStatus(res);
+      else setLoadError("Não foi possível carregar o status de privacidade desta cliente.");
+    } catch (err) {
+      setLoadError("Erro ao carregar privacidade: " + (err instanceof Error ? err.message : String(err)));
+    }
   }
 
   useEffect(() => {
     if (clientId && !clientId.startsWith("demo-")) load();
   }, [clientId]);
 
-  if (!clientId || clientId.startsWith("demo-") || !status) return null;
+  if (!clientId || clientId.startsWith("demo-")) return null;
+  if (!status) {
+    return (
+      <section className="card p-5 text-sm text-muted">
+        {loadError || "Carregando privacidade e consentimento..."}
+      </section>
+    );
+  }
 
   async function grant(kind: ConsentKind) {
     setBusy(true); setMessage("");
