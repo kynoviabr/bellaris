@@ -71,24 +71,28 @@ export function OwnerFormFields({ defaults = {} }: { defaults?: Defaults }) {
 
   return (
     <div className="space-y-4">
-      <div>
-        <label className="field-label" htmlFor="owner-fullName">Nome completo do responsável</label>
-        <input id="owner-fullName" name="fullName" type="text" required value={fullName}
-          onChange={(e) => setFullName(e.target.value)} className="field-input" placeholder="Ex: Amanda Silva" />
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div>
+      {/* Linha 1: nome (metade da largura) e campos de tamanho fixo (WhatsApp e CPF) */}
+      <div className="flex flex-wrap gap-4">
+        <div className="w-full sm:w-1/2">
+          <label className="field-label" htmlFor="owner-fullName">Nome completo do responsável</label>
+          <input id="owner-fullName" name="fullName" type="text" required value={fullName}
+            onChange={(e) => setFullName(e.target.value)} className="field-input" placeholder="Ex: Amanda Silva" />
+        </div>
+        <div className="w-full sm:w-44">
           <label className="field-label" htmlFor="owner-whatsapp">WhatsApp</label>
           <input id="owner-whatsapp" name="whatsapp" type="tel" inputMode="tel" required value={whatsapp}
             onChange={(e) => setWhatsapp(formatWhatsapp(e.target.value))} className="field-input" placeholder="(11) 98765-4321" />
         </div>
-        <div>
+        <div className="w-full sm:w-44">
           <label className="field-label" htmlFor="owner-cpf">CPF</label>
           <input id="owner-cpf" name="cpf" type="text" inputMode="numeric" required value={cpf}
             onChange={(e) => setCpf(formatCpf(e.target.value))} className="field-input" placeholder="000.000.000-00" />
         </div>
-        <div>
+      </div>
+
+      {/* Linha 2: endereço (CEP, logradouro, número e complemento) */}
+      <div className="flex flex-wrap gap-4">
+        <div className="w-full sm:w-36">
           <label className="field-label" htmlFor="owner-cep">CEP</label>
           <div className="relative">
             <input id="owner-cep" name="cep" type="text" inputMode="numeric" required value={cep}
@@ -96,39 +100,37 @@ export function OwnerFormFields({ defaults = {} }: { defaults?: Defaults }) {
             {loadingCep && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted">buscando...</span>}
           </div>
         </div>
-      </div>
-      {cepMessage && <p className="text-xs text-muted">{cepMessage}</p>}
-
-      <div className="grid gap-4 sm:grid-cols-[1fr_9rem]">
-        <div>
+        <div className="w-full sm:min-w-[12rem] sm:flex-1">
           <label className="field-label" htmlFor="owner-logradouro">Logradouro</label>
           <input id="owner-logradouro" name="logradouro" type="text" required value={logradouro}
             onChange={(e) => setLogradouro(e.target.value)} className="field-input" placeholder="Rua, avenida..." />
         </div>
-        <div>
+        <div className="w-full sm:w-24">
           <label className="field-label" htmlFor="owner-numero">Número</label>
           <input id="owner-numero" name="numero" type="text" required value={numero}
             onChange={(e) => setNumero(e.target.value)} className="field-input" />
         </div>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.5fr_6rem]">
-        <div>
+        <div className="w-full sm:w-52">
           <label className="field-label" htmlFor="owner-complemento">Complemento</label>
           <input id="owner-complemento" name="complemento" type="text" value={complemento}
             onChange={(e) => setComplemento(e.target.value)} className="field-input" placeholder="Sala, bloco..." />
         </div>
-        <div>
+      </div>
+      {cepMessage && <p className="text-xs text-muted">{cepMessage}</p>}
+
+      {/* Linha 3: bairro, cidade e UF */}
+      <div className="flex flex-wrap gap-4">
+        <div className="w-full sm:min-w-[12rem] sm:flex-1">
           <label className="field-label" htmlFor="owner-bairro">Bairro</label>
           <input id="owner-bairro" name="bairro" type="text" value={bairro}
             onChange={(e) => setBairro(e.target.value)} className="field-input" />
         </div>
-        <div>
+        <div className="w-full sm:w-64">
           <label className="field-label" htmlFor="owner-cidade">Cidade</label>
           <input id="owner-cidade" name="cidade" type="text" required value={cidade}
             onChange={(e) => setCidade(e.target.value)} className="field-input" />
         </div>
-        <div>
+        <div className="w-full sm:w-24">
           <label className="field-label" htmlFor="owner-uf">UF</label>
           <select id="owner-uf" name="uf" required value={uf} onChange={(e) => setUf(e.target.value)} className="field-input">
             <option value="">UF</option>
