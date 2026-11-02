@@ -92,11 +92,26 @@ export function ApprovalCard({ row, plans }: { row: SalonAdminRow; plans: PlanCh
       )}
 
       {row.owner_full_name ? (
-        <dl className="grid gap-2 text-sm sm:grid-cols-2">
-          <div><dt className="text-xs text-muted">Responsável</dt><dd>{row.owner_full_name}</dd></div>
-          <div><dt className="text-xs text-muted">WhatsApp</dt><dd>{row.owner_whatsapp}</dd></div>
-          <div><dt className="text-xs text-muted">CPF</dt><dd>{row.owner_cpf}</dd></div>
-          <div><dt className="text-xs text-muted">Endereço</dt><dd>{row.owner_logradouro}, {row.owner_numero}{row.owner_complemento ? ` - ${row.owner_complemento}` : ""} · {row.owner_bairro ?? ""} · {row.owner_cidade}/{row.owner_uf} · CEP {row.owner_cep}</dd></div>
+        <dl className="grid gap-x-6 gap-y-4 rounded-md border border-[#EFE6DA] bg-bg p-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-primary">Responsável</dt>
+            <dd className="mt-1 font-medium text-ink">{row.owner_full_name}</dd>
+          </div>
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-primary">WhatsApp</dt>
+            <dd className="mt-1 text-ink">{row.owner_whatsapp}</dd>
+          </div>
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-primary">CPF</dt>
+            <dd className="mt-1 text-ink">{row.owner_cpf}</dd>
+          </div>
+          <div className="sm:col-span-2 lg:col-span-3">
+            <dt className="text-xs font-semibold uppercase tracking-wide text-primary">Endereço</dt>
+            <dd className="mt-1 text-ink">
+              {row.owner_logradouro}, {row.owner_numero}{row.owner_complemento ? ` - ${row.owner_complemento}` : ""}
+              {" · "}{row.owner_bairro ?? ""}{" · "}{row.owner_cidade}/{row.owner_uf}{" · CEP "}{row.owner_cep}
+            </dd>
+          </div>
         </dl>
       ) : (
         <p className="text-sm text-muted">O dono ainda não enviou os dados do responsável.</p>
