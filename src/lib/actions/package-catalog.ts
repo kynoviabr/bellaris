@@ -10,6 +10,18 @@ export type PackageTemplateInput = {
   items: { serviceId: string; sessions: number }[];
 };
 
+function validatePackageInput(name: string | undefined, input: PackageTemplateInput, items: { serviceId: string; sessions: number }[]): string | null {
+  if (!name) return "Informe o nome do pacote.";
+  if (name.length > 120) return "O nome do pacote pode ter no máximo 120 caracteres.";
+  if (!Number.isFinite(input.price) || input.price <= 0) return "Informe um preço de venda maior que zero.";
+  if (input.validityDays != null && (!Number.isInteger(input.validityDays) || input.validityDays < 1)) return "A validade precisa ser um número inteiro de dias, maior que zero. Deixe em branco se o pacote não tiver validade.";
+  if (!items.length) return "Adicione pelo menos um serviço ao pacote.";
+  if (items.some(i => !i.serviceId)) return "Selecione o serviço em todas as linhas ou remova as linhas vazias.";
+  if (items.some(i => !Number.isInteger(i.sessions) || i.sessions < 1 || i.sessions > 1000)) return "Informe de 1 a 1000 sessões em cada serviço.";
+  if (new Set(items.map(i => i.serviceId)).size !== items.length) return "Remova os serviços repetidos do pacote.";
+  return null;
+}
+
 export async function getPackageTemplates() {
   const supabase = await createClient();
   if (!supabase) return [];
@@ -37,12 +49,8 @@ export async function createPackageTemplate(input: PackageTemplateInput) {
   if (!["admin", "owner", "manager"].includes(profile.role)) return { success: false, error: "Sem permissão para cadastrar pacotes." };
   const name = input.name?.trim();
   const items = input.items ?? [];
-  if (!name || name.length > 120 || !Number.isFinite(input.price) || input.price <= 0 ||
-      !items.length || items.some(i => !i.serviceId || !Number.isInteger(i.sessions) || i.sessions < 1 || i.sessions > 1000) ||
-      new Set(items.map(i => i.serviceId)).size !== items.length ||
-      (input.validityDays != null && (!Number.isInteger(input.validityDays) || input.validityDays < 1))) {
-    return { success: false, error: "Confira nome, preço, validade e serviços do pacote." };
-  }
+  const validationError = validatePackageInput(name, input, items);
+  if (validationError) return { success: false, error: validationError };
   const ids = items.map(i => i.serviceId);
   const { data: services, error: serviceError } = await supabase.from("services")
     .select("id").eq("organization_id", profile.organization_id).eq("active", true).in("id", ids);
@@ -92,12 +100,8 @@ export async function updatePackageTemplate(id: string, input: PackageTemplateIn
   const orgId = profile.organization_id;
   const name = input.name?.trim();
   const items = input.items ?? [];
-  if (!name || name.length > 120 || !Number.isFinite(input.price) || input.price <= 0 ||
-      !items.length || items.some(i => !i.serviceId || !Number.isInteger(i.sessions) || i.sessions < 1 || i.sessions > 1000) ||
-      new Set(items.map(i => i.serviceId)).size !== items.length ||
-      (input.validityDays != null && (!Number.isInteger(input.validityDays) || input.validityDays < 1))) {
-    return { success: false, error: "Confira nome, preço, validade e serviços do pacote." };
-  }
+  const validationError = validatePackageInput(name, input, items);
+  if (validationError) return { success: false, error: validationError };
   const ids = items.map(i => i.serviceId);
   const { data: services, error: serviceError } = await supabase.from("services")
     .select("id").eq("organization_id", orgId).eq("active", true).in("id", ids);
