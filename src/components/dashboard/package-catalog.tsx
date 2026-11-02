@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createPackageTemplate, getPackageTemplates, setPackageTemplateActive, updatePackageTemplate } from "@/lib/actions/package-catalog";
+import { createPackageTemplate, deletePackageTemplate, getPackageTemplates, setPackageTemplateActive, updatePackageTemplate } from "@/lib/actions/package-catalog";
 import { getServices, type ServiceItem } from "@/lib/actions/services";
 
 type Item = { serviceId: string; sessions: number };
@@ -66,6 +66,12 @@ export function PackageCatalogContent() {
     setNotice(result.success ? "Situação atualizada." : result.error || "Erro ao atualizar.");
     await refresh();
   }
+  async function remove(id: string, name: string) {
+    if (!window.confirm(`Excluir o modelo "${name}"? Esta ação não pode ser desfeita.`)) return;
+    const result = await deletePackageTemplate(id);
+    setNotice(result.success ? "Modelo excluído." : result.error || "Erro ao excluir.");
+    await refresh();
+  }
   const field = "w-full rounded-xl border border-[#e8d7cb] bg-white p-3 text-[#3d3037]";
   return <div className="p-5 text-ink md:p-8">
     <div className="mx-auto max-w-5xl space-y-6">
@@ -103,6 +109,7 @@ export function PackageCatalogContent() {
           <div className="flex gap-2">
             <button type="button" className="rounded-xl border px-3 py-2" onClick={()=>startEdit(t)}>Editar</button>
             <button type="button" className="rounded-xl border px-3 py-2" onClick={()=>void toggle(t.id,!t.active)}>{t.active?"Desativar":"Ativar"}</button>
+            <button type="button" className="rounded-xl border px-3 py-2 text-red-700" onClick={()=>void remove(t.id,t.name)}>Excluir</button>
           </div>
         </div>)}
       </section>
