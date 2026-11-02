@@ -126,3 +126,12 @@ export async function updatePackageTemplate(id: string, input: PackageTemplateIn
   revalidatePath("/");
   return { success: true, id };
 }
+
+export async function deletePackageTemplate(id: string) {
+  const supabase = await createClient();
+  if (!supabase) return { success: false, error: "Sem conexão." };
+  const { error } = await supabase.rpc("delete_package_template", { p_template_id: id });
+  if (error) return { success: false, error: error.message };
+  revalidatePath("/");
+  return { success: true };
+}
