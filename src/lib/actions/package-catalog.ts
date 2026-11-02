@@ -135,3 +135,19 @@ export async function deletePackageTemplate(id: string) {
   revalidatePath("/");
   return { success: true };
 }
+
+export async function checkPackageTemplateDeletable(id: string) {
+  const supabase = await createClient();
+  if (!supabase) return { success: false as const, error: "Sem conexão." };
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return { success: false as const, error: "Sessão expirada." };
+  const { data: profile } = await supabase.from("profiles").select("organization_id").eq("id", auth.user.id).single();
+  if (!profile?.organization_id) return { success: false as const, error: "Organização não encontrada." };
+  const { data: template } = await supabase.from("package_templates").select("name")
+    .eq("id", id).eq("organization_id", profile.organization_id).maybeSingle();
+  if (!template) return { success: false as const, error: "Modelo não encontrado." };
+  const { count, error } = await supabase.from("packages").select("id", { count: "exact", head: true })
+    .eq("organization_id", profile.organization_id).eq("name", template.name);
+  if (error) return { success: false as const, error: "Não foi possível verificar o modelo." };
+  return { success: true as const, deletable: (count ?? 0) === 0, name: template.name };
+}
