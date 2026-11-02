@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { createPackageTemplate, deletePackageTemplate, getPackageTemplates, setPackageTemplateActive, updatePackageTemplate } from "@/lib/actions/package-catalog";
+import { checkPackageTemplateDeletable, createPackageTemplate, deletePackageTemplate, getPackageTemplates, setPackageTemplateActive, updatePackageTemplate } from "@/lib/actions/package-catalog";
 import { getServices, type ServiceItem } from "@/lib/actions/services";
 
 type Item = { serviceId: string; sessions: number };
@@ -20,6 +20,7 @@ export function PackageCatalogContent() {
   const [notice, setNotice] = useState("");
   const [pendingDelete, setPendingDelete] = useState<Template | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteBlocked, setDeleteBlocked] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "ok" | "error"; text: string } | null>(null);
   const feedbackRef = useRef<HTMLDivElement>(null);
   useEffect(() => { if (feedback) feedbackRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); }, [feedback]);
@@ -70,6 +71,13 @@ export function PackageCatalogContent() {
     const result = await setPackageTemplateActive(id, active);
     setNotice(result.success ? "Situação atualizada." : result.error || "Erro ao atualizar.");
     await refresh();
+  }
+  async function openRemove(t: Template) {
+    setFeedback(null);
+    const check = await checkPackageTemplateDeletable(t.id);
+    if (!check.success) { setFeedback({ type: "error", text: check.error }); return; }
+    setDeleteBlocked(!check.deletable);
+    setPendingDelete(t);
   }
   async function confirmRemove() {
     if (!pendingDelete) return;
@@ -123,20 +131,28 @@ export function PackageCatalogContent() {
           <div className="flex gap-2">
             <button type="button" className="rounded-xl border px-3 py-2" onClick={()=>startEdit(t)}>Editar</button>
             <button type="button" className="rounded-xl border px-3 py-2" onClick={()=>void toggle(t.id,!t.active)}>{t.active?"Desativar":"Ativar"}</button>
-            <button type="button" className="rounded-xl border px-3 py-2 text-red-700" onClick={()=>{setFeedback(null);setPendingDelete(t);}}>Excluir</button>
+            <button type="button" className="rounded-xl border px-3 py-2 text-red-700" onClick={()=>void openRemove(t)}>Excluir</button>
           </div>
         </div>)}
       </section>
     </div>
     {pendingDelete && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div role="dialog" aria-modal="true" aria-labelledby="delete-title" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-        <h3 id="delete-title" className="text-lg font-semibold">Excluir modelo do catálogo?</h3>
-        <p className="mt-2 text-sm">O modelo <strong>{pendingDelete.name}</strong> será removido do catálogo. Ele só pode ser excluído se nunca foi vendido. Esta ação não pode ser desfeita.</p>
-        <p className="mt-2 text-sm text-muted">Se o modelo já foi vendido, use <strong>Desativar</strong> para tirá-lo da venda sem perder o histórico.</p>
-        <div className="mt-6 flex justify-end gap-3">
-          <button type="button" disabled={deleting} onClick={()=>setPendingDelete(null)} className="rounded-xl border px-4 py-2">Cancelar</button>
-          <button type="button" disabled={deleting} onClick={()=>void confirmRemove()} className="rounded-xl bg-red-700 px-4 py-2 text-white disabled:opacity-60">{deleting ? "Excluindo..." : "Excluir modelo"}</button>
-        </div>
+        {deleteBlocked ? <>
+          <h3 id="delete-title" className="text-lg font-semibold">Não é possível excluir este modelo</h3>
+          <p className="mt-2 text-sm">O modelo <strong>{pendingDelete.name}</strong> já foi vendido. Modelos vendidos não podem ser excluídos, para preservar o histórico financeiro e os pacotes das clientes.</p>
+          <p className="mt-2 text-sm text-muted">Para tirá-lo da venda, use <strong>Desativar</strong> na lista.</p>
+          <div className="mt-6 flex justify-end">
+            <button type="button" onClick={()=>setPendingDelete(null)} className="rounded-xl border px-4 py-2">Fechar</button>
+          </div>
+        </> : <>
+          <h3 id="delete-title" className="text-lg font-semibold">Excluir modelo do catálogo?</h3>
+          <p className="mt-2 text-sm">O modelo <strong>{pendingDelete.name}</strong> será removido do catálogo. Esta ação não pode ser desfeita.</p>
+          <div className="mt-6 flex justify-end gap-3">
+            <button type="button" disabled={deleting} onClick={()=>setPendingDelete(null)} className="rounded-xl border px-4 py-2">Cancelar</button>
+            <button type="button" disabled={deleting} onClick={()=>void confirmRemove()} className="rounded-xl bg-red-700 px-4 py-2 text-white disabled:opacity-60">{deleting ? "Excluindo..." : "Excluir modelo"}</button>
+          </div>
+        </>}
       </div>
     </div>}
   </div>;
