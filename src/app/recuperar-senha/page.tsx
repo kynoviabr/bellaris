@@ -2,7 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { Sparkles, ArrowLeft, Mail } from "lucide-react";
+import { ArrowLeft, Mail } from "lucide-react";
+import { BellarisMark } from "@/components/brand/bellaris-mark";
 import { createClient } from "@/lib/supabase/client";
 
 export default function RecoverPasswordPage() {
@@ -36,9 +37,7 @@ export default function RecoverPasswordPage() {
     <main className="flex min-h-screen items-center justify-center bg-bg p-4 sm:p-8">
       <section className="w-full max-w-sm rounded-lg border border-[#DBE3EC] bg-white p-6 shadow-card sm:p-8">
         <div className="flex flex-col items-center text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary">
-            <Sparkles size={24} className="text-white" />
-          </div>
+          <BellarisMark size={56} />
           <h1 className="mt-5 text-xl font-bold text-ink">Recuperar senha</h1>
           <p className="mt-2 text-sm text-muted">Informe seu e-mail para receber um link de recuperação.</p>
         </div>

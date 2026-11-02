@@ -2,7 +2,8 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { Sparkles, ArrowLeft, LockKeyhole } from "lucide-react";
+import { ArrowLeft, LockKeyhole } from "lucide-react";
+import { BellarisMark } from "@/components/brand/bellaris-mark";
 import { createClient } from "@/lib/supabase/client";
 
 export default function ResetPasswordPage() {
@@ -90,7 +91,7 @@ export default function ResetPasswordPage() {
     <main className="flex min-h-screen items-center justify-center bg-bg p-4 sm:p-8">
       <section className="w-full max-w-sm rounded-lg border border-[#DBE3EC] bg-white p-6 shadow-card sm:p-8">
         <div className="flex flex-col items-center text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary"><Sparkles size={24} className="text-white" /></div>
+          <BellarisMark size={56} />
           <h1 className="mt-5 text-xl font-bold text-ink">Redefinir senha</h1>
           <p className="mt-2 text-sm text-muted">Cadastre uma nova senha para acessar sua conta.</p>
         </div>

@@ -2,7 +2,8 @@
 
 import { useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Clock, Sparkles } from "lucide-react";
+import { Clock } from "lucide-react";
+import { BellarisMark } from "@/components/brand/bellaris-mark";
 import { submitOwnerOnboarding, type PlanOption } from "@/lib/actions/onboarding";
 import { OwnerFormFields, PlanPicker } from "@/components/onboarding/owner-form-fields";
 
@@ -51,9 +52,7 @@ export function OwnerOnboardingScreen({ isOwner, accessStatus, accessNote, reque
   return (
     <div className="mx-auto mt-8 max-w-2xl rounded-lg border border-[#DBE3EC] bg-white p-6 shadow-card sm:p-8">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-600">
-          <Sparkles size={20} className="text-white" />
-        </div>
+        <BellarisMark size={40} />
         <div>
           <h1 className="text-lg font-bold text-ink">Complete o cadastro do salão</h1>
           <p className="text-sm text-muted">Os dados abaixo são necessários para liberar o acesso.</p>

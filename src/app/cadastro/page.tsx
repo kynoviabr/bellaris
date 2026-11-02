@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { Sparkles, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { BellarisMark } from "@/components/brand/bellaris-mark";
 import { register } from "@/lib/actions/auth";
 import { getActivePlans, type PlanOption } from "@/lib/actions/onboarding";
 import { OwnerFormFields, PlanPicker } from "@/components/onboarding/owner-form-fields";
@@ -19,9 +20,7 @@ export default function RegisterPage() {
     <div className="flex min-h-screen items-center justify-center bg-bg p-4 sm:p-8">
       <div className="w-full max-w-2xl rounded-lg border border-[#DBE3EC] bg-white p-6 shadow-card sm:p-8">
         <div className="flex flex-col items-center text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-600">
-            <Sparkles size={24} className="text-white" />
-          </div>
+          <BellarisMark size={56} />
           <h1 className="mt-5 text-xl font-bold text-ink">Crie sua conta</h1>
           <p className="mt-1 text-sm text-muted">
             Preencha os dados do salão e do responsável. O acesso é liberado após a análise.
