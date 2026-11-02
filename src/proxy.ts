@@ -8,7 +8,7 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Aplica em todas as requisições exceto arquivos estáticos e assets internos:
+     * Aplica em todas as requisições exceto arquivosss estáticos e assets internos:
      * - _next/static (arquivos estáticos)
      * - _next/image (otimização de imagens)
      * - favicon.ico (ícone)
