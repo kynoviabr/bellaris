@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createPackageTemplate, getPackageTemplates, setPackageTemplateActive } from "@/lib/actions/package-catalog";
+import { createPackageTemplate, getPackageTemplates, setPackageTemplateActive, updatePackageTemplate } from "@/lib/actions/package-catalog";
 import { getServices, type ServiceItem } from "@/lib/actions/services";
 
 type Item = { serviceId: string; sessions: number };
@@ -10,6 +10,7 @@ type Template = Awaited<ReturnType<typeof getPackageTemplates>>[number];
 export function PackageCatalogContent() {
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [priceEdited, setPriceEdited] = useState(false);
@@ -29,18 +30,34 @@ export function PackageCatalogContent() {
     setPriceEdited(false);
     setPrice("");
   }
+  function resetForm() {
+    setEditingId(null); setName(""); setPrice(""); setPriceEdited(false); setValidity(""); setItems([{ serviceId: "", sessions: 1 }]);
+  }
+  function startEdit(t: Template) {
+    setEditingId(t.id);
+    setName(t.name);
+    setPrice(String(Number(t.price)));
+    setPriceEdited(true);
+    setValidity(t.validity_days ? String(t.validity_days) : "");
+    setItems(t.package_template_items?.length
+      ? t.package_template_items.map(i => ({ serviceId: i.service_id, sessions: i.sessions }))
+      : [{ serviceId: "", sessions: 1 }]);
+    setNotice("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
   async function refresh() { setTemplates(await getPackageTemplates()); }
   useEffect(() => { void getServices().then(setServices); void refresh(); }, []);
   async function save() {
     setNotice("");
     setSaving(true);
     try {
-      const result = await createPackageTemplate({
-        name, price: salePrice, validityDays: validity ? Number(validity) : null, items
-      });
+      const payload = { name, price: salePrice, validityDays: validity ? Number(validity) : null, items };
+      const result = editingId
+        ? await updatePackageTemplate(editingId, payload)
+        : await createPackageTemplate(payload);
       if (!result.success) { setNotice(result.error || "Não foi possível salvar."); return; }
-      setName(""); setPrice(""); setPriceEdited(false); setValidity(""); setItems([{ serviceId: "", sessions: 1 }]);
-      setNotice("Pacote cadastrado com sucesso.");
+      resetForm();
+      setNotice(editingId ? "Pacote atualizado com sucesso." : "Pacote cadastrado com sucesso.");
       await refresh();
     } finally { setSaving(false); }
   }
@@ -52,11 +69,9 @@ export function PackageCatalogContent() {
   const field = "w-full rounded-xl border border-[#e8d7cb] bg-white p-3 text-[#3d3037]";
   return <div className="p-5 text-ink md:p-8">
     <div className="mx-auto max-w-5xl space-y-6">
-      
-      
       <p className="text-sm">Configure pacotes vinculados aos serviços do salão. A venda e o consumo automático serão habilitados após a validação financeira.</p>
       <section className="space-y-4 rounded-2xl bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-semibold">Novo pacote</h2>
+        <h2 className="text-xl font-semibold">{editingId ? "Editar pacote" : "Novo pacote"}</h2>
         <label className="block text-sm">Nome<input className={field} value={name} onChange={e=>setName(e.target.value)} placeholder="Ex.: 4 manicures tradicionais" /></label>
         <div className="grid grid-cols-2 gap-3">
           <label className="text-sm">Preço de venda do pacote (R$)<input className={field} type="number" min="0.01" step="0.01" value={priceEdited ? price : (total ? total.toFixed(2) : "")} onChange={e=>{setPriceEdited(true);setPrice(e.target.value);}} /></label>
@@ -74,7 +89,10 @@ export function PackageCatalogContent() {
           {items.length>1 && <button type="button" onClick={()=>updateItems(items.filter((_,j)=>j!==i))}>Remover</button>}
         </div>)}
         <button type="button" className="rounded-xl border px-4 py-2" onClick={()=>updateItems([...items,{serviceId:"",sessions:1}])}>+ Adicionar serviço</button>
-        <div><button type="button" disabled={saving || !items.every(i=>i.serviceId && i.sessions > 0) || salePrice <= 0} onClick={()=>void save()} className="rounded-xl bg-[#834965] px-6 py-3 text-white disabled:opacity-50">{saving?"Salvando...":"Cadastrar pacote"}</button></div>
+        <div className="flex flex-wrap gap-3">
+          <button type="button" disabled={saving || !items.every(i=>i.serviceId && i.sessions > 0) || salePrice <= 0} onClick={()=>void save()} className="rounded-xl bg-[#834965] px-6 py-3 text-white disabled:opacity-50">{saving?"Salvando...":editingId?"Salvar alterações":"Cadastrar pacote"}</button>
+          {editingId && <button type="button" disabled={saving} onClick={()=>{resetForm();setNotice("");}} className="rounded-xl border px-6 py-3">Cancelar edição</button>}
+        </div>
       </section>
       {notice && <p role="status" className="rounded-xl bg-white p-4">{notice}</p>}
       <section className="space-y-3">
@@ -82,7 +100,10 @@ export function PackageCatalogContent() {
         {templates.length===0 && <p>Nenhum pacote cadastrado.</p>}
         {templates.map(t=><div key={t.id} className="flex items-center justify-between gap-3 rounded-xl bg-white p-4">
           <div><strong>{t.name}</strong><p className="text-sm">R$ {Number(t.price).toFixed(2).replace(".",",")} · {t.package_template_items?.map(i=>i.sessions+" sessões").join(" + ")}</p><p className="text-xs">{t.active?"Ativo":"Inativo"}</p></div>
-          <button type="button" className="rounded-xl border px-3 py-2" onClick={()=>void toggle(t.id,!t.active)}>{t.active?"Desativar":"Ativar"}</button>
+          <div className="flex gap-2">
+            <button type="button" className="rounded-xl border px-3 py-2" onClick={()=>startEdit(t)}>Editar</button>
+            <button type="button" className="rounded-xl border px-3 py-2" onClick={()=>void toggle(t.id,!t.active)}>{t.active?"Desativar":"Ativar"}</button>
+          </div>
         </div>)}
       </section>
     </div>
