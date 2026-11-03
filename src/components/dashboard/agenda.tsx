@@ -541,6 +541,11 @@ export function Agenda({
                     <p className="truncate text-xs text-muted">
                       {a.service} · {a.professional}
                     </p>
+                    {(() => {
+                      const notes = ((a as any).clientNotes || "").trim();
+                      if (!notes || notes.startsWith("{")) return null;
+                      return <p className="truncate text-xs text-ink" title={notes}>Observações: {notes}</p>;
+                    })()}
                   </div>
                   <div className="hidden text-right md:block">
                     <p className="font-medium">{money.format((a as Appointment & { packageCovered?: boolean }).packageCovered ? 0 : Math.max(0, Number(a.price || 0) - Number(a.paid || 0)))}</p>
