@@ -99,7 +99,7 @@ export async function createTeamUser(input: { name: string; email: string; phone
     if (proError) {
       await admin.from("profiles").delete().eq("id", userId);
       await rollback();
-      return { success: false, error: "Já existe uma profissional com este e-mail neste salão." };
+      return { success: false, error: proError.code === "23505" ? "Já existe uma profissional com este e-mail neste salão." : "Não foi possível criar o cadastro de profissional." };
     }
   }
 
@@ -182,7 +182,7 @@ export async function updateTeamUser(input: { id: string; name: string; email: s
       await admin.from("professionals").update({ name, email, phone, active: true }).eq("id", pro.id);
     } else {
       const { error: insErr } = await admin.from("professionals").insert({ organization_id: caller.organizationId, user_id: input.id, name, email, phone, active: true });
-      if (insErr) return { success: false, error: "Já existe uma profissional com este e-mail neste salão." };
+      if (insErr) return { success: false, error: insErr.code === "23505" ? "Já existe uma profissional com este e-mail neste salão." : "Não foi possível criar o cadastro de profissional." };
     }
   } else if (pro) {
     // Saiu do perfil profissional: mantém o cadastro (histórico) e apenas inativa.
