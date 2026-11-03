@@ -21,7 +21,7 @@ export async function getAppointments(): Promise<Appointment[]> {
   const supabase = await createClient();
   if (!supabase) return [];
 
-  // Profissional não recebe telefone nem observações dos clientes (ocultado no servidor, não só na tela).
+  // Profissional não recebe telefone do cliente (ocultado no servidor, não só na tela). Observações são visíveis para a atendente.
   const { data: viewer } = await supabase.from("profiles").select("role").maybeSingle();
   const hideContact = viewer?.role === "professional";
 
@@ -53,8 +53,22 @@ export async function getAppointments(): Promise<Appointment[]> {
     throw new Error(`Falha ao carregar agendamentos (${error.code || "consulta"}): ${error.message}`);
   }
 
+  // Profissional não lê a tabela clients: nome e observações vêm da função restrita aos próprios agendamentos.
+  let rowsWithClient: any[] = data;
+  if (hideContact) {
+    const { data: agendaClients, error: agendaClientsError } = await supabase.rpc("professional_agenda_clients");
+    if (agendaClientsError) {
+      console.error("Error fetching professional agenda clients:", { code: agendaClientsError.code, message: agendaClientsError.message });
+      throw new Error("Não foi possível carregar os dados das clientes da agenda. Tente novamente.");
+    }
+    const clientInfo = new Map<string, { name: string | null; notes: string | null }>(
+      (agendaClients || []).map((c: any) => [c.client_id, { name: c.name, notes: c.notes }])
+    );
+    rowsWithClient = data.map((row: any) => ({ ...row, client: clientInfo.get(row.client_id) ?? null }));
+  }
+
   // Filter out legacy system block appointments from normal list
-  const filteredData = data.filter((row: any) => {
+  const filteredData = rowsWithClient.filter((row: any) => {
     if (!row.client_id) return false;
     if (row.items?.some((i: any) => i.description?.toLowerCase().includes("bloqueio"))) return false;
     return true;
@@ -105,7 +119,7 @@ export async function getAppointments(): Promise<Appointment[]> {
       client: row.client?.name || "Desconhecida",
       clientId: row.client_id,
       phone: hideContact ? "" : row.client?.phone || "",
-      clientNotes: hideContact ? "" : row.client?.notes || "",
+      clientNotes: row.client?.notes || "",
       professional: row.professional?.name || "Desconhecida",
       service: serviceName,
       status: (statusMap[row.status] || "Pendente") as AppointmentStatus,
