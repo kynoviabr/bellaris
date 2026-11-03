@@ -109,19 +109,37 @@ export async function updatePackageTemplate(id: string, input: PackageTemplateIn
   const { data: existing } = await supabase.from("package_templates").select("id")
     .eq("id", id).eq("organization_id", orgId).maybeSingle();
   if (!existing) return { success: false, error: "Pacote não encontrado." };
+  // Snapshot dos serviços atuais: se a gravação nova falhar, eles são restaurados.
+  const { data: previousItems, error: snapshotError } = await supabase.from("package_template_items")
+    .select("service_id, sessions").eq("template_id", id).eq("organization_id", orgId);
+  if (snapshotError || !previousItems) return { success: false, error: "Não foi possível ler os serviços atuais do pacote. Nada foi alterado." };
+  const newRows = items.map(i => ({ organization_id: orgId, template_id: id, service_id: i.serviceId, sessions: i.sessions }));
+  const restoreItems = async () => {
+    await supabase.from("package_template_items").delete().eq("template_id", id).eq("organization_id", orgId);
+    if (previousItems.length === 0) return null;
+    const { error } = await supabase.from("package_template_items").insert(previousItems.map(p => ({
+      organization_id: orgId, template_id: id, service_id: p.service_id, sessions: p.sessions
+    })));
+    return error;
+  };
+  const { error: deleteError } = await supabase.from("package_template_items").delete()
+    .eq("template_id", id).eq("organization_id", orgId);
+  const { error: itemError } = deleteError ? { error: deleteError } : await supabase.from("package_template_items").insert(newRows);
+  if (itemError) {
+    // Restaura os serviços anteriores. O pacote só é desativado se nem a restauração funcionar.
+    const restoreError = await restoreItems();
+    if (restoreError) {
+      await supabase.from("package_templates").update({ active: false }).eq("id", id).eq("organization_id", orgId);
+      return { success: false, error: "Não foi possível salvar os serviços e a restauração falhou. O pacote foi desativado; confira e ative de novo." };
+    }
+    return { success: false, error: "Não foi possível salvar os serviços. Nenhuma alteração foi aplicada ao pacote." };
+  }
   const { error: updateError } = await supabase.from("package_templates").update({
     name, price: input.price, validity_days: input.validityDays ?? null
   }).eq("id", id).eq("organization_id", orgId);
-  if (updateError) return { success: false, error: "Não foi possível atualizar o pacote." };
-  const { error: deleteError } = await supabase.from("package_template_items").delete()
-    .eq("template_id", id).eq("organization_id", orgId);
-  const { error: itemError } = deleteError ? { error: deleteError } : await supabase.from("package_template_items").insert(items.map(i => ({
-    organization_id: orgId, template_id: id, service_id: i.serviceId, sessions: i.sessions
-  })));
-  if (itemError) {
-    // Never leave a package active without its services: deactivate it until someone checks it again.
-    await supabase.from("package_templates").update({ active: false }).eq("id", id).eq("organization_id", orgId);
-    return { success: false, error: "Não foi possível salvar os serviços. O pacote foi desativado; confira e ative de novo." };
+  if (updateError) {
+    await restoreItems();
+    return { success: false, error: "Não foi possível atualizar o pacote. Nenhuma alteração foi aplicada." };
   }
   revalidatePath("/");
   return { success: true, id };
