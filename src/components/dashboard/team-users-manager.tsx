@@ -9,6 +9,16 @@ const ROLE_OPTIONS: { value: TeamRole; label: string }[] = [
 ];
 const ROLE_NAMES: Record<string, string> = { owner: "Proprietária", admin: "Gestor", staff: "Equipe de atendimento", professional: "Profissional" };
 
+// Máscara do telefone: (11) 99999-9999 ou (11) 9999-9999. Aceita qualquer texto e mantém só os dígitos.
+function formatPhone(value: string): string {
+  const d = value.replace(/\D/g, "").slice(0, 11);
+  if (d.length === 0) return "";
+  if (d.length <= 2) return `(${d}`;
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+
 type Row = { id: string; name: string; email: string; phone: string; role: string; blocked: boolean };
 type Form = { id?: string; name: string; email: string; phone: string; role: TeamRole };
 const EMPTY: Form = { name: "", email: "", phone: "", role: "staff" };
@@ -21,6 +31,7 @@ export function TeamUsersManager({ isOwner }: { isOwner: boolean }) {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<Form>(EMPTY);
   const [busy, setBusy] = useState("");
+  const [confirmId, setConfirmId] = useState("");
 
   function load() {
     listTeamUsers().then(r => { setRows(r.rows); setError(r.error || ""); });
@@ -28,7 +39,7 @@ export function TeamUsersManager({ isOwner }: { isOwner: boolean }) {
   useEffect(load, []);
 
   function startEdit(r: Row) {
-    setForm({ id: r.id, name: r.name, email: r.email, phone: r.phone, role: (r.role as TeamRole) });
+    setForm({ id: r.id, name: r.name, email: r.email, phone: formatPhone(r.phone), role: (r.role as TeamRole) });
     setOpen(true); setError(""); setMessage("");
   }
 
@@ -61,7 +72,7 @@ export function TeamUsersManager({ isOwner }: { isOwner: boolean }) {
   }
 
   async function remove(r: Row) {
-    if (!window.confirm(`Excluir ${r.name}? Esta ação não pode ser desfeita.`)) return;
+    setConfirmId("");
     setBusy(r.id); setError(""); setMessage("");
     const result = await deleteTeamUser(r.id);
     setBusy("");
@@ -94,7 +105,7 @@ export function TeamUsersManager({ isOwner }: { isOwner: boolean }) {
           <label><span className="field-label">E-mail</span><input className="field-input" type="email" required maxLength={255} value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
             {editing && <span className="text-xs text-muted">Se trocar, um e-mail é enviado para o novo endereço.</span>}
           </label>
-          <label><span className="field-label">Telefone</span><input className="field-input" maxLength={30} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></label>
+          <label><span className="field-label">Telefone</span><input className="field-input" inputMode="tel" placeholder="(11) 99999-9999" maxLength={16} value={form.phone} onChange={e => setForm({ ...form, phone: formatPhone(e.target.value) })} /></label>
           <label><span className="field-label">Perfil de acesso</span>
             <select className="field-input" value={form.role} onChange={e => setForm({ ...form, role: e.target.value as TeamRole })}>
               {roleOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -112,15 +123,22 @@ export function TeamUsersManager({ isOwner }: { isOwner: boolean }) {
           <div key={r.id} className="py-3 flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="font-medium text-ink">{r.name} {r.blocked && <span className="ml-1 text-xs rounded-full bg-red-50 text-red-700 px-2 py-0.5">Bloqueado</span>}</p>
-              <p className="text-xs text-muted">{r.email}{r.phone ? ` · ${r.phone}` : ""}</p>
+              <p className="text-xs text-muted">{r.email}{r.phone ? ` · ${formatPhone(r.phone)}` : ""}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs rounded-full bg-[#F7F9FC] border px-2.5 py-1 text-muted">{ROLE_NAMES[r.role] ?? r.role}</span>
-              {r.role !== "owner" && (
+              {r.role !== "owner" && confirmId !== r.id && (
                 <>
                   <button type="button" className="btn-outline text-sm" disabled={busy === r.id} onClick={() => startEdit(r)}>Editar</button>
                   <button type="button" className="btn-outline text-sm" disabled={busy === r.id} onClick={() => toggleBlock(r)}>{r.blocked ? "Desbloquear" : "Bloquear"}</button>
-                  <button type="button" className="btn-outline text-sm text-red-700" disabled={busy === r.id} onClick={() => remove(r)}>Excluir</button>
+                  <button type="button" className="btn-outline text-sm text-red-700" disabled={busy === r.id} onClick={() => { setConfirmId(r.id); setError(""); setMessage(""); }}>Excluir</button>
+                </>
+              )}
+              {r.role !== "owner" && confirmId === r.id && (
+                <>
+                  <span className="text-sm text-ink">Excluir {r.name}? Não pode ser desfeito.</span>
+                  <button type="button" className="btn-primary text-sm bg-red-700" disabled={busy === r.id} onClick={() => remove(r)}>Confirmar exclusão</button>
+                  <button type="button" className="btn-outline text-sm" onClick={() => setConfirmId("")}>Cancelar</button>
                 </>
               )}
             </div>

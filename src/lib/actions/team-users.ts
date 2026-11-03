@@ -50,7 +50,9 @@ export async function createTeamUser(input: { name: string; email: string; phone
 
   const name = input.name?.trim() ?? "";
   const email = input.email?.trim().toLowerCase() ?? "";
-  const phone = input.phone?.trim() || null;
+  const phoneDigits = (input.phone ?? "").replace(/\D/g, "");
+  if (phoneDigits && (phoneDigits.length < 10 || phoneDigits.length > 11)) return { success: false, error: "Telefone inválido. Informe DDD e número." };
+  const phone = phoneDigits || null;
   const role = input.role as TeamRole;
   if (name.length < 2 || name.length > 120) return { success: false, error: "Informe o nome." };
   if (!EMAIL_RE.test(email) || email.length > 255) return { success: false, error: "Informe um e-mail válido." };
@@ -152,7 +154,9 @@ export async function updateTeamUser(input: { id: string; name: string; email: s
 
   const name = input.name?.trim() ?? "";
   const email = input.email?.trim().toLowerCase() ?? "";
-  const phone = input.phone?.trim() || null;
+  const phoneDigits = (input.phone ?? "").replace(/\D/g, "");
+  if (phoneDigits && (phoneDigits.length < 10 || phoneDigits.length > 11)) return { success: false, error: "Telefone inválido. Informe DDD e número." };
+  const phone = phoneDigits || null;
   const role = input.role as TeamRole;
   if (name.length < 2 || name.length > 120) return { success: false, error: "Informe o nome." };
   if (!EMAIL_RE.test(email) || email.length > 255) return { success: false, error: "Informe um e-mail válido." };
