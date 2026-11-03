@@ -1,4 +1,5 @@
 "use client";
+import { appNotify, appConfirm, appPrompt } from "@/components/ui/app-dialog";
 
 import { useEffect, useState } from "react";
 import { ShieldCheck } from "lucide-react";
@@ -59,7 +60,7 @@ export function ClientPrivacyPanel({ clientId, clientName }: { clientId: string;
 
   async function revoke(kind: ConsentKind) {
     const what = kind === "anamnesis" ? "a anamnese (dados de saúde)" : "as fotos";
-    if (!window.confirm(`Retirar o consentimento e apagar ${what} desta cliente? Essa ação não pode ser desfeita.`)) return;
+    if (!await appConfirm(`Retirar o consentimento e apagar ${what} desta cliente? Essa ação não pode ser desfeita.`)) return;
     setBusy(true); setMessage("");
     const res = await revokeClientConsent(clientId, kind);
     setBusy(false);
@@ -83,7 +84,7 @@ export function ClientPrivacyPanel({ clientId, clientName }: { clientId: string;
   }
 
   async function anonymize() {
-    if (!window.confirm(`Excluir os dados de ${clientName}? Anamnese e fotos serão apagadas e o cadastro será anonimizado. Essa ação não pode ser desfeita.`)) return;
+    if (!await appConfirm(`Excluir os dados de ${clientName}? Anamnese e fotos serão apagadas e o cadastro será anonimizado. Essa ação não pode ser desfeita.`)) return;
     setBusy(true); setMessage("");
     const res = await anonymizeClientData(clientId);
     setBusy(false);
