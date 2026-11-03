@@ -17,7 +17,6 @@ export default function RecoverPasswordPage() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
-  const [sent, setSent] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -33,7 +32,6 @@ export default function RecoverPasswordPage() {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
         redirectTo: window.location.origin + "/redefinir-senha",
       });
-      setSent(!error);
       setMessage(error
         ? recoveryErrorMessage(error)
         : "Enviamos um link de redefinição para o seu e-mail, se ele estiver cadastrado. Confira também a caixa de spam.");
@@ -55,7 +53,7 @@ export default function RecoverPasswordPage() {
             <label htmlFor="email" className="field-label">E-mail</label>
             <input id="email" className="field-input" type="email" autoComplete="email" placeholder="seu@email.com" required value={email} onChange={e => setEmail(e.target.value)} />
           </div>
-          {message && <p role="status" className={`rounded-md p-3 text-sm ${sent ? "border border-emerald-200 bg-emerald-50 text-emerald-800" : "bg-[#F3F6FA] text-ink"}`}>{message}</p>}
+          {message && <p role="status" className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{message}</p>}
           <button className="btn-primary mt-6 w-full justify-center" type="submit" disabled={pending}>
             <Mail size={16} /> {pending ? "Enviando..." : "Enviar link de recuperação"}
           </button>
