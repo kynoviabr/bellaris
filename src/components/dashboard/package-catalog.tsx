@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { createPackageTemplate, getPackageTemplates, setPackageTemplateActive, updatePackageTemplate } from "@/lib/actions/package-catalog";
+import { useEffect, useRef, useState } from "react";
+import { checkPackageTemplateDeletable, createPackageTemplate, deletePackageTemplate, getPackageTemplates, setPackageTemplateActive, updatePackageTemplate } from "@/lib/actions/package-catalog";
 import { getServices, type ServiceItem } from "@/lib/actions/services";
 
 type Item = { serviceId: string; sessions: number };
@@ -18,6 +18,12 @@ export function PackageCatalogContent() {
   const [items, setItems] = useState<Item[]>([{ serviceId: "", sessions: 1 }]);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<Template | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteBlocked, setDeleteBlocked] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: "ok" | "error"; text: string } | null>(null);
+  const feedbackRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (feedback) feedbackRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); }, [feedback]);
   const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const total = items.reduce((sum, item) => {
     const service = services.find(s => s.id === item.serviceId);
@@ -66,6 +72,24 @@ export function PackageCatalogContent() {
     setNotice(result.success ? "Situação atualizada." : result.error || "Erro ao atualizar.");
     await refresh();
   }
+  async function openRemove(t: Template) {
+    setFeedback(null);
+    const check = await checkPackageTemplateDeletable(t.id);
+    if (!check.success) { setFeedback({ type: "error", text: check.error }); return; }
+    setDeleteBlocked(!check.deletable);
+    setPendingDelete(t);
+  }
+  async function confirmRemove() {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    const result = await deletePackageTemplate(pendingDelete.id);
+    setDeleting(false);
+    setPendingDelete(null);
+    setFeedback(result.success
+      ? { type: "ok", text: "Modelo excluído do catálogo." }
+      : { type: "error", text: result.error || "Não foi possível excluir o modelo." });
+    await refresh();
+  }
   const field = "w-full rounded-xl border border-[#e8d7cb] bg-white p-3 text-[#3d3037]";
   return <div className="p-5 text-ink md:p-8">
     <div className="mx-auto max-w-5xl space-y-6">
@@ -97,15 +121,39 @@ export function PackageCatalogContent() {
       {notice && <p role="status" className="rounded-xl bg-white p-4">{notice}</p>}
       <section className="space-y-3">
         <h2 className="text-xl font-semibold">Pacotes cadastrados</h2>
+        {feedback && <div ref={feedbackRef} role={feedback.type === "error" ? "alert" : "status"} className={"flex items-start justify-between gap-3 rounded-xl border p-4 " + (feedback.type === "error" ? "border-red-300 bg-red-50 text-red-800" : "border-emerald-300 bg-emerald-50 text-emerald-800")}>
+          <span className="text-sm font-medium">{feedback.text}</span>
+          <button type="button" aria-label="Fechar aviso" className="text-sm underline" onClick={()=>setFeedback(null)}>Fechar</button>
+        </div>}
         {templates.length===0 && <p>Nenhum pacote cadastrado.</p>}
         {templates.map(t=><div key={t.id} className="flex items-center justify-between gap-3 rounded-xl bg-white p-4">
           <div><strong>{t.name}</strong><p className="text-sm">R$ {Number(t.price).toFixed(2).replace(".",",")} · {t.package_template_items?.map(i=>i.sessions+" sessões").join(" + ")}</p><p className="text-xs">{t.active?"Ativo":"Inativo"}</p></div>
           <div className="flex gap-2">
             <button type="button" className="rounded-xl border px-3 py-2" onClick={()=>startEdit(t)}>Editar</button>
             <button type="button" className="rounded-xl border px-3 py-2" onClick={()=>void toggle(t.id,!t.active)}>{t.active?"Desativar":"Ativar"}</button>
+            <button type="button" className="rounded-xl border px-3 py-2 text-red-700" onClick={()=>void openRemove(t)}>Excluir</button>
           </div>
         </div>)}
       </section>
     </div>
+    {pendingDelete && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div role="dialog" aria-modal="true" aria-labelledby="delete-title" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+        {deleteBlocked ? <>
+          <h3 id="delete-title" className="text-lg font-semibold">Não é possível excluir este modelo</h3>
+          <p className="mt-2 text-sm">O modelo <strong>{pendingDelete.name}</strong> já foi vendido. Modelos vendidos não podem ser excluídos, para preservar o histórico financeiro e os pacotes das clientes.</p>
+          <p className="mt-2 text-sm text-muted">Para tirá-lo da venda, use <strong>Desativar</strong> na lista.</p>
+          <div className="mt-6 flex justify-end">
+            <button type="button" onClick={()=>setPendingDelete(null)} className="rounded-xl border px-4 py-2">Fechar</button>
+          </div>
+        </> : <>
+          <h3 id="delete-title" className="text-lg font-semibold">Excluir modelo do catálogo?</h3>
+          <p className="mt-2 text-sm">O modelo <strong>{pendingDelete.name}</strong> será removido do catálogo. Esta ação não pode ser desfeita.</p>
+          <div className="mt-6 flex justify-end gap-3">
+            <button type="button" disabled={deleting} onClick={()=>setPendingDelete(null)} className="rounded-xl border px-4 py-2">Cancelar</button>
+            <button type="button" disabled={deleting} onClick={()=>void confirmRemove()} className="rounded-xl bg-red-700 px-4 py-2 text-white disabled:opacity-60">{deleting ? "Excluindo..." : "Excluir modelo"}</button>
+          </div>
+        </>}
+      </div>
+    </div>}
   </div>;
 }
