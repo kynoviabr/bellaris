@@ -1,6 +1,6 @@
+"use client";
 import { appNotify, appConfirm, appPrompt, AppDialogProvider } from "@/components/ui/app-dialog";
 /* eslint-disable react-hooks/set-state-in-effect */
-"use client";
 import NextImage from "next/image";
 import { formatBrazilPhone, formatCep, normalizeEmail, digitsOnly } from "@/lib/utils/input-masks";
 import { View, EntityKind, EntityModalState, Badge, statusTone, Metric, RowActions, SectionTitle, SmallMetricLink, SystemAlertModal } from "./shared";
