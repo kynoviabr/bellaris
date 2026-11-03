@@ -23,7 +23,6 @@ export default function ResetPasswordPage() {
   const [confirmation, setConfirmation] = useState("");
   const [message, setMessage] = useState("Verificando link de recuperação...");
   const [pending, setPending] = useState(false);
-  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     const client = createClient();
@@ -107,7 +106,6 @@ export default function ResetPasswordPage() {
     const { error } = await client.auth.updateUser({ password });
     setMessage(error ? passwordErrorMessage(error) : "Senha criada com sucesso. Agora é só entrar no painel com seu e-mail e a nova senha.");
     if (!error) {
-      setSuccess(true);
       setValid(false);
       await client.auth.signOut();
     }
@@ -122,7 +120,7 @@ export default function ResetPasswordPage() {
           <h1 className="mt-5 text-xl font-bold text-ink">Redefinir senha</h1>
           <p className="mt-2 text-sm text-muted">Cadastre uma nova senha para acessar sua conta.</p>
         </div>
-        {message && <p role="status" className={`mt-6 rounded-md p-3 text-sm ${success ? "border border-emerald-200 bg-emerald-50 text-emerald-800" : "bg-[#F3F6FA] text-ink"}`}>{message}</p>}
+        {message && <p role="status" className="mt-6 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{message}</p>}
         {valid && <form onSubmit={save} className="mt-8 space-y-4">
           <div><label className="field-label" htmlFor="password">Nova senha</label>
             <input className="field-input" id="password" type="password" autoComplete="new-password" minLength={12} required value={password} onChange={e => setPassword(e.target.value)} />
