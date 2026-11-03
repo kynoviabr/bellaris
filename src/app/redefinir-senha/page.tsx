@@ -6,6 +6,17 @@ import { ArrowLeft, LockKeyhole } from "lucide-react";
 import { BellarisMark } from "@/components/brand/bellaris-mark";
 import { createClient } from "@/lib/supabase/client";
 
+
+// Mensagens de erro do Supabase vêm em inglês; aqui traduzimos os casos comuns.
+function passwordErrorMessage(error: { code?: string; message?: string }): string {
+  const code = error.code ?? "";
+  const text = error.message ?? "";
+  if (code === "same_password" || /different from the old/i.test(text)) return "A nova senha precisa ser diferente da senha anterior.";
+  if (code === "weak_password" || /at least|weak/i.test(text)) return "Escolha uma senha mais forte, com pelo menos 12 caracteres.";
+  if (code === "session_not_found" || /session/i.test(text)) return "O link expirou. Solicite um novo e-mail de redefinição.";
+  return "Não foi possível atualizar a senha agora. Tente novamente em instantes.";
+}
+
 export default function ResetPasswordPage() {
   const [valid, setValid] = useState(false);
   const [password, setPassword] = useState("");
@@ -94,7 +105,7 @@ export default function ResetPasswordPage() {
     const client = createClient();
     if (!client) { setMessage("Serviço indisponível."); setPending(false); return; }
     const { error } = await client.auth.updateUser({ password });
-    setMessage(error ? "Não foi possível atualizar a senha: " + error.message : "Senha criada com sucesso. Agora é só entrar no painel com seu e-mail e a nova senha.");
+    setMessage(error ? passwordErrorMessage(error) : "Senha criada com sucesso. Agora é só entrar no painel com seu e-mail e a nova senha.");
     if (!error) {
       setSuccess(true);
       setValid(false);

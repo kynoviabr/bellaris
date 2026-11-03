@@ -6,6 +6,13 @@ import { ArrowLeft, Mail } from "lucide-react";
 import { BellarisMark } from "@/components/brand/bellaris-mark";
 import { createClient } from "@/lib/supabase/client";
 
+function recoveryErrorMessage(error: { code?: string; message?: string }): string {
+  const code = error.code ?? "";
+  const text = error.message ?? "";
+  if (code === "over_email_send_rate_limit" || /rate limit|too many/i.test(text)) return "Você já pediu um link há pouco. Aguarde alguns minutos e tente novamente.";
+  return "Não foi possível enviar o link agora. Tente novamente em instantes.";
+}
+
 export default function RecoverPasswordPage() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
@@ -28,7 +35,7 @@ export default function RecoverPasswordPage() {
       });
       setSent(!error);
       setMessage(error
-        ? "Não foi possível enviar o link: " + error.message
+        ? recoveryErrorMessage(error)
         : "Enviamos um link de redefinição para o seu e-mail, se ele estiver cadastrado. Confira também a caixa de spam.");
     } finally {
       setPending(false);
