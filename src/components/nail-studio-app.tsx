@@ -16,7 +16,6 @@ import { Clients } from "./dashboard/clients";
 import { Services } from "./dashboard/services";
 import { PackageCatalogContent } from "./dashboard/package-catalog";
 import { Agenda } from "./dashboard/agenda";
-import { ProfessionalClients } from "./dashboard/professional-clients";
 import { listMyClientBirthdays } from "@/lib/actions/professional-clients";
 import { canOpenView, type PermissionRow, type StudioRole } from "@/lib/authorization/permissions";
 import { RolePermissionsManager } from "./dashboard/role-permissions-manager";
@@ -1082,7 +1081,7 @@ function professionalStatusOrder(status: string) {
 function Sidebar({ view, setView, open, close, tenant, professionalMode = false, role = "owner", permissionRows }: { view: View; setView: (v: View) => void; open: boolean; close: () => void; tenant: any; professionalMode?: boolean; role?: StudioRole; permissionRows?: PermissionRow[] }) {
   // Para a profissional, "Financeiro" já mostra as próprias comissões: o item "Comissões" não aparece duplicado.
   const visibleNav = nav
-    .filter(item => canOpenView(role, item.id, permissionRows) && !(role === "professional" && (item.id === "commissions" || item.id === "finance")))
+    .filter(item => canOpenView(role, item.id, permissionRows) && !(role === "professional" && (item.id === "commissions" || item.id === "finance" || item.id === "clients")))
     .map(item => role === "professional" && item.id === "reports" ? { ...item, label: "Financeiro", icon: Wallet } : item);
   return <>{open && <button onClick={close} aria-label="Fechar menu" className="fixed inset-0 z-40 bg-navy-dark/40 lg:hidden" />}<aside className={`fixed inset-y-0 left-0 z-50 flex w-[min(250px,calc(100vw-36px))] flex-col bg-navy text-white transition-transform lg:w-60 lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}><div className="flex h-[65px] items-center justify-between border-b border-white/10 px-5"><button onClick={() => setView("dashboard")} className="flex items-center gap-3 text-left"><BellarisMark size={34} className="shrink-0" /><div className="min-w-0"><span className="block text-base font-semibold text-white line-clamp-1"><BellarisWordmark /></span><span className="block text-[11px] text-white/60 line-clamp-1">{tenant.orgName}</span></div></button><button onClick={close} className="text-white/70 lg:hidden"><X size={19} /></button></div><nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4"><p className="px-3 pb-2 text-[10px] font-medium uppercase tracking-[.12em] text-white/45">Operação</p>{visibleNav.slice(0, 6).map(({ id, label, icon: Icon }) => <button key={id} onClick={() => { setView(id); close(); }} className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-[13.5px] transition ${view === id ? "bg-primary text-white" : "text-white/75 hover:bg-white/10 hover:text-white"}`}><Icon size={17} strokeWidth={1.5} />{label}</button>)}<p className="px-3 pb-2 pt-5 text-[10px] font-medium uppercase tracking-[.12em] text-white/45">Gestão</p>{visibleNav.slice(6).map(({ id, label, icon: Icon }) => <button key={id} onClick={() => { setView(id); close(); }} className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-[13.5px] transition ${view === id ? "bg-primary text-white" : "text-white/75 hover:bg-white/10 hover:text-white"}`}><Icon size={17} strokeWidth={1.5} />{label}</button>)}</nav><div className="border-t border-white/10 p-3">{<button onClick={() => setView("settings")} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-xs text-white/65 hover:bg-white/10"><Settings size={16} />Configurações</button>}<button onClick={() => logout()} className="mt-1 flex w-full items-center gap-3 rounded-md px-3 py-2 text-xs text-white/65 hover:bg-white/10 hover:text-rose-400 transition-colors"><Trash2 size={16} />Sair do sistema</button></div></aside></>;
 }
@@ -1595,7 +1594,7 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
   };
   const content = (() => {
     if (!canOpenView(role, view, permissionRows)) return <main className="page-content"><div className="card"><h2 className="text-lg font-semibold">Acesso restrito</h2><p className="mt-2 text-sm text-muted">Este módulo não está liberado para o seu perfil. Fale com a gestora do salão.</p></div></main>;
-    if (professionalMode && !["dashboard", "agenda", "services", "attendance", "clients", "packages", "reports", "automations", "commissions", "professionals", "finance", "inventory", "settings", "online"].includes(view)) return <main className="page-content"><div className="card"><h2 className="text-lg font-semibold">Acesso restrito</h2><p className="mt-2 text-sm text-muted">Este módulo está visível no menu, mas o acesso aos dados e às operações depende das permissões do seu perfil. Nenhum dado de outras profissionais ou salões será exibido.</p></div></main>;
+    if (professionalMode && !["dashboard", "agenda", "services", "attendance", "packages", "reports", "automations", "commissions", "professionals", "finance", "inventory", "settings", "online"].includes(view)) return <main className="page-content"><div className="card"><h2 className="text-lg font-semibold">Acesso restrito</h2><p className="mt-2 text-sm text-muted">Este módulo está visível no menu, mas o acesso aos dados e às operações depende das permissões do seu perfil. Nenhum dado de outras profissionais ou salões será exibido.</p></div></main>;
     if (view === "dashboard" && professionalMode) return <ProfessionalDashboard rows={rows} services={serviceRows} commissions={initialCommissions} onOpen={setView} onAgenda={() => setView("agenda")} onAttendances={() => setView("attendance")} />;
     if (view === "dashboard") return <Dashboard stats={initialStats} go={setView} appointments={rows} clients={clientRows} tenant={tenant} onAttendance={(a) => { setActiveAppointment(a); setView("attendance"); }} />;
     if (view === "settings" && professionalMode) return <main className="page-content"><h2 className="text-xl font-semibold">Configurações</h2><p className="mt-2 text-sm text-muted">Tela administrativa visível para avaliação. Alterações de gestão estão reservadas à proprietária.</p></main>;
@@ -1640,7 +1639,6 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
     }
   }}
   onCancel={(_index, id) => { const item = rows.find(row => row.id === id); if (item) setCancelPending({ id, client: item.client, date: bookingDate, time: item.time }); }} />;
-    if (view === "clients" && professionalMode) return <ProfessionalClients />;
     if (view === "clients") return <Clients
       data={clientRows}
       onNew={() => openEntity("client", "create")}
