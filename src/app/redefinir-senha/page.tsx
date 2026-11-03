@@ -29,6 +29,20 @@ export default function ResetPasswordPage() {
       }
     });
     async function verify() {
+      // Link por token_hash (template de e-mail com {{ .TokenHash }}): não depende do navegador que pediu o link.
+      const tokenHash = query.get("token_hash");
+      if (tokenHash && query.get("type") === "recovery") {
+        const { error: otpError } = await client!.auth.verifyOtp({ token_hash: tokenHash, type: "recovery" });
+        if (!active) return;
+        window.history.replaceState(null, "", "/redefinir-senha");
+        if (!otpError) {
+          setValid(true);
+          setMessage("");
+        } else {
+          setMessage("O link de recuperação expirou ou já foi utilizado. Solicite um novo e-mail.");
+        }
+        return;
+      }
       // Supabase SSR may consume the recovery code before this component mounts.
       // Always inspect the current session before attempting a second exchange.
       const initial = await client!.auth.getSession();
