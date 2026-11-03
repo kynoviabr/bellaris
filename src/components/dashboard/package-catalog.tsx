@@ -86,8 +86,8 @@ export function PackageCatalogContent() {
     setDeleting(false);
     setPendingDelete(null);
     setFeedback(result.success
-      ? { type: "ok", text: "Modelo excluído do catálogo." }
-      : { type: "error", text: result.error || "Não foi possível excluir o modelo." });
+      ? { type: "ok", text: "Pacote excluído do catálogo." }
+      : { type: "error", text: result.error || "Não foi possível excluir o pacote." });
     await refresh();
   }
   const field = "w-full rounded-xl border border-[#e8d7cb] bg-white p-3 text-[#3d3037]";
@@ -139,18 +139,18 @@ export function PackageCatalogContent() {
     {pendingDelete && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div role="dialog" aria-modal="true" aria-labelledby="delete-title" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
         {deleteBlocked ? <>
-          <h3 id="delete-title" className="text-lg font-semibold">Não é possível excluir este modelo</h3>
-          <p className="mt-2 text-sm">O modelo <strong>{pendingDelete.name}</strong> já foi vendido. Modelos vendidos não podem ser excluídos, para preservar o histórico financeiro e os pacotes das clientes.</p>
+          <h3 id="delete-title" className="text-lg font-semibold">Não é possível excluir este pacote</h3>
+          <p className="mt-2 text-sm">O pacote <strong>{pendingDelete.name}</strong> já foi vendido. Pacotes vendidos não podem ser excluídos, para preservar o histórico financeiro e os pacotes das clientes.</p>
           <p className="mt-2 text-sm text-muted">Para tirá-lo da venda, use <strong>Desativar</strong> na lista.</p>
           <div className="mt-6 flex justify-end">
             <button type="button" onClick={()=>setPendingDelete(null)} className="rounded-xl border px-4 py-2">Fechar</button>
           </div>
         </> : <>
-          <h3 id="delete-title" className="text-lg font-semibold">Excluir modelo do catálogo?</h3>
-          <p className="mt-2 text-sm">O modelo <strong>{pendingDelete.name}</strong> será removido do catálogo. Esta ação não pode ser desfeita.</p>
+          <h3 id="delete-title" className="text-lg font-semibold">Excluir pacote do catálogo?</h3>
+          <p className="mt-2 text-sm">O pacote <strong>{pendingDelete.name}</strong> será removido do catálogo. Esta ação não pode ser desfeita.</p>
           <div className="mt-6 flex justify-end gap-3">
             <button type="button" disabled={deleting} onClick={()=>setPendingDelete(null)} className="rounded-xl border px-4 py-2">Cancelar</button>
-            <button type="button" disabled={deleting} onClick={()=>void confirmRemove()} className="rounded-xl bg-red-700 px-4 py-2 text-white disabled:opacity-60">{deleting ? "Excluindo..." : "Excluir modelo"}</button>
+            <button type="button" disabled={deleting} onClick={()=>void confirmRemove()} className="rounded-xl bg-red-700 px-4 py-2 text-white disabled:opacity-60">{deleting ? "Excluindo..." : "Excluir pacote"}</button>
           </div>
         </>}
       </div>

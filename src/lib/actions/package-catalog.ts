@@ -145,9 +145,9 @@ export async function checkPackageTemplateDeletable(id: string) {
   if (!profile?.organization_id) return { success: false as const, error: "Organização não encontrada." };
   const { data: template } = await supabase.from("package_templates").select("name")
     .eq("id", id).eq("organization_id", profile.organization_id).maybeSingle();
-  if (!template) return { success: false as const, error: "Modelo não encontrado." };
+  if (!template) return { success: false as const, error: "Pacote não encontrado." };
   const { count, error } = await supabase.from("packages").select("id", { count: "exact", head: true })
     .eq("organization_id", profile.organization_id).eq("name", template.name);
-  if (error) return { success: false as const, error: "Não foi possível verificar o modelo." };
+  if (error) return { success: false as const, error: "Não foi possível verificar o pacote." };
   return { success: true as const, deletable: (count ?? 0) === 0, name: template.name };
 }
