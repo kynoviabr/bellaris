@@ -1,3 +1,4 @@
+import { appNotify, appConfirm, appPrompt } from "@/components/ui/app-dialog";
 import React, { useState, useEffect } from "react";
 import { Plus, Search, Mail, MessageCircle, Settings, ChevronRight, Activity, CalendarDays, ArrowRight } from "lucide-react";
 import { Badge, SectionTitle, type View, Metric } from "../shared";
@@ -218,7 +219,7 @@ function MessageCard({ item, onSend, badgeText }: { item: any, onSend: () => voi
       <div className="mt-4 flex justify-end gap-2">
         <button onClick={() => {
           navigator.clipboard.writeText(item.message);
-          alert("Mensagem copiada!");
+          appNotify("Mensagem copiada!");
         }} className="btn-outline py-1.5 px-3 text-xs">
           <Copy size={14} /> Copiar texto
         </button>

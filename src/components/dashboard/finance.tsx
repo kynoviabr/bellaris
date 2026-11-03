@@ -1,3 +1,4 @@
+import { appNotify, appConfirm, appPrompt } from "@/components/ui/app-dialog";
 import React, { useState, useEffect } from "react";
 import { Plus, TrendingUp, CircleDollarSign, CreditCard, BarChart3, CalendarClock, Calendar, PackageOpen, Search, X } from "lucide-react";
 import { Badge, SectionTitle, RowActions, Metric } from "../shared";
@@ -49,13 +50,13 @@ export function Finance({ data, stats, onNew, onAction, onReverse }: { data: any
   }, [loadData]);
 
   const handleReverse = async (id: string, index: number) => {
-    if (confirm("Tem certeza que deseja estornar este pagamento?")) {
+    if (await appConfirm("Tem certeza que deseja estornar este pagamento?")) {
       const { reversePayment } = await import("@/lib/actions/finance");
       const res = await reversePayment(id);
       if (res.success) {
         loadData();
       } else {
-        alert("Erro ao estornar: " + res.error);
+        appNotify("Erro ao estornar: " + res.error);
       }
     }
   };
@@ -181,7 +182,7 @@ export function Finance({ data, stats, onNew, onAction, onReverse }: { data: any
           <div className="mt-4 max-h-72 overflow-y-auto">
             {payables.length === 0 ? <p className="text-sm text-muted">Nenhuma conta pendente.</p> : payables.map(p => <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-3 text-sm">
               <div><p className="font-semibold">{p.description}</p><p className={p.alert === "overdue" ? "text-red-700" : p.alert === "soon" ? "text-amber-700" : "text-muted"}>Vencimento: {String(p.due_date).split("-").reverse().join("/")} · {p.alert === "overdue" ? "Vencida" : p.alert === "soon" ? "Próxima" : "Futura"}</p></div>
-              <div className="flex items-center gap-3"><span className="font-semibold">{money.format(Number(p.amount))}</span><button type="button" className="btn-outline" disabled={loading} onClick={async () => { if (!confirm("Confirmar pagamento desta despesa?")) return; const { markExpensePaid } = await import("@/lib/actions/finance"); const res = await markExpensePaid(p.id); if (res.success) await loadData(); else alert(res.error || "Falha ao registrar pagamento"); }}>Marcar paga</button></div>
+              <div className="flex items-center gap-3"><span className="font-semibold">{money.format(Number(p.amount))}</span><button type="button" className="btn-outline" disabled={loading} onClick={async () => { if (!await appConfirm("Confirmar pagamento desta despesa?")) return; const { markExpensePaid } = await import("@/lib/actions/finance"); const res = await markExpensePaid(p.id); if (res.success) await loadData(); else appNotify(res.error || "Falha ao registrar pagamento"); }}>Marcar paga</button></div>
             </div>)}
           </div>
         </section>

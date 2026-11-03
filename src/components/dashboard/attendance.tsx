@@ -1,3 +1,4 @@
+import { appNotify, appConfirm, appPrompt } from "@/components/ui/app-dialog";
 import React, { useState } from "react";
 import { Check, Trash2, Plus, X, Sparkles } from "lucide-react";
 import { type Appointment } from "@/lib/demo-data";
@@ -58,7 +59,7 @@ export function Attendance({ appointment, services, onFinish, onSelect, onStatus
       </div>
       <div className="flex items-center gap-3">
         <p className="font-semibold">{money.format(item.price)}</p>
-        <button onClick={() => { if(confirm("Remover este serviço?")) onRemoveItem(item.id); }} className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={16} /></button>
+        <button onClick={async () => { if(await appConfirm("Remover este serviço?")) onRemoveItem(item.id); }} className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={16} /></button>
       </div>
     </div>
   </div>

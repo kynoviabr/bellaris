@@ -1,4 +1,5 @@
 "use client";
+import { appNotify, appConfirm, appPrompt } from "@/components/ui/app-dialog";
 import { getCheckoutCorrectionPackages, correctCheckoutWithPackage } from "@/lib/actions/attendance";
 import React, { useState } from "react";
 import { registerAdvancePayment, getAppointments, createPartialAgendaBlock, removePartialAgendaBlock } from "@/lib/actions/appointments";
@@ -284,10 +285,10 @@ export function Agenda({
             setPartialBusy(true);
             try {
               const result = await createPartialAgendaBlock({ date: selectedDate, start: blockStart, end: blockEnd, notes: blockNotes });
-              if (!result.success) { alert(result.error || "Falha ao bloquear horário"); return; }
+              if (!result.success) { appNotify(result.error || "Falha ao bloquear horário"); return; }
               onPaymentsUpdated?.(await getAppointments());
               setShowPartialBlock(false);
-            } catch { alert("Falha de conexão ao salvar bloqueio."); }
+            } catch { appNotify("Falha de conexão ao salvar bloqueio."); }
             finally { setPartialBusy(false); }
           }}>
             <h2 className="text-lg font-bold">Bloquear parte da agenda</h2>
@@ -306,11 +307,11 @@ export function Agenda({
         <div key={r.id} className="mb-2 flex items-center justify-between rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm">
           <span>Horário bloqueado: {r.time}–{r.end} · {r.service.replace("Bloqueio parcial: ", "")}</span>
           <button type="button" disabled={partialBusy} className="btn-outline !py-1 !px-2" onClick={async () => {
-            if (!confirm(`Desbloquear ${r.time}–${r.end}?`)) return;
+            if (!await appConfirm(`Desbloquear ${r.time}–${r.end}?`)) return;
             setPartialBusy(true);
             try {
               const result = await removePartialAgendaBlock({ date: selectedDate, start: r.time, end: r.end });
-              if (!result.success) alert(result.error || "Erro ao desbloquear");
+              if (!result.success) appNotify(result.error || "Erro ao desbloquear");
               else onPaymentsUpdated?.(await getAppointments());
             } finally { setPartialBusy(false); }
           }}>Desbloquear</button>
@@ -402,7 +403,7 @@ export function Agenda({
               if (!result.success) { setCorrectionError(result.error || "Não foi possível corrigir"); return; }
               onPaymentsUpdated?.(await getAppointments());
               setCorrection(null);
-              alert(result.alreadyLinked ? "Atendimento já vinculado ao pacote. Nenhuma sessão adicional foi consumida." : "Fechamento corrigido e registrado.");
+              appNotify(result.alreadyLinked ? "Atendimento já vinculado ao pacote. Nenhuma sessão adicional foi consumida." : "Fechamento corrigido e registrado.");
             } catch { setCorrectionError("Falha de conexão. Confira o histórico antes de tentar novamente."); }
             finally { setCorrectionBusy(false); }
           }}>
@@ -453,12 +454,12 @@ export function Agenda({
             setAdvanceSaving(true);
             try {
               const result = await registerAdvancePayment({ appointmentId: advance.id, amount: Number(advanceAmount), method: advanceMethod });
-              if (!result.success) { alert(result.error || "Falha no recebimento"); return; }
+              if (!result.success) { appNotify(result.error || "Falha no recebimento"); return; }
               const fresh = await getAppointments();
               onPaymentsUpdated?.(fresh);
               setAdvance(null);
-              alert("Recebimento registrado.");
-            } catch { alert("Falha de conexão. Confira os pagamentos antes de tentar novamente."); }
+              appNotify("Recebimento registrado.");
+            } catch { appNotify("Falha de conexão. Confira os pagamentos antes de tentar novamente."); }
             finally { setAdvanceSaving(false); }
           }}>
             <h2 className="text-xl font-bold">Recebimento parcial</h2>
@@ -503,7 +504,7 @@ export function Agenda({
                   <div className="min-w-0 flex-1"><p className="font-medium">Bloqueio de Agenda</p><p className="text-xs text-muted">{a.service} · {a.professional}</p></div>
                   <Badge tone="amber">Bloqueado</Badge>
                 </div>
-                {calendarView === "dia" && <button type="button" disabled={partialBusy} className="btn-outline !px-2 !text-xs" onClick={async () => { if (!confirm(`Desbloquear ${a.time}–${a.end}?`)) return; setPartialBusy(true); try { const result = await removePartialAgendaBlock({ date: a.dateStr, start: a.time, end: a.end }); if (!result.success) alert(result.error || "Erro ao desbloquear"); else onPaymentsUpdated?.(await getAppointments()); } finally { setPartialBusy(false); } }}>Desbloquear</button>}
+                {calendarView === "dia" && <button type="button" disabled={partialBusy} className="btn-outline !px-2 !text-xs" onClick={async () => { if (!await appConfirm(`Desbloquear ${a.time}–${a.end}?`)) return; setPartialBusy(true); try { const result = await removePartialAgendaBlock({ date: a.dateStr, start: a.time, end: a.end }); if (!result.success) appNotify(result.error || "Erro ao desbloquear"); else onPaymentsUpdated?.(await getAppointments()); } finally { setPartialBusy(false); } }}>Desbloquear</button>}
               </div>
             ) : (
               <div key={a.id} className="flex w-full items-center gap-3 px-4 py-3 hover:bg-bg sm:px-5">
@@ -571,9 +572,9 @@ export function Agenda({
                     setCorrectionBusy(true); setCorrectionError("");
                     try {
                       const result=await getCheckoutCorrectionPackages(a.id);
-                      if (!result.success) { alert(result.error || "Erro ao consultar pacotes"); return; }
+                      if (!result.success) { appNotify(result.error || "Erro ao consultar pacotes"); return; }
                       setCorrectionPackages(result.packages);setCorrectionPackageId("");setCorrectionReason("");setCorrection(a);
-                    } catch { alert("Erro ao consultar pacotes"); }
+                    } catch { appNotify("Erro ao consultar pacotes"); }
                     finally { setCorrectionBusy(false); }
                   }}>Corrigir fechamento</button>
                 )}

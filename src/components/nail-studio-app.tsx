@@ -1,3 +1,4 @@
+import { appNotify, appConfirm, appPrompt, AppDialogProvider } from "@/components/ui/app-dialog";
 /* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 import NextImage from "next/image";
@@ -270,7 +271,7 @@ function ClientDetailsModal({ client, close }: { client: any; close: () => void 
 
 
   const handleDeletePhoto = async (photoId: string) => {
-    if (!confirm("Tem certeza que deseja apagar esta foto?")) return;
+    if (!await appConfirm("Tem certeza que deseja apagar esta foto?")) return;
     if (photoId.startsWith("mock-")) {
       setData((curr: any) => ({ ...curr, photos: curr.photos.filter((p: any) => p.id !== photoId) }));
       return;
@@ -279,7 +280,7 @@ function ClientDetailsModal({ client, close }: { client: any; close: () => void 
     if (res.success) {
       setData((curr: any) => ({ ...curr, photos: curr.photos.filter((p: any) => p.id !== photoId) }));
     } else {
-      alert("Erro ao excluir foto: " + ("error" in res ? res.error : "Erro desconhecido"));
+      appNotify("Erro ao excluir foto: " + ("error" in res ? res.error : "Erro desconhecido"));
     }
   };
 
@@ -316,11 +317,11 @@ function ClientDetailsModal({ client, close }: { client: any; close: () => void 
         const fresh = await getClientDetails(client.id);
         setData(fresh);
       } else {
-        alert("Erro ao salvar foto: " + ("error" in res ? res.error : "Erro desconhecido"));
+        appNotify("Erro ao salvar foto: " + ("error" in res ? res.error : "Erro desconhecido"));
       }
     } catch (err) {
       console.error(err);
-      alert("Ocorreu um erro inesperado ao enviar a foto.");
+      appNotify("Ocorreu um erro inesperado ao enviar a foto.");
     } finally {
       setUploading(false);
       e.target.value = '';
@@ -495,7 +496,7 @@ function ProfessionalCommissionsModal({ professional, close, onPaid }: { profess
     const res = await payCommissions(professional.id, selectedIds);
     if (!res.success) {
       setPaying(false);
-      alert("Erro ao pagar comissões: " + ("error" in res ? res.error : "Erro desconhecido"));
+      appNotify("Erro ao pagar comissões: " + ("error" in res ? res.error : "Erro desconhecido"));
       return;
     }
     // Mantém a tela aberta: recarrega as comissões e atualiza o painel da profissional.
@@ -861,7 +862,7 @@ function ClientModal({ mode, client, close, save }: { mode: "create" | "edit" | 
                         <div className="flex justify-end gap-2 mt-4 pt-3 border-t">
                           <button type="button" onClick={() => setIsAddingPackage(false)} className="px-3 py-1.5 text-sm text-muted hover:text-ink">Cancelar</button>
                           <button type="button" onClick={async (e) => {
-                            if (!catalogChoice) return alert("Selecione um pacote do catálogo");
+                            if (!catalogChoice) return appNotify("Selecione um pacote do catálogo");
                             const btn = e.target as HTMLButtonElement; btn.disabled = true; btn.innerText = "Processando...";
                             try {
                               await save({ name, phone, birthDate, cep, street, number, complement, neighborhood, city, state, notes: JSON.stringify({ text: notes, anamnesis }), email, anamnesisConsent });
@@ -874,9 +875,9 @@ function ClientModal({ mode, client, close, save }: { mode: "create" | "edit" | 
                                 setCatalogChoice("");
                                 setNewPkg({ name: "", total: 4, price: 120, method: "PIX" });
                               } else {
-                                alert("Erro ao vender pacote: " + res.error);
+                                appNotify("Erro ao vender pacote: " + res.error);
                               }
-                            } catch(err: any) { alert("Erro: " + err.message); }
+                            } catch(err: any) { appNotify("Erro: " + err.message); }
                             btn.disabled = false; btn.innerText = "Confirmar Venda";
                           }} className="btn-primary bg-emerald-600 border-emerald-600 hover:bg-emerald-700 text-sm py-1.5">Confirmar Venda</button>
                         </div>
@@ -906,7 +907,7 @@ function ClientModal({ mode, client, close, save }: { mode: "create" | "edit" | 
                                     <button type="button" onClick={() => setEditingPkgId(null)} className="text-xs text-muted hover:text-ink">Cancelar</button>
                                     <button type="button" onClick={async () => {
                                       if (editPkg.used < 0 || editPkg.used > editPkg.total) {
-                                        alert("O número de sessões restantes não pode ser negativo nem maior que o total.");
+                                        appNotify("O número de sessões restantes não pode ser negativo nem maior que o total.");
                                         return;
                                       }
                                       const { updatePackage, getActivePackages } = await import("@/lib/actions/packages");
@@ -924,7 +925,7 @@ function ClientModal({ mode, client, close, save }: { mode: "create" | "edit" | 
                                   <div className="mt-2 flex gap-2">
                                     <button type="button" onClick={() => { setEditPkg({ name: p.name, total: p.total_sessions, used: p.remaining_sessions, price: p.price }); setEditingPkgId(p.id); }} className="text-xs text-primary hover:underline">Editar</button>
                                     <button type="button" onClick={async () => {
-                                      if(confirm("Tem certeza que deseja apagar este pacote? O financeiro não será estornado automaticamente.")) {
+                                      if(await appConfirm("Tem certeza que deseja apagar este pacote? O financeiro não será estornado automaticamente.")) {
                                         const { deletePackage, getActivePackages } = await import("@/lib/actions/packages");
                                         await deletePackage(p.id);
                                         const pkgs = await getActivePackages(client.id);
@@ -1027,7 +1028,7 @@ function ProfessionalModal({ mode, professional, specialtiesList = [], close, sa
                 <button
                   type="button"
                   onClick={async () => {
-                    const name = window.prompt("Nome da nova especialidade:");
+                    const name = await appPrompt("Nome da nova especialidade:");
                     if (name && name.trim()) {
                       const res = await createSpecialtyRecord(name.trim());
                       if (res.success && res.data) {
@@ -1382,7 +1383,7 @@ function SettingsView({ tenant, updateToast, role }: { tenant: any; updateToast:
   );
 }
 
-export function NailStudioApp({ tenant = { profileName: "Usuária", orgName: "Salão" }, initialClients = demoClients, initialProfessionals = demoProfessionals, initialSpecialties = [], initialAppointments = [], initialInventory = [], initialServices = demoServices as any[], initialFinancials = [], initialStats = { revenue: 0, expenses: 0, commissions: 0, balance: 0 }, initialReports = {}, initialCommissions = [], professionalMode = false, role = professionalMode ? "professional" : "owner", permissionRows }: { initialCommissions?: {id:string;amount:number;status:string;date:string;service:string}[]; professionalMode?: boolean; role?: StudioRole; permissionRows?: PermissionRow[]; tenant?: { profileName: string; orgName: string; email?: string; orgSlug?: string; }; initialClients?: ClientItem[]; initialProfessionals?: ProfessionalItem[]; initialSpecialties?: {id: string, name: string}[]; initialAppointments?: Appointment[]; initialServices?: any[]; initialInventory?: any[]; initialFinancials?: any[]; initialStats?: any; initialReports?: any }) {
+function NailStudioAppInner({ tenant = { profileName: "Usuária", orgName: "Salão" }, initialClients = demoClients, initialProfessionals = demoProfessionals, initialSpecialties = [], initialAppointments = [], initialInventory = [], initialServices = demoServices as any[], initialFinancials = [], initialStats = { revenue: 0, expenses: 0, commissions: 0, balance: 0 }, initialReports = {}, initialCommissions = [], professionalMode = false, role = professionalMode ? "professional" : "owner", permissionRows }: { initialCommissions?: {id:string;amount:number;status:string;date:string;service:string}[]; professionalMode?: boolean; role?: StudioRole; permissionRows?: PermissionRow[]; tenant?: { profileName: string; orgName: string; email?: string; orgSlug?: string; }; initialClients?: ClientItem[]; initialProfessionals?: ProfessionalItem[]; initialSpecialties?: {id: string, name: string}[]; initialAppointments?: Appointment[]; initialServices?: any[]; initialInventory?: any[]; initialFinancials?: any[]; initialStats?: any; initialReports?: any }) {
   const [view, setView] = useState<View>(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("view") === "packages" ? "packages" : canOpenView(role, "dashboard", permissionRows) ? "dashboard" : "agenda"); const [menu, setMenu] = useState(false); const [booking, setBooking] = useState(false); const [bookingDate, setBookingDate] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" })); const [finish, setFinish] = useState(false); const [activeAppointment, setActiveAppointment] = useState<Appointment | null>(null); const [toast, setToast] = useState(""); const [rows, setRows] = useState(initialAppointments);
   const [cancelPending, setCancelPending] = useState<{ id: string; client: string; date: string; time: string } | null>(null);
   const [cancelBusy, setCancelBusy] = useState(false);
@@ -1472,7 +1473,7 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
     } else if (entityModal.index !== undefined) {
       const item = clientRows[entityModal.index];
       if (!item.id) {
-        alert("Não foi possível identificar a cliente para atualização.");
+        appNotify("Não foi possível identificar a cliente para atualização.");
         return;
       }
       const res = await updateClientRecord(item.id, data);
@@ -1523,14 +1524,14 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
         setServiceRows(current => [...current, { ...data, id: res.data?.id || "tmp", active: true }]);
         notify("Serviço salvo com sucesso.");
       } else {
-        alert(("error" in res ? res.error : "Erro desconhecido"));
+        appNotify(("error" in res ? res.error : "Erro desconhecido"));
       }
     } else {
       if (typeof entityModal.index !== "number") return;
       const itemToUpdate = serviceRows[entityModal.index];
       if (itemToUpdate && itemToUpdate.id && !itemToUpdate.id.startsWith("demo-")) {
         const res = await updateServiceRecord(itemToUpdate.id, data);
-        if (!res.success) { alert(("error" in res ? res.error : "Erro desconhecido")); return; }
+        if (!res.success) { appNotify(("error" in res ? res.error : "Erro desconhecido")); return; }
       }
       setServiceRows(current => current.map((item, i) => i === entityModal.index ? { ...item, ...data } : item));
       notify("Serviço atualizado com sucesso.");
@@ -1577,7 +1578,7 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
     notify(creating ? "Profissional criada com sucesso." : "Alterações salvas com sucesso.");
   };
 
-  const confirmAction = (message: string, action: () => void) => { if (window.confirm(message)) action(); };
+  const confirmAction = async (message: string, action: () => void) => { if (await appConfirm(message)) action(); };
   const executeCancellation = async () => {
     if (!cancelPending || cancelBusy) return;
     setCancelBusy(true);
@@ -1587,7 +1588,7 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
         setRows(current => current.map(item => item.id === cancelPending.id ? { ...item, status: "Cancelado" } : item));
         setCancelPending(null);
         notify("Agendamento cancelado. Horário liberado e histórico preservado.");
-      } else alert(("error" in result ? result.error : "Não foi possível cancelar o agendamento."));
+      } else appNotify(("error" in result ? result.error : "Não foi possível cancelar o agendamento."));
     } finally { setCancelBusy(false); }
   };
   const content = (() => {
@@ -1607,7 +1608,7 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
         const dateFormatted = dateStr.split("-").reverse().join("/");
         notify(res.action === "blocked" ? `Agenda do dia ${dateFormatted} bloqueada para ausência.` : `Agenda do dia ${dateFormatted} desbloqueada.`);
       } else {
-        alert("Erro ao alterar bloqueio de agenda: " + (res.error || "Erro desconhecido"));
+        appNotify("Erro ao alterar bloqueio de agenda: " + (res.error || "Erro desconhecido"));
       }
     }} onStatusChange={async (a, statusUI) => {
     if (statusUI === "Concluído") {
@@ -1793,7 +1794,7 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
                 setEntityModal(null);
                 notify("Agendamento atualizado!");
               } else {
-                alert(("error" in res ? res.error : "Erro desconhecido"));
+                appNotify(("error" in res ? res.error : "Erro desconhecido"));
               }
             }}
           />
@@ -1848,7 +1849,7 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
               }
               notify(entityModal.mode === "create" ? "Produto cadastrado com sucesso." : "Produto atualizado com sucesso.");
             } else {
-              alert("Erro ao salvar produto: " + ("error" in res ? res.error : "Erro desconhecido"));
+              appNotify("Erro ao salvar produto: " + ("error" in res ? res.error : "Erro desconhecido"));
             }
           }}
         />
@@ -1871,14 +1872,14 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
               setEntityModal(null);
               notify("Consumo de insumos atualizado.");
             } else {
-              alert("Erro ao salvar: " + (res as any).error);
+              appNotify("Erro ao salvar: " + (res as any).error);
             }
           }}
         />
       )}
 
-      {booking && <BookingModal initialDate={bookingDate} clients={clientRows} onClientCreated={(client) => setClientRows(current => current.some(c => c.id === client.id) ? current : [...current, client].sort((a,b)=>a.name.localeCompare(b.name)))} professionals={professionalRows} services={serviceRows} close={() => setBooking(false)} save={async (a, rawData) => { if(rawData) { const res = await createAppointmentRecord(rawData); if (res.success) { const fresh = await getAppointments(); setRows(fresh); setBooking(false); notify("Agendamento criado com sucesso."); } else { alert(("error" in res ? res.error : "Erro desconhecido")); } } else { setRows(v => [...v, a]); setBooking(false); notify("Agendamento criado (demo)."); } }} />}
-      {finish && activeAppointment && <FinishModal appointment={activeAppointment} close={() => setFinish(false)} done={async (method, val, pkgId) => { const res = await finishAppointment({ appointmentId: activeAppointment.id, amount: val, paymentMethod: method, packageId: pkgId }); if (res.success) { setRows(v => v.map(a => a.id === activeAppointment.id ? { ...a, status: "Concluído", paid: (a.paid || 0) + val } : a)); getProfessionals().then(fresh => setProfessionalRows(fresh as any[])); setFinish(false); setActiveAppointment(null); setView("attendance"); notify("Atendimento concluído e pagamento registrado com sucesso."); } else { alert(("error" in res ? res.error : "Erro desconhecido")); } }} />}
+      {booking && <BookingModal initialDate={bookingDate} clients={clientRows} onClientCreated={(client) => setClientRows(current => current.some(c => c.id === client.id) ? current : [...current, client].sort((a,b)=>a.name.localeCompare(b.name)))} professionals={professionalRows} services={serviceRows} close={() => setBooking(false)} save={async (a, rawData) => { if(rawData) { const res = await createAppointmentRecord(rawData); if (res.success) { const fresh = await getAppointments(); setRows(fresh); setBooking(false); notify("Agendamento criado com sucesso."); } else { appNotify(("error" in res ? res.error : "Erro desconhecido")); } } else { setRows(v => [...v, a]); setBooking(false); notify("Agendamento criado (demo)."); } }} />}
+      {finish && activeAppointment && <FinishModal appointment={activeAppointment} close={() => setFinish(false)} done={async (method, val, pkgId) => { const res = await finishAppointment({ appointmentId: activeAppointment.id, amount: val, paymentMethod: method, packageId: pkgId }); if (res.success) { setRows(v => v.map(a => a.id === activeAppointment.id ? { ...a, status: "Concluído", paid: (a.paid || 0) + val } : a)); getProfessionals().then(fresh => setProfessionalRows(fresh as any[])); setFinish(false); setActiveAppointment(null); setView("attendance"); notify("Atendimento concluído e pagamento registrado com sucesso."); } else { appNotify(("error" in res ? res.error : "Erro desconhecido")); } }} />}
       {cancelPending && <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 p-4" role="presentation">
         <div role="alertdialog" aria-modal="true" aria-labelledby="cancel-appointment-title" aria-describedby="cancel-appointment-description" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
           <h2 id="cancel-appointment-title" className="text-xl font-semibold text-[#382D32]">Cancelar agendamento?</h2>
@@ -2444,4 +2445,9 @@ function FinishModal({ appointment, close, done }:{ appointment: Appointment; cl
       </div>
     </div>
   );
+}
+
+// Tela completa dentro do provedor de diálogos do sistema (substitui alert, confirm e prompt do navegador).
+export function NailStudioApp(props: Parameters<typeof NailStudioAppInner>[0]) {
+  return <AppDialogProvider><NailStudioAppInner {...props} /></AppDialogProvider>;
 }
