@@ -61,6 +61,7 @@ export default function LoginPage() {
             {pending ? "Entrando..." : "Acessar painel"} <ArrowRight size={16} />
           </button>
         </form>
+        <p className="mt-4 text-center text-sm"><Link href="/recuperar-senha" className="text-primary hover:underline font-medium">Esqueci minha senha</Link></p>
         <p className="mt-4 text-center text-xs text-muted"><a href="/privacidade" className="underline">Política de privacidade</a></p>
 
         <div className="mt-6 text-center text-sm text-muted">
