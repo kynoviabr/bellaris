@@ -19,6 +19,7 @@ import { ProfessionalClients } from "./dashboard/professional-clients";
 import { listMyClientBirthdays } from "@/lib/actions/professional-clients";
 import { canOpenView, type PermissionRow, type StudioRole } from "@/lib/authorization/permissions";
 import { RolePermissionsManager } from "./dashboard/role-permissions-manager";
+import { TeamUsersManager } from "./dashboard/team-users-manager";
 import { updateAppointmentRecord, addServiceToAppointment, removeServiceFromAppointment } from "@/lib/actions/appointments";
 
 import { useState, useEffect, useRef } from "react";
@@ -1262,7 +1263,7 @@ function ServiceModal({ mode, service, close, save }: { mode: "create" | "view" 
 function Toast({ text }: { text: string }) { return <div className="fixed bottom-5 right-5 z-[80] flex max-w-sm items-center gap-3 rounded-md bg-navy-dark px-4 py-3 text-sm text-white shadow-xl"><div className="rounded-full bg-primary p-1"><Check size={12} /></div>{text}</div> }
 
 
-function SettingsView({ tenant, updateToast }: { tenant: any; updateToast: (t: string) => void }) {
+function SettingsView({ tenant, updateToast, role }: { tenant: any; updateToast: (t: string) => void; role: string }) {
   const [orgName, setOrgName] = useState(tenant?.orgName || "");
   const [pixKey, setPixKey] = useState("");
   const [savingPix, setSavingPix] = useState(false);
@@ -1304,6 +1305,7 @@ function SettingsView({ tenant, updateToast }: { tenant: any; updateToast: (t: s
   return (
     <div className="mx-auto max-w-4xl p-4 sm:p-6 space-y-6">
 
+      {(role === "owner" || role === "admin") && <TeamUsersManager isOwner={role === "owner"} />}
       <RolePermissionsManager />
       <div className="bg-white rounded-lg border shadow-sm p-6 space-y-3">
         <h3 className="font-semibold text-lg text-ink">Chave Pix para mensagens</h3>
@@ -1594,7 +1596,7 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
     if (view === "dashboard" && professionalMode) return <ProfessionalDashboard rows={rows} services={serviceRows} commissions={initialCommissions} onOpen={setView} onAgenda={() => setView("agenda")} onAttendances={() => setView("attendance")} />;
     if (view === "dashboard") return <Dashboard stats={initialStats} go={setView} appointments={rows} clients={clientRows} tenant={tenant} onAttendance={(a) => { setActiveAppointment(a); setView("attendance"); }} />;
     if (view === "settings" && professionalMode) return <main className="page-content"><h2 className="text-xl font-semibold">Configurações</h2><p className="mt-2 text-sm text-muted">Tela administrativa visível para avaliação. Alterações de gestão estão reservadas à proprietária.</p></main>;
-    if (view === "settings") return <SettingsView tenant={tenant} updateToast={(t) => { setToast(t); setTimeout(() => setToast(""), 3000); }} />;
+    if (view === "settings") return <SettingsView tenant={tenant} role={role} updateToast={(t) => { setToast(t); setTimeout(() => setToast(""), 3000); }} />;
     if (view === "agenda") return <Agenda readOnly={professionalMode} rows={rows} onPaymentsUpdated={(fresh) => setRows(fresh)} onNew={(dateStr) => { setBookingDate(dateStr); setBooking(true); }} onAttendance={(a) => { setActiveAppointment(a); setView("attendance"); }} onAction={(mode, index) => openEntity("appointment", mode, index)} onToggleBlockDay={async (dateStr) => {
       const res = await toggleBlockDayRecord(dateStr);
       if (res.success) {
