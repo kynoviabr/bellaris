@@ -16,7 +16,6 @@ import { Clients } from "./dashboard/clients";
 import { Services } from "./dashboard/services";
 import { PackageCatalogContent } from "./dashboard/package-catalog";
 import { Agenda } from "./dashboard/agenda";
-import { listMyClientBirthdays } from "@/lib/actions/professional-clients";
 import { canOpenView, type PermissionRow, type StudioRole } from "@/lib/authorization/permissions";
 import { RolePermissionsManager } from "./dashboard/role-permissions-manager";
 import { TeamUsersManager } from "./dashboard/team-users-manager";
@@ -1914,9 +1913,7 @@ function ProfessionalDashboard({ rows, services, commissions, onOpen, onAgenda, 
   onAgenda: () => void;
   onAttendances: () => void;
 }) {
-  const [birthdays, setBirthdays] = useState<{ id: string; name: string; day: number; month: number }[]>([]);
   useEffect(() => {
-    listMyClientBirthdays().then(res => setBirthdays(res.rows));
   }, []);
 
   const now = new Date();
@@ -1958,8 +1955,6 @@ function ProfessionalDashboard({ rows, services, commissions, onOpen, onAgenda, 
     .filter(v => v.due >= todayKey && v.due <= shiftDateKey(todayKey, 7))
     .sort((a, b) => a.due.localeCompare(b.due));
 
-  const todayDay = Number(todayKey.slice(8, 10));
-  const birthdaysSorted = [...birthdays].sort((a, b) => ((a.day - todayDay + 31) % 31) - ((b.day - todayDay + 31) % 31));
 
   const Card = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
     <div className={`rounded-xl border border-[#E8D9C7] bg-white p-5 ${className}`}>{children}</div>
@@ -2025,18 +2020,6 @@ function ProfessionalDashboard({ rows, services, commissions, onOpen, onAgenda, 
         </Card>
 
         <div className="grid gap-4">
-          <Card>
-            <h3 className="text-sm font-semibold text-ink">Aniversariantes do mês</h3>
-            {birthdaysSorted.length === 0 ? (
-              <p className="mt-2 text-sm text-muted">Nenhuma aniversariante neste mês.</p>
-            ) : (
-              <ul className="mt-2 space-y-1.5 text-sm">
-                {birthdaysSorted.slice(0, 6).map(b => (
-                  <li key={b.id} className="flex justify-between"><span>{b.name}</span><span className="text-muted">{String(b.day).padStart(2, "0")}/{String(b.month).padStart(2, "0")}{b.day === todayDay ? " · hoje" : ""}</span></li>
-                ))}
-              </ul>
-            )}
-          </Card>
           <Card>
             <h3 className="text-sm font-semibold text-ink">Retornos nos próximos 7 dias</h3>
             {dueSoon.length === 0 ? (
