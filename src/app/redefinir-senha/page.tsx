@@ -7,6 +7,9 @@ import { BellarisMark } from "@/components/brand/bellaris-mark";
 import { createClient } from "@/lib/supabase/client";
 
 
+const SUCCESS_TEXT = "Senha criada com sucesso. Agora é só entrar no painel com seu e-mail e a nova senha.";
+const VERIFYING_TEXT = "Verificando link de recuperação...";
+
 // Mensagens de erro do Supabase vêm em inglês; aqui traduzimos os casos comuns.
 function passwordErrorMessage(error: { code?: string; message?: string }): string {
   const code = error.code ?? "";
@@ -21,7 +24,7 @@ export default function ResetPasswordPage() {
   const [valid, setValid] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
-  const [message, setMessage] = useState("Verificando link de recuperação...");
+  const [message, setMessage] = useState(VERIFYING_TEXT);
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
@@ -104,7 +107,7 @@ export default function ResetPasswordPage() {
     const client = createClient();
     if (!client) { setMessage("Serviço indisponível."); setPending(false); return; }
     const { error } = await client.auth.updateUser({ password });
-    setMessage(error ? passwordErrorMessage(error) : "Senha criada com sucesso. Agora é só entrar no painel com seu e-mail e a nova senha.");
+    setMessage(error ? passwordErrorMessage(error) : SUCCESS_TEXT);
     if (!error) {
       setValid(false);
       await client.auth.signOut();
@@ -120,7 +123,7 @@ export default function ResetPasswordPage() {
           <h1 className="mt-5 text-xl font-bold text-ink">Redefinir senha</h1>
           <p className="mt-2 text-sm text-muted">Cadastre uma nova senha para acessar sua conta.</p>
         </div>
-        {message && <p role="status" className="mt-6 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{message}</p>}
+        {message && <p role="status" className={`mt-6 rounded-md border p-3 text-sm ${message === SUCCESS_TEXT ? "border-emerald-200 bg-emerald-50 text-emerald-800" : message === VERIFYING_TEXT ? "border-transparent bg-[#F3F6FA] text-ink" : "border-red-200 bg-red-50 text-red-800"}`}>{message}</p>}
         {valid && <form onSubmit={save} className="mt-8 space-y-4">
           <div><label className="field-label" htmlFor="password">Nova senha</label>
             <input className="field-input" id="password" type="password" autoComplete="new-password" minLength={12} required value={password} onChange={e => setPassword(e.target.value)} />

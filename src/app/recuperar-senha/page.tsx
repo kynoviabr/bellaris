@@ -6,6 +6,8 @@ import { ArrowLeft, Mail } from "lucide-react";
 import { BellarisMark } from "@/components/brand/bellaris-mark";
 import { createClient } from "@/lib/supabase/client";
 
+const SUCCESS_TEXT = "Enviamos um link de redefinição para o seu e-mail, se ele estiver cadastrado. Confira também a caixa de spam.";
+
 function recoveryErrorMessage(error: { code?: string; message?: string }): string {
   const code = error.code ?? "";
   const text = error.message ?? "";
@@ -34,7 +36,7 @@ export default function RecoverPasswordPage() {
       });
       setMessage(error
         ? recoveryErrorMessage(error)
-        : "Enviamos um link de redefinição para o seu e-mail, se ele estiver cadastrado. Confira também a caixa de spam.");
+        : SUCCESS_TEXT);
     } finally {
       setPending(false);
     }
@@ -53,7 +55,7 @@ export default function RecoverPasswordPage() {
             <label htmlFor="email" className="field-label">E-mail</label>
             <input id="email" className="field-input" type="email" autoComplete="email" placeholder="seu@email.com" required value={email} onChange={e => setEmail(e.target.value)} />
           </div>
-          {message && <p role="status" className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{message}</p>}
+          {message && <p role="status" className={`rounded-md border p-3 text-sm ${message === SUCCESS_TEXT ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-800"}`}>{message}</p>}
           <button className="btn-primary mt-6 w-full justify-center" type="submit" disabled={pending}>
             <Mail size={16} /> {pending ? "Enviando..." : "Enviar link de recuperação"}
           </button>
