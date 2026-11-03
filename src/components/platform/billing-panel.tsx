@@ -15,6 +15,8 @@ export type SalonBilling = {
   monthly_price: number | null;
   due_business_day: number | null;
   cancelled: boolean;
+  slug: string | null;
+  owner_email: string | null;
 };
 export type PlanOption = { code: string; name: string; monthly_price: number };
 
@@ -101,6 +103,29 @@ export function SalonRowActions({ salon, plans }: { salon: SalonBilling; plans: 
           <div><label className={labelClass}>Observação</label><input name="notes" className={inputClass} /></div>
           <div className="sm:col-span-2 flex gap-2"><button type="submit" disabled={pending} className={btnPrimary}>{pending ? "Salvando..." : "Salvar pagamento"}</button><button type="button" className={btnOutline} onClick={() => setOpen(null)}>Cancelar</button></div>
         </form>
+      )}
+
+      {open === "assinatura" && (
+        <div className="grid gap-2 rounded-lg border border-[#E8D9C7] bg-white p-4 text-sm">
+          <div>
+            <span className="block text-xs font-semibold uppercase tracking-wide text-primary">E-mail da proprietária</span>
+            <span className="text-ink">{salon.owner_email ?? "Não encontrado"}</span>
+          </div>
+          {typeof window !== "undefined" && (
+            <>
+              <div>
+                <span className="block text-xs font-semibold uppercase tracking-wide text-primary">Acesso ao sistema</span>
+                <a href={`${window.location.origin}/login`} target="_blank" rel="noopener noreferrer" className="break-all text-primary underline">{`${window.location.origin}/login`}</a>
+              </div>
+              {salon.slug && (
+                <div>
+                  <span className="block text-xs font-semibold uppercase tracking-wide text-primary">Agendamento online</span>
+                  <a href={`${window.location.origin}/agendar/${salon.slug}`} target="_blank" rel="noopener noreferrer" className="break-all text-primary underline">{`${window.location.origin}/agendar/${salon.slug}`}</a>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       )}
 
       {open === "assinatura" && (
