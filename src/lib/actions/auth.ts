@@ -40,6 +40,11 @@ export async function login(prevState: any, formData: FormData) {
   }
 
   if (error) {
+    // Conta bloqueada pela gestão (ban no Supabase): mensagem específica.
+    const code = (error as { code?: string }).code;
+    if (code === "user_banned" || /banned/i.test(error.message ?? "")) {
+      return { error: "Acesso bloqueado. Fale com a gestão do salão." };
+    }
     return { error: "Credenciais inválidas. Verifique seu e-mail e senha." };
   }
 
