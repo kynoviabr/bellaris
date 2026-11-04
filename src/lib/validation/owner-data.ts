@@ -1,10 +1,12 @@
-import { formatCepDisplay, isValidCep, isValidCpf, isValidUf, isValidWhatsapp, onlyDigits } from "./br.ts";
+import { formatCepDisplay, isValidCep, isValidCnpj, isValidCpf, isValidUf, isValidWhatsapp, onlyDigits } from "./br.ts";
 
 /** Dados pessoais e de endereço do responsável pelo salão (sem plano). */
 export type OwnerPersonal = {
   fullName: string;
   whatsapp: string; // somente dígitos
-  cpf: string; // somente dígitos
+  documentType: "cpf" | "cnpj";
+  cpf: string | null; // somente dígitos; nulo quando o documento é CNPJ
+  cnpj: string | null; // somente dígitos; nulo quando o documento é CPF
   cep: string; // 00000-000
   logradouro: string;
   numero: string;
@@ -17,7 +19,7 @@ export type OwnerPersonal = {
 export type OwnerData = OwnerPersonal & { planCode: string };
 
 export const OWNER_FIELD_NAMES = [
-  "fullName", "whatsapp", "cpf", "cep", "logradouro", "numero",
+  "fullName", "whatsapp", "documentType", "cpf", "cnpj", "cep", "logradouro", "numero",
   "complemento", "bairro", "cidade", "uf", "planCode",
 ] as const;
 
@@ -31,8 +33,10 @@ export function validateOwnerPersonal(raw: Record<string, string>): { error: str
   const whatsapp = onlyDigits(get("whatsapp"));
   if (!isValidWhatsapp(whatsapp)) return { error: "Informe um WhatsApp válido, com DDD." };
 
-  const cpf = onlyDigits(get("cpf"));
-  if (!isValidCpf(cpf)) return { error: "CPF inválido. Confira os números." };
+  const documentType: "cpf" | "cnpj" = get("documentType") === "cnpj" ? "cnpj" : "cpf";
+  const document = onlyDigits(get(documentType));
+  if (documentType === "cpf" && !isValidCpf(document)) return { error: "CPF inválido. Confira os números." };
+  if (documentType === "cnpj" && !isValidCnpj(document)) return { error: "CNPJ inválido. Confira os números." };
 
   const cepDigits = onlyDigits(get("cep"));
   if (!isValidCep(cepDigits)) return { error: "Informe um CEP válido." };
@@ -53,7 +57,9 @@ export function validateOwnerPersonal(raw: Record<string, string>): { error: str
     value: {
       fullName,
       whatsapp,
-      cpf,
+      documentType,
+      cpf: documentType === "cpf" ? document : null,
+      cnpj: documentType === "cnpj" ? document : null,
       cep: formatCepDisplay(cepDigits),
       logradouro,
       numero,
