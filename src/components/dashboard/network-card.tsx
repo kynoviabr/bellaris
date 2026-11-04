@@ -1,9 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getMyNetwork, createNetwork, createSalonInNetwork, listSalonsToLink, linkSalonToNetwork, listNetworkSalons, unlinkSalonFromNetwork, type MyNetwork, type LinkableSalon, type NetworkSalon } from "@/lib/actions/organizations";
+import { getNetworkBillingPreview, type BillingPreviewRow, getMyNetwork, createNetwork, createSalonInNetwork, listSalonsToLink, linkSalonToNetwork, listNetworkSalons, unlinkSalonFromNetwork, type MyNetwork, type LinkableSalon, type NetworkSalon } from "@/lib/actions/organizations";
 import { appConfirm } from "@/components/ui/app-dialog";
 import { NetworkPanelCard } from "./network-panel-card";
+
+// Mês atual (AAAA-MM) no fuso de São Paulo.
+function currentMonthSP(): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }).slice(0, 7);
+}
 
 // Rede de salões (franqueador). Só dono. Criar rede e criar salão dentro dela.
 // O salão criado aparece em "Seus salões" para o franqueador trocar para ele.
@@ -20,6 +25,8 @@ export function NetworkCard() {
   const [linkable, setLinkable] = useState<LinkableSalon[]>([]);
   const [linkId, setLinkId] = useState("");
   const [netSalons, setNetSalons] = useState<NetworkSalon[]>([]);
+  const [billing, setBilling] = useState<BillingPreviewRow[]>([]);
+  const billingMonth = currentMonthSP();
 
   useEffect(() => {
     let active = true;
@@ -33,6 +40,8 @@ export function NetworkCard() {
           if (!active) return;
           if (salons.data) setLinkable(salons.data);
           if (inNetwork.data) setNetSalons(inNetwork.data);
+          const prev = await getNetworkBillingPreview(currentMonthSP());
+          if (active && prev.data) setBilling(prev.data);
         }
       }
       setLoaded(true);
@@ -102,6 +111,46 @@ export function NetworkCard() {
             <button className="btn-primary" disabled={saving || !netName.trim()} onClick={handleCreateNetwork}>{saving ? "Criando..." : "Criar rede"}</button>
           </div>
         </>
+      )}
+
+      {network && billing.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-ink">Prévia da fatura da rede ({billingMonth}) — somente leitura</p>
+          <p className="text-xs text-muted">Valor = mensalidade do plano menos o desconto definido pela plataforma. Salões isentos ou sem vínculo ativo não entram.</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-muted">
+                  <th className="py-1 pr-3">Salão</th>
+                  <th className="py-1 pr-3">Plano</th>
+                  <th className="py-1 pr-3 text-right">Mensalidade</th>
+                  <th className="py-1 pr-3 text-right">Desconto</th>
+                  <th className="py-1 pr-3 text-right">Valor</th>
+                  <th className="py-1 pr-3">Vencimento</th>
+                  <th className="py-1">Entra</th>
+                </tr>
+              </thead>
+              <tbody>
+                {billing.map((r) => (
+                  <tr key={r.organizationId} className="border-t">
+                    <td className="py-1 pr-3 text-ink">{r.salonName}</td>
+                    <td className="py-1 pr-3">{r.planName ?? "—"}</td>
+                    <td className="py-1 pr-3 text-right">{r.monthlyPrice === null ? "—" : `R$ ${r.monthlyPrice.toFixed(2).replace(".", ",")}`}</td>
+                    <td className="py-1 pr-3 text-right">{r.discountPercent}%</td>
+                    <td className="py-1 pr-3 text-right">R$ {r.amount.toFixed(2).replace(".", ",")}</td>
+                    <td className="py-1 pr-3">{r.dueBusinessDay === null ? "—" : `dia ${r.dueBusinessDay}`}</td>
+                    <td className="py-1">{r.included ? "Sim" : "Não"}</td>
+                  </tr>
+                ))}
+                <tr className="border-t font-semibold">
+                  <td className="py-1 pr-3 text-ink" colSpan={4}>Total da fatura</td>
+                  <td className="py-1 pr-3 text-right">R$ {billing.reduce((t, r) => t + r.amount, 0).toFixed(2).replace(".", ",")}</td>
+                  <td colSpan={2} />
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
 
       {network && netSalons.length > 0 && (
