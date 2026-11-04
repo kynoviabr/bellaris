@@ -46,7 +46,7 @@ export function OwnerOnboardingScreen({ isOwner, accessStatus, accessNote, reque
   }
 
   const defaults = owner
-    ? Object.fromEntries(Object.entries(owner).map(([k, v]) => [k, v ?? ""]))
+    ? { ...Object.fromEntries(Object.entries(owner).map(([k, v]) => [k, v ?? ""])), documentType: owner.document_type ?? "cpf" }
     : {};
 
   return (

@@ -51,6 +51,8 @@ export async function submitOwnerOnboarding(_prev: unknown, formData: FormData) 
     p_cidade: v.cidade,
     p_uf: v.uf,
     p_plan_code: v.planCode,
+    p_document_type: v.documentType,
+    p_cnpj: v.cnpj,
   });
 
   if (error) return { error: error.message };
@@ -84,7 +86,7 @@ export async function getOwnerOnboardingState() {
   const { data: owner } = isOwner
     ? await supabase
         .from("organization_owner_data")
-        .select("full_name, whatsapp, cpf, cep, logradouro, numero, complemento, bairro, cidade, uf")
+        .select("full_name, whatsapp, document_type, cpf, cnpj, cep, logradouro, numero, complemento, bairro, cidade, uf")
         .eq("organization_id", profile.organization_id)
         .maybeSingle()
     : { data: null };
