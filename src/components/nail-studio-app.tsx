@@ -21,6 +21,7 @@ import { RolePermissionsManager } from "./dashboard/role-permissions-manager";
 import { TeamUsersManager } from "./dashboard/team-users-manager";
 import { MyOrganizationsCard, RETURN_TO_SETTINGS_KEY } from "./dashboard/my-organizations-card";
 import { SalonBillingCard } from "./dashboard/salon-billing-card";
+import { OwnerDocumentCard } from "./dashboard/owner-document-card";
 import { LinkProfessionalCard } from "./dashboard/link-professional-card";
 import { NetworkCard } from "./dashboard/network-card";
 import { updateAppointmentRecord, addServiceToAppointment, removeServiceFromAppointment } from "@/lib/actions/appointments";
@@ -1312,6 +1313,7 @@ function SettingsView({ tenant, updateToast, role }: { tenant: any; updateToast:
 
       <MyOrganizationsCard />
       {(role === "owner" || role === "admin") && <SalonBillingCard />}
+      {role === "owner" && <OwnerDocumentCard />}
       {(role === "owner" || role === "admin") && <LinkProfessionalCard />}
       {role === "owner" && <NetworkCard />}
       {(role === "owner" || role === "admin") && <TeamUsersManager isOwner={role === "owner"} />}

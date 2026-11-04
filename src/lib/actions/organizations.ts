@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { isValidCnpj, isValidCpf } from "@/lib/validation/br.ts";
 
 function translateError(msg: string) {
   if (msg.includes("não tem acesso")) return "Você não tem acesso a este salão.";
@@ -289,4 +290,41 @@ export async function getMySalonBilling(): Promise<{ data?: SalonBilling | null;
       networkName: row.network_name,
     },
   };
+}
+
+export type OwnerDocument = { documentType: "cpf" | "cnpj"; document: string };
+
+/** Documento (CPF ou CNPJ) do responsável pelo salão ativo. Só leitura. */
+export async function getMyOwnerDocument(): Promise<{ data?: OwnerDocument | null; error?: string }> {
+  const supabase = await createClient();
+  if (!supabase) return { error: "Supabase não configurado" };
+  const { data, error } = await supabase.from("organization_owner_data").select("document_type, cpf, cnpj").maybeSingle();
+  if (error) return { error: "Não foi possível carregar o documento." };
+  if (!data) return { data: null };
+  const row = data as { document_type: string; cpf: string | null; cnpj: string | null };
+  const isCnpj = row.document_type === "cnpj";
+  return { data: { documentType: isCnpj ? "cnpj" : "cpf", document: (isCnpj ? row.cnpj : row.cpf) ?? "" } };
+}
+
+/** Dono troca o próprio documento entre CPF e CNPJ. Valida os dígitos antes de gravar. */
+export async function updateMyOwnerDocument(_prev: unknown, formData: FormData): Promise<{ ok?: true; error?: string }> {
+  const documentType = String(formData.get("documentType") ?? "") === "cnpj" ? "cnpj" : "cpf";
+  const digits = String(formData.get("document") ?? "").replace(/\D/g, "");
+  if (documentType === "cpf" && !isValidCpf(digits)) return { error: "CPF inválido. Confira os números." };
+  if (documentType === "cnpj" && !isValidCnpj(digits)) return { error: "CNPJ inválido. Confira os números." };
+
+  const supabase = await createClient();
+  if (!supabase) return { error: "Supabase não configurado" };
+
+  const { error } = await supabase.rpc("owner_update_document", {
+    p_document_type: documentType,
+    p_cpf: documentType === "cpf" ? digits : null,
+    p_cnpj: documentType === "cnpj" ? digits : null,
+  });
+  if (error) {
+    if (error.message.includes("Apenas o dono")) return { error: "Apenas o dono do salão pode alterar o documento." };
+    if (error.message.includes("não encontrado")) return { error: "Cadastro do responsável não encontrado. Peça ao master para cadastrar." };
+    return { error: "Não foi possível salvar o documento. Tente novamente." };
+  }
+  return { ok: true };
 }
