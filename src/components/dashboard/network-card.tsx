@@ -9,6 +9,7 @@ import { NetworkPanelCard } from "./network-panel-card";
 export function NetworkCard() {
   const [network, setNetwork] = useState<MyNetwork | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState("");
   const [netName, setNetName] = useState("");
   const [salonName, setSalonName] = useState("");
   const [slug, setSlug] = useState("");
@@ -20,7 +21,8 @@ export function NetworkCard() {
     let active = true;
     getMyNetwork().then((res) => {
       if (!active) return;
-      if (!res.error) setNetwork(res.data ?? null);
+      if (res.error) setLoadError(res.error);
+      else setNetwork(res.data ?? null);
       setLoaded(true);
     });
     return () => { active = false; };
@@ -51,7 +53,11 @@ export function NetworkCard() {
     <div className="bg-white rounded-lg border shadow-sm p-6 space-y-4">
       <h3 className="font-semibold text-lg text-ink">{network ? `Rede: ${network.name}` : "Rede de salões"}</h3>
 
-      {!network && (
+      {!network && loadError && (
+        <p className="text-sm text-red-600">{loadError}</p>
+      )}
+
+      {!network && !loadError && (
         <>
           <p className="text-sm text-muted">Crie uma rede para reunir salões sob a sua gestão. Este salão passa a fazer parte dela.</p>
           <div>
