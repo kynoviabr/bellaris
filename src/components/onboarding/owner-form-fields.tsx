@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { formatCepDisplay, onlyDigits, UFS } from "@/lib/validation/br.ts";
+import { formatCepDisplay, formatCnpjDisplay, onlyDigits, UFS } from "@/lib/validation/br.ts";
 import type { PlanOption } from "@/lib/actions/onboarding";
 
 type Defaults = Partial<Record<
-  "fullName" | "whatsapp" | "cpf" | "cep" | "logradouro" | "numero" | "complemento" | "bairro" | "cidade" | "uf",
+  "fullName" | "whatsapp" | "cpf" | "cnpj" | "documentType" | "cep" | "logradouro" | "numero" | "complemento" | "bairro" | "cidade" | "uf",
   string
 >>;
 
@@ -31,7 +31,9 @@ const formatCpf = (value: string) => {
 export function OwnerFormFields({ defaults = {} }: { defaults?: Defaults }) {
   const [fullName, setFullName] = useState(defaults.fullName ?? "");
   const [whatsapp, setWhatsapp] = useState(formatWhatsapp(defaults.whatsapp ?? ""));
+  const [documentType, setDocumentType] = useState<"cpf" | "cnpj">(defaults.documentType === "cnpj" ? "cnpj" : "cpf");
   const [cpf, setCpf] = useState(formatCpf(defaults.cpf ?? ""));
+  const [cnpj, setCnpj] = useState(formatCnpjDisplay(defaults.cnpj ?? ""));
   const [cep, setCep] = useState(formatCepDisplay(defaults.cep ?? ""));
   const [logradouro, setLogradouro] = useState(defaults.logradouro ?? "");
   const [numero, setNumero] = useState(defaults.numero ?? "");
@@ -83,10 +85,25 @@ export function OwnerFormFields({ defaults = {} }: { defaults?: Defaults }) {
           <input id="owner-whatsapp" name="whatsapp" type="tel" inputMode="tel" required value={whatsapp}
             onChange={(e) => setWhatsapp(formatWhatsapp(e.target.value))} className="field-input" placeholder="(11) 98765-4321" />
         </div>
-        <div className="w-full sm:w-44">
-          <label className="field-label" htmlFor="owner-cpf">CPF</label>
-          <input id="owner-cpf" name="cpf" type="text" inputMode="numeric" required value={cpf}
-            onChange={(e) => setCpf(formatCpf(e.target.value))} className="field-input" placeholder="000.000.000-00" />
+        <div className="w-full sm:w-64">
+          <span className="field-label">Documento do responsável</span>
+          <div role="radiogroup" aria-label="Tipo de documento" className="mb-2 flex gap-5 text-sm text-ink">
+            <label className="flex items-center gap-2">
+              <input type="radio" name="documentType" value="cpf" checked={documentType === "cpf"}
+                onChange={() => setDocumentType("cpf")} /> CPF
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="radio" name="documentType" value="cnpj" checked={documentType === "cnpj"}
+                onChange={() => setDocumentType("cnpj")} /> CNPJ
+            </label>
+          </div>
+          {documentType === "cpf" ? (
+            <input id="owner-cpf" name="cpf" type="text" inputMode="numeric" required value={cpf}
+              onChange={(e) => setCpf(formatCpf(e.target.value))} className="field-input" placeholder="000.000.000-00" aria-label="CPF" />
+          ) : (
+            <input id="owner-cnpj" name="cnpj" type="text" inputMode="numeric" required value={cnpj}
+              onChange={(e) => setCnpj(formatCnpjDisplay(e.target.value))} className="field-input" placeholder="00.000.000/0000-00" aria-label="CNPJ" />
+          )}
         </div>
       </div>
 

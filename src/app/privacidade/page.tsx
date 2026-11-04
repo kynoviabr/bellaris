@@ -23,7 +23,7 @@ export default function PrivacidadePage() {
         <section>
           <h2 className="text-lg font-semibold">2. Que dados coletamos</h2>
           <ul className="mt-2 list-disc space-y-1 pl-5">
-            <li><strong>Dono do salão (no cadastro):</strong> nome completo, CPF, WhatsApp, endereço completo, dados do plano e da cobrança.</li>
+            <li><strong>Dono do salão (no cadastro):</strong> nome completo, CPF ou CNPJ, WhatsApp, endereço completo, dados do plano e da cobrança.</li>
             <li><strong>Clientes do salão (cadastradas pelo salão):</strong> nome, telefone, e-mail, data de nascimento, endereço, observações e histórico de atendimentos e pagamentos.</li>
             <li><strong>Dados de saúde (anamnese), quando o salão preenche:</strong> informações sobre diabetes, gravidez, hábito de roer unhas e alergias. Esses dados só são coletados com o consentimento da cliente.</li>
             <li><strong>Fotos:</strong> imagens de unhas e mãos, enviadas pelo salão, somente com o consentimento da cliente.</li>

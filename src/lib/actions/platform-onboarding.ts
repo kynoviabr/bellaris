@@ -45,7 +45,7 @@ export async function updateSalonOwner(_prev: unknown, formData: FormData) {
   if (!org) return { error: "Salão não informado." };
 
   const fields: Record<string, string> = {};
-  for (const key of ["fullName", "whatsapp", "cpf", "cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf"]) {
+  for (const key of ["fullName", "whatsapp", "documentType", "cpf", "cnpj", "cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf"]) {
     fields[key] = str(formData, key);
   }
   const parsed = validateOwnerPersonal(fields);
@@ -67,6 +67,8 @@ export async function updateSalonOwner(_prev: unknown, formData: FormData) {
     p_bairro: v.bairro,
     p_cidade: v.cidade,
     p_uf: v.uf,
+    p_document_type: v.documentType,
+    p_cnpj: v.cnpj,
   });
   if (error) return { error: error.message };
   revalidatePath("/plataforma");
