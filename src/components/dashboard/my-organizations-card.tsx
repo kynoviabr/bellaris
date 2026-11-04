@@ -5,11 +5,18 @@ import { listMyOrganizations, switchActiveOrganization, type MyOrganization } fr
 
 // Troca de salão ativo. Só aparece quando o usuário tem mais de um salão.
 // Ao trocar, a página recarrega para não manter dados do salão anterior na tela.
+export const RETURN_TO_SETTINGS_KEY = "bellaris:return-to-settings";
+
 export function MyOrganizationsCard() {
   const [items, setItems] = useState<MyOrganization[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [switchingId, setSwitchingId] = useState<string | null>(null);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    // Consome o marcador de volta para Configurações: a próxima carga abre o Painel normalmente.
+    try { sessionStorage.removeItem(RETURN_TO_SETTINGS_KEY); } catch { /* sem sessionStorage */ }
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -32,9 +39,9 @@ export function MyOrganizationsCard() {
       setSwitchingId(null);
       return;
     }
-    const url = new URL(window.location.href);
-    url.searchParams.set("view", "settings");
-    window.location.assign(url.toString());
+    // Marcador de uso único: a próxima carga abre Configurações e apaga o marcador.
+    try { sessionStorage.setItem(RETURN_TO_SETTINGS_KEY, "1"); } catch { /* navegador sem sessionStorage */ }
+    window.location.reload();
   }
 
   return (
