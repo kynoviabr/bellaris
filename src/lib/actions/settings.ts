@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { getCurrentOrganizationId } from "@/lib/auth/current-organization";
 
 
 function translateError(msg: string) {
@@ -18,10 +19,10 @@ export async function updateOrganization(name: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Não autenticado" };
 
-  const { data: profile } = await supabase.from('profiles').select('organization_id').eq('id', user.id).single();
-  if (!profile?.organization_id) return { error: "Organização não encontrada" };
+  const orgId = await getCurrentOrganizationId(supabase);
+  if (!orgId) return { error: "Organização não encontrada" };
 
-  const { error } = await supabase.from('organizations').update({ name }).eq('id', profile.organization_id);
+  const { error } = await supabase.from('organizations').update({ name }).eq('id', orgId);
   
   if (error) return { error: error.message };
   return { success: true };
@@ -81,9 +82,9 @@ export async function getOrganizationPixKey() {
   if (!supabase) return { error: "Supabase não configurado", pixKey: "", orgName: "" };
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Não autenticado", pixKey: "", orgName: "" };
-  const { data: profile } = await supabase.from("profiles").select("organization_id").eq("id", user.id).single();
-  if (!profile?.organization_id) return { error: "Organização não encontrada", pixKey: "", orgName: "" };
-  const { data, error } = await supabase.from("organizations").select("pix_key, name").eq("id", profile.organization_id).single();
+  const orgId = await getCurrentOrganizationId(supabase);
+  if (!orgId) return { error: "Organização não encontrada", pixKey: "", orgName: "" };
+  const { data, error } = await supabase.from("organizations").select("pix_key, name").eq("id", orgId).single();
   return error ? { error: error.message, pixKey: "", orgName: "" } : { pixKey: data?.pix_key || "", orgName: data?.name || "" };
 }
 
