@@ -20,6 +20,7 @@ import { canOpenView, type PermissionRow, type StudioRole } from "@/lib/authoriz
 import { RolePermissionsManager } from "./dashboard/role-permissions-manager";
 import { TeamUsersManager } from "./dashboard/team-users-manager";
 import { MyOrganizationsCard } from "./dashboard/my-organizations-card";
+import { LinkProfessionalCard } from "./dashboard/link-professional-card";
 import { updateAppointmentRecord, addServiceToAppointment, removeServiceFromAppointment } from "@/lib/actions/appointments";
 
 import { useState, useEffect, useRef } from "react";
@@ -1308,6 +1309,7 @@ function SettingsView({ tenant, updateToast, role }: { tenant: any; updateToast:
     <div className="mx-auto max-w-4xl p-4 sm:p-6 space-y-6">
 
       <MyOrganizationsCard />
+      {(role === "owner" || role === "admin") && <LinkProfessionalCard />}
       {(role === "owner" || role === "admin") && <TeamUsersManager isOwner={role === "owner"} />}
       <RolePermissionsManager />
       <div className="bg-white rounded-lg border shadow-sm p-6 space-y-3">
@@ -1598,7 +1600,7 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
     if (professionalMode && !["dashboard", "agenda", "services", "attendance", "packages", "reports", "automations", "commissions", "professionals", "finance", "inventory", "settings", "online"].includes(view)) return <main className="page-content"><div className="card"><h2 className="text-lg font-semibold">Acesso restrito</h2><p className="mt-2 text-sm text-muted">Este módulo está visível no menu, mas o acesso aos dados e às operações depende das permissões do seu perfil. Nenhum dado de outras profissionais ou salões será exibido.</p></div></main>;
     if (view === "dashboard" && professionalMode) return <ProfessionalDashboard rows={rows} services={serviceRows} commissions={initialCommissions} onOpen={setView} onAgenda={() => setView("agenda")} onAttendances={() => setView("attendance")} />;
     if (view === "dashboard") return <Dashboard stats={initialStats} go={setView} appointments={rows} clients={clientRows} tenant={tenant} onAttendance={(a) => { setActiveAppointment(a); setView("attendance"); }} />;
-    if (view === "settings" && professionalMode) return <main className="page-content"><h2 className="text-xl font-semibold">Configurações</h2><p className="mt-2 text-sm text-muted">Tela administrativa visível para avaliação. Alterações de gestão estão reservadas à proprietária.</p></main>;
+    if (view === "settings" && professionalMode) return <main className="page-content"><h2 className="text-xl font-semibold">Configurações</h2><p className="mt-2 text-sm text-muted">Tela administrativa visível para avaliação. Alterações de gestão estão reservadas à proprietária.</p><div className="mt-4 max-w-4xl"><MyOrganizationsCard /></div></main>;
     if (view === "settings") return <SettingsView tenant={tenant} role={role} updateToast={(t) => { setToast(t); setTimeout(() => setToast(""), 3000); }} />;
     if (view === "agenda") return <Agenda readOnly={professionalMode} rows={rows} onPaymentsUpdated={(fresh) => setRows(fresh)} onNew={(dateStr) => { setBookingDate(dateStr); setBooking(true); }} onAttendance={(a) => { setActiveAppointment(a); setView("attendance"); }} onAction={(mode, index) => openEntity("appointment", mode, index)} onToggleBlockDay={async (dateStr) => {
       const res = await toggleBlockDayRecord(dateStr);
