@@ -253,3 +253,40 @@ export async function setNetworkBillingMode(mode: "per_salon" | "single_invoice"
   }
   return {};
 }
+
+export type SalonBilling = {
+  salonName: string;
+  planName: string | null;
+  monthlyPrice: number | null;
+  discountPercent: number;
+  amount: number;
+  dueDate: string | null;
+  payer: "isento" | "rede" | "salao";
+  networkName: string | null;
+};
+
+// Cobrança do salão ativo, para o dono ou a gestora. Somente leitura.
+export async function getMySalonBilling(): Promise<{ data?: SalonBilling | null; error?: string }> {
+  const supabase = await createClient();
+  if (!supabase) return { error: "Supabase não configurado" };
+  const { data, error } = await supabase.rpc("my_salon_billing");
+  if (error) {
+    if (error.message.includes("Apenas o dono ou a gestora")) return { data: null };
+    if (error.message.includes("Não autenticado")) return { error: "Sua sessão expirou. Entre novamente." };
+    return { error: "Não foi possível carregar a cobrança do salão." };
+  }
+  const row = (data ?? [])[0] as { salon_name: string; plan_name: string | null; monthly_price: string | number | null; discount_percent: string | number; amount: string | number; due_date: string | null; payer: "isento" | "rede" | "salao"; network_name: string | null } | undefined;
+  if (!row) return { data: null };
+  return {
+    data: {
+      salonName: row.salon_name,
+      planName: row.plan_name,
+      monthlyPrice: row.monthly_price === null ? null : Number(row.monthly_price),
+      discountPercent: Number(row.discount_percent),
+      amount: Number(row.amount),
+      dueDate: row.due_date,
+      payer: row.payer,
+      networkName: row.network_name,
+    },
+  };
+}
