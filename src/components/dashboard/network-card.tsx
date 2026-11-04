@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getMyNetwork, createNetwork, createSalonInNetwork, type MyNetwork } from "@/lib/actions/organizations";
+import { NetworkPanelCard } from "./network-panel-card";
 
 // Rede de salões (franqueador). Só dono. Criar rede e criar salão dentro dela.
 // O salão criado aparece em "Seus salões" para o franqueador trocar para ele.
@@ -46,6 +47,7 @@ export function NetworkCard() {
   }
 
   return (
+    <>
     <div className="bg-white rounded-lg border shadow-sm p-6 space-y-4">
       <h3 className="font-semibold text-lg text-ink">{network ? `Rede: ${network.name}` : "Rede de salões"}</h3>
 
@@ -84,5 +86,7 @@ export function NetworkCard() {
       {error && <p className="text-sm text-red-600">{error}</p>}
       {done && <p className="text-sm text-green-700">{done}</p>}
     </div>
+    {network && <NetworkPanelCard />}
+    </>
   );
 }
