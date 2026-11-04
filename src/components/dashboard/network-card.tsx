@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getNetworkBillingPreview, type BillingPreviewRow, getMyNetwork, createNetwork, createSalonInNetwork, listSalonsToLink, linkSalonToNetwork, listNetworkSalons, unlinkSalonFromNetwork, type MyNetwork, type LinkableSalon, type NetworkSalon } from "@/lib/actions/organizations";
+import { getNetworkBillingPreview, setNetworkBillingMode, type BillingPreviewRow, getMyNetwork, createNetwork, createSalonInNetwork, listSalonsToLink, linkSalonToNetwork, listNetworkSalons, unlinkSalonFromNetwork, type MyNetwork, type LinkableSalon, type NetworkSalon } from "@/lib/actions/organizations";
 import { appConfirm } from "@/components/ui/app-dialog";
 import { NetworkPanelCard } from "./network-panel-card";
 
@@ -26,6 +26,7 @@ export function NetworkCard() {
   const [linkId, setLinkId] = useState("");
   const [netSalons, setNetSalons] = useState<NetworkSalon[]>([]);
   const [billing, setBilling] = useState<BillingPreviewRow[]>([]);
+  const [savingMode, setSavingMode] = useState(false);
   const billingMonth = currentMonthSP();
 
   useEffect(() => {
@@ -56,8 +57,18 @@ export function NetworkCard() {
     const res = await createNetwork(netName.trim());
     setSaving(false);
     if (res.error) { setError(res.error); return; }
-    setNetwork({ id: res.networkId as string, name: netName.trim() });
+    setNetwork({ id: res.networkId as string, name: netName.trim(), billingMode: "per_salon" });
     setDone("Rede criada. Este salão agora faz parte dela.");
+  }
+
+  async function handleBillingMode(mode: "per_salon" | "single_invoice") {
+    if (!network || mode === network.billingMode) return;
+    setSavingMode(true); setError(""); setDone("");
+    const res = await setNetworkBillingMode(mode);
+    setSavingMode(false);
+    if (res.error) { setError(res.error); return; }
+    setNetwork({ ...network, billingMode: mode });
+    setDone(mode === "single_invoice" ? "Cobrança definida como fatura única da rede." : "Cobrança definida por salão.");
   }
 
   async function handleLinkSalon() {
@@ -111,6 +122,19 @@ export function NetworkCard() {
             <button className="btn-primary" disabled={saving || !netName.trim()} onClick={handleCreateNetwork}>{saving ? "Criando..." : "Criar rede"}</button>
           </div>
         </>
+      )}
+
+      {network && (
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-ink">Modo de cobrança</p>
+          <div>
+            <label className="field-label" htmlFor="billing-mode">Como a rede paga</label>
+            <select id="billing-mode" className="field-input" value={network.billingMode} disabled={savingMode} onChange={(e) => handleBillingMode(e.target.value as "per_salon" | "single_invoice")}>
+              <option value="per_salon">Por salão (cada salão paga a sua mensalidade)</option>
+              <option value="single_invoice">Fatura única da rede</option>
+            </select>
+          </div>
+        </div>
       )}
 
       {network && billing.length > 0 && (

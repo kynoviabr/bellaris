@@ -64,7 +64,7 @@ export async function linkProfessionalByEmail(email: string, name: string, defau
   return { professionalId: data as string };
 }
 
-export type MyNetwork = { id: string; name: string };
+export type MyNetwork = { id: string; name: string; billingMode: "per_salon" | "single_invoice" };
 
 // Rede da qual o usuário é dono (a política de leitura da rede só deixa o dono ver).
 export async function getMyNetwork(): Promise<{ data?: MyNetwork | null; error?: string }> {
@@ -73,9 +73,9 @@ export async function getMyNetwork(): Promise<{ data?: MyNetwork | null; error?:
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Sua sessão expirou. Entre novamente." };
 
-  const { data, error } = await supabase.from("networks").select("id,name").eq("owner_user_id", user.id).maybeSingle();
+  const { data, error } = await supabase.from("networks").select("id,name,billing_mode").eq("owner_user_id", user.id).maybeSingle();
   if (error) return { error: "Não foi possível carregar a rede." };
-  return { data: data ? { id: data.id, name: data.name } : null };
+  return { data: data ? { id: data.id, name: data.name, billingMode: data.billing_mode as "per_salon" | "single_invoice" } : null };
 }
 
 function translateNetworkError(msg: string) {
@@ -237,4 +237,17 @@ export async function getNetworkBillingPreview(month: string): Promise<{ data?: 
       included: r.included,
     })),
   };
+}
+
+// Modo de cobrança da rede: por salão ou fatura única. Só o dono da rede. Não altera a assinatura dos salões.
+export async function setNetworkBillingMode(mode: "per_salon" | "single_invoice"): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  if (!supabase) return { error: "Supabase não configurado" };
+  const { error } = await supabase.rpc("set_network_billing_mode", { p_mode: mode });
+  if (error) {
+    if (error.message.includes("não é dono de uma rede")) return { error: "Você não é dono de uma rede." };
+    if (error.message.includes("Não autenticado")) return { error: "Sua sessão expirou. Entre novamente." };
+    return { error: "Não foi possível salvar o modo de cobrança." };
+  }
+  return {};
 }
