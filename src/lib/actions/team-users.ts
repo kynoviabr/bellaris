@@ -2,6 +2,7 @@
 import { randomBytes } from "node:crypto";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { getCurrentProfile } from "@/lib/auth/current-organization";
 import { revalidatePath } from "next/cache";
 
 export type TeamRole = "admin" | "staff" | "professional";
@@ -16,9 +17,10 @@ async function getCaller(): Promise<{ caller: Caller; supabase: NonNullable<Awai
   if (!supabase) return { error: "Sessão indisponível." };
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Não autenticado." };
-  const { data: profile } = await supabase.from("profiles").select("role,organization_id").eq("id", user.id).single();
-  if (!profile?.organization_id || !["owner", "admin"].includes(profile.role)) return { error: "Acesso negado." };
-  return { caller: { id: user.id, organizationId: profile.organization_id, role: profile.role }, supabase };
+  const profile = await getCurrentProfile(supabase);
+  if (!profile?.organizationId || !["owner", "admin"].includes(profile.role ?? "")) return { error: "Acesso negado." };
+  // A guarda acima garante que o papel é owner ou admin.
+  return { caller: { id: user.id, organizationId: profile.organizationId, role: profile.role as "owner" | "admin" }, supabase };
 }
 
 export async function listTeamUsers() {

@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentOrganizationId } from "@/lib/auth/current-organization";
+import { getCurrentOrganizationId, getCurrentProfile } from "@/lib/auth/current-organization";
 import { revalidatePath } from "next/cache";
 import type { Appointment, AppointmentStatus } from "@/lib/demo-data"; // We will map DB to this for now to not break the UI
 
@@ -11,7 +11,7 @@ export async function getAppointments(): Promise<Appointment[]> {
   if (!supabase) return [];
 
   // Profissional não recebe telefone do cliente (ocultado no servidor, não só na tela). Observações são visíveis para a atendente.
-  const { data: viewer } = await supabase.from("profiles").select("role").maybeSingle();
+  const viewer = await getCurrentProfile(supabase);
   const hideContact = viewer?.role === "professional";
 
   const { data, error } = await supabase
