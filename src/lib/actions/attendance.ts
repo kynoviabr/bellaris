@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentOrganizationId } from "@/lib/auth/current-organization";
 import { revalidatePath } from "next/cache";
 
 export async function finishAppointment(data: {
@@ -17,13 +18,9 @@ export async function finishAppointment(data: {
     return { success: false, error: "Sessão expirada. Faça login novamente." };
   }
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("organization_id")
-    .eq("id", user.id)
-    .maybeSingle();
+  const orgId = await getCurrentOrganizationId(supabase);
 
-  if (profileError || !profile?.organization_id) {
+  if (!orgId) {
     return { success: false, error: "Perfil ou organização não encontrado." };
   }
 
@@ -43,7 +40,7 @@ export async function finishAppointment(data: {
       )
     `)
     .eq('id', data.appointmentId)
-    .eq('organization_id', profile.organization_id)
+    .eq('organization_id', orgId)
     .single();
 
   if (getErr || !appointment) return { success: false, error: "Agendamento não encontrado" };

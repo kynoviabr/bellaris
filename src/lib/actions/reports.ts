@@ -1,15 +1,15 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentOrganizationId } from "@/lib/auth/current-organization";
 
 export async function getReports() {
   const supabase = await createClient();
   if (!supabase) return { error: "Sem conexão com o banco de dados" };
 
-  const { data: profile } = await supabase.from('profiles').select('organization_id').single();
-  if (!profile?.organization_id) return { error: "Organização não encontrada" };
+  const orgId = await getCurrentOrganizationId(supabase);
+  if (!orgId) return { error: "Organização não encontrada" };
 
-  const orgId = profile.organization_id;
 
   // 1. Top 5 Clients by Visits and Spent
   // We'll fetch all completed appointments to calculate this
