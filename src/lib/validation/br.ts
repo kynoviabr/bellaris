@@ -40,6 +40,12 @@ export function isValidCnpj(value: string): boolean {
   return checkDigit(12) === Number(cnpj[12]) && checkDigit(13) === Number(cnpj[13]);
 }
 
+/** CPF para exibição: 000.000.000-00. */
+export function formatCpfDisplay(value: string): string {
+  const d = onlyDigits(value).slice(0, 11);
+  return d.replace(/^(\d{3})(\d)/, "$1.$2").replace(/^(\d{3})\.(\d{3})(\d)/, "$1.$2.$3").replace(/\.(\d{3})(\d)/, ".$1-$2");
+}
+
 /** CNPJ para exibição: 00.000.000/0000-00. */
 export function formatCnpjDisplay(value: string): string {
   const d = onlyDigits(value).slice(0, 14);
