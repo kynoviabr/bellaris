@@ -32,17 +32,21 @@ DO $t$
 DECLARE
   users uuid[] := array['7e000000-0000-4000-8000-000000000001','7e000000-0000-4000-8000-000000000002','7e000000-0000-4000-8000-000000000003','3ace7ddf-5648-4e46-abee-db943ef0fb0c']::uuid[];
   tables text[] := array['appointment_items','appointments','checkout_corrections','client_anamnesis','client_blacklist','client_consents','client_deposit_whitelist','client_photos','clients','commissions','data_processing_log','expense_templates','expenses','import_batches','message_jobs','message_templates','organization_owner_data','package_service_balances','package_sessions','package_template_items','package_templates','packages','payments','platform_payments','platform_subscriptions','products','professional_availability','professional_services','professionals','profiles','role_permissions','service_consumables','services','specialties','stock_movements'];
-  u uuid; org uuid; other uuid; t text; n bigint; rep text := ''; viol int := 0; checks int := 0; bloq int := 0; outras int := 0; testados int := 0; semlinhas int := 0; ctrl_ok int := 0; ctrl_fail text := '';
+  u uuid; org uuid; other uuid; t text; keep text; n bigint; rep text := ''; viol int := 0; checks int := 0; bloq int := 0; outras int := 0; testados int := 0; semlinhas int := 0; ctrl_ok int := 0; ctrl_fail text := '';
 BEGIN
   FOREACH u IN ARRAY users LOOP
-    select organization_id into org from public.profiles where id = u;
+    -- Salão de referência = salão ATIVO (active_organization_id), que é o que a RLS usa.
+    -- Até a fase D, ativo e de origem coincidiam; depois de trocar de salão, não.
+    select coalesce(active_organization_id, organization_id) into org from public.profiles where id = u;
     other := case when org = '11111111-1111-4111-8111-111111111111' then '21434d75-566e-4d03-9f1f-61b3f7a27ff4'::uuid else '11111111-1111-4111-8111-111111111111'::uuid end;
     FOREACH t IN ARRAY tables LOOP
       perform set_config('request.jwt.claims', json_build_object('sub',u,'role','authenticated')::text, true);
       perform set_config('request.jwt.claim.sub', u::text, true);
+      -- O próprio perfil do usuário é sempre legível, mesmo com organization_id de origem.
+      keep := case when t = 'profiles' then ' and id is distinct from ''' || u::text || '''' else '' end;
 
       set local role authenticated; checks := checks + 1;
-      begin execute format('select count(*) from public.%I where organization_id is distinct from $1', t) using org into n;
+      begin execute format('select count(*) from public.%I where organization_id is distinct from $1', t) || keep using org into n;
       exception when insufficient_privilege then n := -1; end;
       reset role;
       if n > 0 then viol := viol + 1; rep := rep || format(E'VIOLACAO leitura %s por %s: %s linhas\n', t, u, n); end if;
