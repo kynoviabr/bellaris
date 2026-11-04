@@ -202,3 +202,39 @@ export async function unlinkSalonFromNetwork(organizationId: string): Promise<{ 
   }
   return {};
 }
+
+export type BillingPreviewRow = {
+  organizationId: string;
+  salonName: string;
+  planName: string | null;
+  monthlyPrice: number | null;
+  discountPercent: number;
+  amount: number;
+  dueBusinessDay: number | null;
+  included: boolean;
+};
+
+// Prévia da fatura única da rede do usuário para o mês AAAA-MM. Somente leitura.
+export async function getNetworkBillingPreview(month: string): Promise<{ data?: BillingPreviewRow[]; error?: string }> {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return { error: "Mês inválido." };
+  const supabase = await createClient();
+  if (!supabase) return { error: "Supabase não configurado" };
+  const { data, error } = await supabase.rpc("network_billing_preview", { p_month: month });
+  if (error) {
+    if (error.message.includes("não é dono de uma rede")) return { error: "Você não é dono de uma rede." };
+    if (error.message.includes("Não autenticado")) return { error: "Sua sessão expirou. Entre novamente." };
+    return { error: "Não foi possível carregar a prévia da fatura." };
+  }
+  return {
+    data: (data ?? []).map((r: { organization_id: string; salon_name: string; plan_name: string | null; monthly_price: string | number | null; discount_percent: string | number; amount: string | number; due_business_day: number | null; included: boolean }) => ({
+      organizationId: r.organization_id,
+      salonName: r.salon_name,
+      planName: r.plan_name,
+      monthlyPrice: r.monthly_price === null ? null : Number(r.monthly_price),
+      discountPercent: Number(r.discount_percent),
+      amount: Number(r.amount),
+      dueBusinessDay: r.due_business_day,
+      included: r.included,
+    })),
+  };
+}
