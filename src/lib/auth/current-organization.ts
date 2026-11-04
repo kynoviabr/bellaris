@@ -1,10 +1,9 @@
 /**
  * Ponto único de resolução do usuário autenticado e do seu salão.
  *
- * Hoje: o salão vem de profiles.organization_id (um usuário = um salão).
- * Quando a rede de salões for implementada, getCurrentProfile passa a devolver
- * o salão ativo, validado contra os vínculos do usuário. Por isso nenhuma action
- * deve ler profiles para escolher o salão ou o papel.
+ * O salão vem do salão ativo do perfil (profiles.active_organization_id), que o banco
+ * só aceita com vínculo ativo do usuário. Sem salão ativo, usa profiles.organization_id.
+ * Por isso nenhuma action deve ler profiles para escolher o salão ou o papel.
  */
 export type CurrentProfile = {
   organizationId: string | null;
@@ -21,12 +20,14 @@ export async function getCurrentProfile(supabase: any): Promise<CurrentProfile |
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("organization_id,role")
+    .select("organization_id,active_organization_id,role")
     .eq("id", user.id)
     .maybeSingle();
 
   if (profileError || !profile) return null;
-  return { organizationId: profile.organization_id ?? null, role: profile.role ?? null };
+  // Salão ativo (validado por vínculo no banco); cai no salão do perfil se ainda não houver ativo.
+  const organizationId = profile.active_organization_id ?? profile.organization_id ?? null;
+  return { organizationId, role: profile.role ?? null };
 }
 
 /** Salão do usuário autenticado, ou null (ver getCurrentProfile). */
