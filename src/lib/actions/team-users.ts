@@ -77,9 +77,9 @@ export async function createTeamUser(input: { name: string; email: string; phone
     if (msg.includes("already") || msg.includes("registered") || msg.includes("exists")) {
       const existingId = await findUserIdByEmail(admin, email);
       const { data: existing } = existingId
-        ? await admin.from("profiles").select("organization_id").eq("id", existingId).maybeSingle()
+        ? await admin.from("memberships").select("organization_id").eq("user_id", existingId).eq("organization_id", caller.organizationId).eq("active", true).maybeSingle()
         : { data: null };
-      if (existing && existing.organization_id === caller.organizationId) return { success: false, error: "Já existe um usuário com este e-mail neste salão." };
+      if (existing) return { success: false, error: "Já existe um usuário com este e-mail neste salão." };
       return { success: false, error: "Este e-mail já está em uso. Use outro e-mail." };
     }
     return { success: false, error: "Não foi possível criar o usuário." };

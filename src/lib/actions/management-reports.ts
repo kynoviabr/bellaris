@@ -1,5 +1,6 @@
 "use server";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentOrganizationId } from "@/lib/auth/current-organization";
 
 export async function getManagementReports(month: string) {
   if (!/^\d{4}-\d{2}$/.test(month)) return { error: "Mês inválido" };
@@ -7,10 +8,8 @@ export async function getManagementReports(month: string) {
   if (!db) return { error: "Banco indisponível" };
   const { data: { user }, error: authError } = await db.auth.getUser();
   if (authError || !user) return { error: "Sessão expirada. Entre novamente no sistema." };
-  const { data: profile, error: profileError } = await db.from("profiles").select("organization_id").eq("id", user.id).maybeSingle();
-  if (profileError) return { error: "Não foi possível consultar o perfil da sessão." };
-  if (!profile?.organization_id) return { error: "Organização não encontrada" };
-  const org = profile.organization_id;
+  const org = await getCurrentOrganizationId(db);
+  if (!org) return { error: "Organização não encontrada" };
   const [year, m] = month.split("-").map(Number);
   const start = `${month}-01`;
   const end = new Date(Date.UTC(year, m, 1)).toISOString().slice(0,10);
