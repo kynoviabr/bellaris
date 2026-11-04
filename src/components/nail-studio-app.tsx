@@ -21,6 +21,7 @@ import { RolePermissionsManager } from "./dashboard/role-permissions-manager";
 import { TeamUsersManager } from "./dashboard/team-users-manager";
 import { MyOrganizationsCard } from "./dashboard/my-organizations-card";
 import { LinkProfessionalCard } from "./dashboard/link-professional-card";
+import { NetworkCard } from "./dashboard/network-card";
 import { updateAppointmentRecord, addServiceToAppointment, removeServiceFromAppointment } from "@/lib/actions/appointments";
 
 import { useState, useEffect, useRef } from "react";
@@ -1310,6 +1311,7 @@ function SettingsView({ tenant, updateToast, role }: { tenant: any; updateToast:
 
       <MyOrganizationsCard />
       {(role === "owner" || role === "admin") && <LinkProfessionalCard />}
+      {role === "owner" && <NetworkCard />}
       {(role === "owner" || role === "admin") && <TeamUsersManager isOwner={role === "owner"} />}
       <RolePermissionsManager />
       <div className="bg-white rounded-lg border shadow-sm p-6 space-y-3">

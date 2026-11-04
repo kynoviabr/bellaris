@@ -63,3 +63,47 @@ export async function linkProfessionalByEmail(email: string, name: string, defau
   }
   return { professionalId: data as string };
 }
+
+export type MyNetwork = { id: string; name: string };
+
+// Rede da qual o usuário é dono (a política de leitura da rede só deixa o dono ver).
+export async function getMyNetwork(): Promise<{ data?: MyNetwork | null; error?: string }> {
+  const supabase = await createClient();
+  if (!supabase) return { error: "Supabase não configurado" };
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Sua sessão expirou. Entre novamente." };
+
+  const { data, error } = await supabase.from("networks").select("id,name").eq("owner_user_id", user.id).maybeSingle();
+  if (error) return { error: "Não foi possível carregar a rede." };
+  return { data: data ? { id: data.id, name: data.name } : null };
+}
+
+function translateNetworkError(msg: string) {
+  if (msg.includes("Apenas o dono")) return "Apenas o dono do salão pode criar a rede.";
+  if (msg.includes("Você já tem uma rede")) return "Você já tem uma rede.";
+  if (msg.includes("já pertence a uma rede")) return "Este salão já pertence a uma rede.";
+  if (msg.includes("Informe o nome da rede")) return "Informe o nome da rede.";
+  if (msg.includes("não é dono de uma rede")) return "Você não é dono de uma rede.";
+  if (msg.includes("Informe o nome do salão")) return "Informe o nome do salão.";
+  if (msg.includes("slug") && msg.includes("inválido")) return "Endereço inválido: use de 3 a 60 letras minúsculas, números ou hífen.";
+  if (msg.includes("já está em uso")) return "Este endereço já está em uso. Escolha outro.";
+  if (msg.includes("não tem assinatura")) return "O salão de origem não tem assinatura configurada. Fale com a administração.";
+  if (msg.includes("Não autenticado")) return "Sua sessão expirou. Entre novamente.";
+  return "Não foi possível concluir a operação. Tente novamente.";
+}
+
+export async function createNetwork(name: string): Promise<{ error?: string; networkId?: string }> {
+  const supabase = await createClient();
+  if (!supabase) return { error: "Supabase não configurado" };
+  const { data, error } = await supabase.rpc("create_network", { p_name: name });
+  if (error) return { error: translateNetworkError(error.message) };
+  return { networkId: data as string };
+}
+
+export async function createSalonInNetwork(name: string, slug: string): Promise<{ error?: string; organizationId?: string }> {
+  const supabase = await createClient();
+  if (!supabase) return { error: "Supabase não configurado" };
+  const { data, error } = await supabase.rpc("create_salon_in_network", { p_name: name, p_slug: slug });
+  if (error) return { error: translateNetworkError(error.message) };
+  return { organizationId: data as string };
+}
