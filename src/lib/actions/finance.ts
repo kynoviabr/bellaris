@@ -53,12 +53,12 @@ export async function getFinance(period?: string) {
       .eq('organization_id', orgId)
       .gte('paid_at', fromISO).lte('paid_at', toISO)
       .order('paid_at', { ascending: false }),
-    supabase.from('expenses').select('id, amount, description, status, paid_at, due_date, expense_template_id')
+    supabase.from('expenses').select('id, amount, description, status, paid_at, due_date, expense_template_id, category')
       .eq('organization_id', orgId)
       .eq('status', 'paid')
       .gte('paid_at', fromISO).lte('paid_at', toISO)
       .order('paid_at', { ascending: false }),
-    supabase.from('expenses').select('id, amount, description, status, paid_at, due_date, expense_template_id')
+    supabase.from('expenses').select('id, amount, description, status, paid_at, due_date, expense_template_id, category')
       .eq('organization_id', orgId)
       .eq('status', 'pending')
       .gte('due_date', fromDate.toLocaleDateString('en-CA')).lte('due_date', toDate.toLocaleDateString('en-CA'))
@@ -132,7 +132,9 @@ export async function getFinance(period?: string) {
     });
   }
 
-  const expenses = [...(paidExpenses || []), ...(pendingExpenses || [])];
+  // "Pagamento de comissões" (categoria Comissões) só registra a baixa de comissões que já
+  // entram no total de comissões acima. Contá-lo também como despesa duplicaria o custo.
+  const expenses = [...(paidExpenses || []), ...(pendingExpenses || [])].filter((e: any) => e.category !== 'Comissões');
   if (expenses.length) {
     expenses.forEach((e: any) => {
       if (e.status === 'paid') {
