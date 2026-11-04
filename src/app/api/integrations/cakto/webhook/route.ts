@@ -9,7 +9,7 @@ const MAX_BODY_BYTES = 128 * 1024;
 const MAX_SKEW_SECONDS = 300;
 
 function verifySignature(body: string, timestamp: string, provided: string, secret: string): boolean {
-  if (!/^\\d{10}$/.test(timestamp)) return false;
+  if (!/^[0-9]{10}$/.test(timestamp)) return false;
   if (Math.abs(Math.floor(Date.now() / 1000) - Number(timestamp)) > MAX_SKEW_SECONDS) return false;
   const expected = "v1=" + createHmac("sha256", secret).update(timestamp + "." + body).digest("hex");
   const normalized = provided.trim();
@@ -30,12 +30,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Payload too large" }, { status: 413 });
   }
 
-  const timestamp = request.headers.get("x-cakto-timestamp") ?? "";
-  const signature = request.headers.get("x-cakto-signature") ?? "";
-  if (!verifySignature(body, timestamp, signature, secret)) {
-    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-  }
-
   let payload: unknown;
   try {
     payload = JSON.parse(body);
@@ -44,6 +38,17 @@ export async function POST(request: NextRequest) {
   }
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+  }
+  const record = payload as Record<string, unknown>;
+  const bodyCredential = typeof record.secret === "string" ? record.secret : "";
+  const supplied = Buffer.from(bodyCredential, "utf8");
+  const configured = Buffer.from(secret, "utf8");
+  const bodyAuthenticated = supplied.length === configured.length && timingSafeEqual(supplied, configured);
+  const timestamp = request.headers.get("x-cakto-timestamp") ?? "";
+  const signature = request.headers.get("x-cakto-signature") ?? "";
+  const headerAuthenticated = Boolean(timestamp && signature) && verifySignature(body, timestamp, signature, secret);
+  if (!bodyAuthenticated && !headerAuthenticated) {
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
   const data = payload as Record<string, unknown>;
