@@ -107,3 +107,44 @@ export async function createSalonInNetwork(name: string, slug: string): Promise<
   if (error) return { error: translateNetworkError(error.message) };
   return { organizationId: data as string };
 }
+
+export type NetworkSalonSummary = {
+  orgId: string;
+  salonName: string;
+  revenue: number;
+  expensesPaid: number;
+  pendingExpenses: number;
+  commissionsTotal: number;
+  consumptionCost: number;
+  balance: number;
+  concludedAppointments: number;
+};
+
+// Painel da rede: totais por salão, com a mesma regra do Financeiro de cada salão.
+// Só o dono da rede recebe; o banco não devolve linhas de clientes nem de atendimentos.
+export async function getNetworkFinancialSummary(month: string): Promise<{ data?: NetworkSalonSummary[]; error?: string }> {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return { error: "Escolha um mês válido." };
+  const supabase = await createClient();
+  if (!supabase) return { error: "Supabase não configurado" };
+
+  const { data, error } = await supabase.rpc("network_financial_summary", { p_month: month });
+  if (error) {
+    const msg = error.message ?? "";
+    if (msg.includes("não é dono de uma rede")) return { error: "Você não é dono de uma rede." };
+    if (msg.includes("Não autenticado")) return { error: "Sua sessão expirou. Entre novamente." };
+    return { error: "Não foi possível carregar o painel da rede. Tente novamente." };
+  }
+  return {
+    data: (data ?? []).map((r: any) => ({
+      orgId: r.org_id,
+      salonName: r.salon_name,
+      revenue: Number(r.revenue),
+      expensesPaid: Number(r.expenses_paid),
+      pendingExpenses: Number(r.pending_expenses),
+      commissionsTotal: Number(r.commissions_total),
+      consumptionCost: Number(r.consumption_cost),
+      balance: Number(r.balance),
+      concludedAppointments: Number(r.concluded_appointments),
+    })),
+  };
+}
