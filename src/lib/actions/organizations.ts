@@ -211,6 +211,7 @@ export type BillingPreviewRow = {
   discountPercent: number;
   amount: number;
   dueBusinessDay: number | null;
+  dueDate: string | null;
   included: boolean;
 };
 
@@ -226,7 +227,7 @@ export async function getNetworkBillingPreview(month: string): Promise<{ data?: 
     return { error: "Não foi possível carregar a prévia da fatura." };
   }
   return {
-    data: (data ?? []).map((r: { organization_id: string; salon_name: string; plan_name: string | null; monthly_price: string | number | null; discount_percent: string | number; amount: string | number; due_business_day: number | null; included: boolean }) => ({
+    data: (data ?? []).map((r: { organization_id: string; salon_name: string; plan_name: string | null; monthly_price: string | number | null; discount_percent: string | number; amount: string | number; due_business_day: number | null; due_date: string | null; included: boolean }) => ({
       organizationId: r.organization_id,
       salonName: r.salon_name,
       planName: r.plan_name,
@@ -234,6 +235,7 @@ export async function getNetworkBillingPreview(month: string): Promise<{ data?: 
       discountPercent: Number(r.discount_percent),
       amount: Number(r.amount),
       dueBusinessDay: r.due_business_day,
+      dueDate: r.due_date,
       included: r.included,
     })),
   };

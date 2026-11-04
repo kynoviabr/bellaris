@@ -162,7 +162,7 @@ export function NetworkCard() {
                     <td className="py-1 pr-3 text-right">{r.monthlyPrice === null ? "—" : `R$ ${r.monthlyPrice.toFixed(2).replace(".", ",")}`}</td>
                     <td className="py-1 pr-3 text-right">{r.discountPercent}%</td>
                     <td className="py-1 pr-3 text-right">R$ {r.amount.toFixed(2).replace(".", ",")}</td>
-                    <td className="py-1 pr-3">{r.dueBusinessDay === null ? "—" : `dia ${r.dueBusinessDay}`}</td>
+                    <td className="py-1 pr-3">{r.dueDate ? `${r.dueDate.slice(8, 10)}/${r.dueDate.slice(5, 7)}/${r.dueDate.slice(0, 4)}` : "—"}<span className="block text-xs text-muted">{r.dueBusinessDay === 0 ? "último dia útil" : r.dueBusinessDay ? `${r.dueBusinessDay}º dia útil` : ""}</span></td>
                     <td className="py-1">{r.included ? "Sim" : "Não"}</td>
                   </tr>
                 ))}
