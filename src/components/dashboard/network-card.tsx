@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getMyNetwork, createNetwork, createSalonInNetwork, type MyNetwork } from "@/lib/actions/organizations";
+import { getMyNetwork, createNetwork, createSalonInNetwork, listSalonsToLink, linkSalonToNetwork, type MyNetwork, type LinkableSalon } from "@/lib/actions/organizations";
 import { NetworkPanelCard } from "./network-panel-card";
 
 // Rede de salões (franqueador). Só dono. Criar rede e criar salão dentro dela.
@@ -16,13 +16,21 @@ export function NetworkCard() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState("");
+  const [linkable, setLinkable] = useState<LinkableSalon[]>([]);
+  const [linkId, setLinkId] = useState("");
 
   useEffect(() => {
     let active = true;
-    getMyNetwork().then((res) => {
+    getMyNetwork().then(async (res) => {
       if (!active) return;
       if (res.error) setLoadError(res.error);
-      else setNetwork(res.data ?? null);
+      else {
+        setNetwork(res.data ?? null);
+        if (res.data) {
+          const salons = await listSalonsToLink();
+          if (active && salons.data) setLinkable(salons.data);
+        }
+      }
       setLoaded(true);
     });
     return () => { active = false; };
@@ -37,6 +45,17 @@ export function NetworkCard() {
     if (res.error) { setError(res.error); return; }
     setNetwork({ id: res.networkId as string, name: netName.trim() });
     setDone("Rede criada. Este salão agora faz parte dela.");
+  }
+
+  async function handleLinkSalon() {
+    setSaving(true); setError(""); setDone("");
+    const res = await linkSalonToNetwork(linkId);
+    setSaving(false);
+    if (res.error) { setError(res.error); return; }
+    const name = linkable.find((s) => s.organizationId === linkId)?.name ?? "Salão";
+    setLinkable((prev) => prev.filter((s) => s.organizationId !== linkId));
+    setLinkId("");
+    setDone(`${name} agora faz parte da rede.`);
   }
 
   async function handleCreateSalon() {
@@ -66,6 +85,22 @@ export function NetworkCard() {
           </div>
           <div className="flex justify-end">
             <button className="btn-primary" disabled={saving || !netName.trim()} onClick={handleCreateNetwork}>{saving ? "Criando..." : "Criar rede"}</button>
+          </div>
+        </>
+      )}
+
+      {network && linkable.length > 0 && (
+        <>
+          <p className="text-sm text-muted">Vincule um salão que já é seu à rede. Ele passa a aparecer no painel da rede.</p>
+          <div>
+            <label className="field-label" htmlFor="link-salon">Salão</label>
+            <select id="link-salon" className="field-input" value={linkId} onChange={(e) => setLinkId(e.target.value)}>
+              <option value="">Escolha um salão</option>
+              {linkable.map((s) => <option key={s.organizationId} value={s.organizationId}>{s.name}</option>)}
+            </select>
+          </div>
+          <div className="flex justify-end">
+            <button className="btn-primary" disabled={saving || !linkId} onClick={handleLinkSalon}>{saving ? "Vinculando..." : "Vincular à rede"}</button>
           </div>
         </>
       )}

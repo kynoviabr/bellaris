@@ -148,3 +148,31 @@ export async function getNetworkFinancialSummary(month: string): Promise<{ data?
     })),
   };
 }
+
+export type LinkableSalon = { organizationId: string; name: string };
+
+// Salões dos quais o dono da rede é dono e que ainda não pertencem a nenhuma rede.
+export async function listSalonsToLink(): Promise<{ data?: LinkableSalon[]; error?: string }> {
+  const supabase = await createClient();
+  if (!supabase) return { error: "Supabase não configurado" };
+  const { data, error } = await supabase.rpc("my_salons_available_for_network");
+  if (error) return { error: "Não foi possível carregar os salões disponíveis." };
+  return { data: (data ?? []).map((row: { organization_id: string; name: string }) => ({ organizationId: row.organization_id, name: row.name })) };
+}
+
+// Vincula um salão existente à rede. O banco confere dono da rede, dono do salão e rede já existente.
+export async function linkSalonToNetwork(organizationId: string): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  if (!supabase) return { error: "Supabase não configurado" };
+  const { error } = await supabase.rpc("link_salon_to_network", { p_organization_id: organizationId });
+  if (error) {
+    const msg = error.message ?? "";
+    if (msg.includes("não é dono de uma rede")) return { error: "Você não é dono de uma rede." };
+    if (msg.includes("não é dona deste salão")) return { error: "Você não é dona deste salão." };
+    if (msg.includes("já pertence a uma rede")) return { error: "Este salão já pertence a uma rede." };
+    if (msg.includes("não encontrado")) return { error: "Salão não encontrado." };
+    if (msg.includes("Não autenticado")) return { error: "Sua sessão expirou. Entre novamente." };
+    return { error: "Não foi possível vincular o salão. Tente novamente." };
+  }
+  return {};
+}
