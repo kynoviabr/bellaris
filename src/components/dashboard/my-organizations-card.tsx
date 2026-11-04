@@ -32,7 +32,9 @@ export function MyOrganizationsCard() {
       setSwitchingId(null);
       return;
     }
-    window.location.reload();
+    const url = new URL(window.location.href);
+    url.searchParams.set("view", "settings");
+    window.location.assign(url.toString());
   }
 
   return (
