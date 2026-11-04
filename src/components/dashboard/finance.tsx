@@ -5,6 +5,12 @@ import { Badge, SectionTitle, RowActions, Metric } from "../shared";
 import { money } from "@/lib/demo-data";
 import { ExpenseManager } from "./expense-manager";
 
+// Mês anterior (AAAA-MM) no fuso de São Paulo. Enviado ao servidor como mês explícito.
+function previousMonthSP(): string {
+  const [y, m] = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }).slice(0, 7).split("-").map(Number);
+  return new Date(Date.UTC(y, m - 2, 1)).toISOString().slice(0, 7);
+}
+
 export function Finance({ data, stats, onNew, onAction, onReverse }: { data: any[]; stats?: any; onNew: () => void; onAction: (mode: "view" | "edit", index: number) => void; onReverse: (index: number) => void }) { 
   const [period, setPeriod] = useState("month");
   const [movementSearch, setMovementSearch] = useState("");
@@ -26,11 +32,12 @@ export function Finance({ data, stats, onNew, onAction, onReverse }: { data: any
   const loadData = React.useCallback(async () => {
     setLoading(true);
     const { getFinance } = await import("@/lib/actions/finance");
-    const res = await getFinance(period);
+    const resolvedPeriod = period === "last_month" ? `month:${previousMonthSP()}` : period;
+    const res = await getFinance(resolvedPeriod);
     setFinanceData(res.data);
     setFinanceStats(res.stats);
     const { getPayablesAndCategories } = await import("@/lib/actions/finance");
-    const summary = await getPayablesAndCategories(period);
+    const summary = await getPayablesAndCategories(period === "last_month" ? `month:${previousMonthSP()}` : period);
     setPayables(summary.payables || []);
     const categorySummary = await getPayablesAndCategories(`month:${categoryMonth}`);
     setCategories(categorySummary.categories || []);
