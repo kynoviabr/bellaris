@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NailStudioApp } from "@/components/nail-studio-app";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentOrganizationId } from "@/lib/auth/current-organization";
 import { redirect } from "next/navigation";
 import { getClients } from "@/lib/actions/clients";
 import { getProfessionals } from "@/lib/actions/professionals";
@@ -35,11 +36,11 @@ export default async function Page() {
     if (profile?.role === "platform_master") redirect("/plataforma");
     if (!profile || !["owner", "admin", "staff"].includes(profile.role)) redirect("/login");
     viewerRole = profile.role;
-    viewerOrg = profile.organization_id ?? null;
+    viewerOrg = (await getCurrentOrganizationId(supabase)) ?? profile.organization_id ?? null;
     let organization = { name: "Nail Studio" };
     tenantContext.profileName = profile?.full_name || "Usuário";
-    if (profile?.organization_id) {
-      const { data: org } = await supabase.from('organizations').select('name, slug').eq('id', profile.organization_id).single();
+    if (viewerOrg) {
+      const { data: org } = await supabase.from('organizations').select('name, slug').eq('id', viewerOrg).single();
       if (org) {
         tenantContext.orgName = org.name;
         tenantContext.orgSlug = org.slug || "";
