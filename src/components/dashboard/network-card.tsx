@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getMyNetwork, createNetwork, createSalonInNetwork, listSalonsToLink, linkSalonToNetwork, type MyNetwork, type LinkableSalon } from "@/lib/actions/organizations";
+import { getMyNetwork, createNetwork, createSalonInNetwork, listSalonsToLink, linkSalonToNetwork, listNetworkSalons, unlinkSalonFromNetwork, type MyNetwork, type LinkableSalon, type NetworkSalon } from "@/lib/actions/organizations";
+import { appConfirm } from "@/components/ui/app-dialog";
 import { NetworkPanelCard } from "./network-panel-card";
 
 // Rede de salões (franqueador). Só dono. Criar rede e criar salão dentro dela.
@@ -18,6 +19,7 @@ export function NetworkCard() {
   const [done, setDone] = useState("");
   const [linkable, setLinkable] = useState<LinkableSalon[]>([]);
   const [linkId, setLinkId] = useState("");
+  const [netSalons, setNetSalons] = useState<NetworkSalon[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -27,8 +29,10 @@ export function NetworkCard() {
       else {
         setNetwork(res.data ?? null);
         if (res.data) {
-          const salons = await listSalonsToLink();
-          if (active && salons.data) setLinkable(salons.data);
+          const [salons, inNetwork] = await Promise.all([listSalonsToLink(), listNetworkSalons()]);
+          if (!active) return;
+          if (salons.data) setLinkable(salons.data);
+          if (inNetwork.data) setNetSalons(inNetwork.data);
         }
       }
       setLoaded(true);
@@ -56,6 +60,17 @@ export function NetworkCard() {
     setLinkable((prev) => prev.filter((s) => s.organizationId !== linkId));
     setLinkId("");
     setDone(`${name} agora faz parte da rede.`);
+  }
+
+  async function handleUnlinkSalon(s: NetworkSalon) {
+    if (!await appConfirm(`Desvincular "${s.name}" da rede? Ele deixa de aparecer no painel da rede. Os dados do salão não são apagados.`)) return;
+    setSaving(true); setError(""); setDone("");
+    const res = await unlinkSalonFromNetwork(s.organizationId);
+    setSaving(false);
+    if (res.error) { setError(res.error); return; }
+    setNetSalons((prev) => prev.filter((x) => x.organizationId !== s.organizationId));
+    setLinkable((prev) => [...prev, s]);
+    setDone(`${s.name} foi desvinculado da rede.`);
   }
 
   async function handleCreateSalon() {
@@ -87,6 +102,18 @@ export function NetworkCard() {
             <button className="btn-primary" disabled={saving || !netName.trim()} onClick={handleCreateNetwork}>{saving ? "Criando..." : "Criar rede"}</button>
           </div>
         </>
+      )}
+
+      {network && netSalons.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-ink">Salões nesta rede</p>
+          {netSalons.map((s) => (
+            <div key={s.organizationId} className="flex items-center justify-between gap-3 rounded border px-3 py-2">
+              <span className="text-sm text-ink">{s.name}</span>
+              <button className="btn-outline text-sm" disabled={saving} onClick={() => handleUnlinkSalon(s)}>Desvincular</button>
+            </div>
+          ))}
+        </div>
       )}
 
       {network && linkable.length > 0 && (

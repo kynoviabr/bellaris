@@ -176,3 +176,29 @@ export async function linkSalonToNetwork(organizationId: string): Promise<{ erro
   }
   return {};
 }
+
+export type NetworkSalon = { organizationId: string; name: string };
+
+// Salões da rede da qual o usuário é dono.
+export async function listNetworkSalons(): Promise<{ data?: NetworkSalon[]; error?: string }> {
+  const supabase = await createClient();
+  if (!supabase) return { error: "Supabase não configurado" };
+  const { data, error } = await supabase.rpc("my_network_salons");
+  if (error) return { error: "Não foi possível carregar os salões da rede." };
+  return { data: (data ?? []).map((row: { organization_id: string; name: string }) => ({ organizationId: row.organization_id, name: row.name })) };
+}
+
+// Remove um salão da rede. O banco confere que o salão pertence à rede do usuário.
+export async function unlinkSalonFromNetwork(organizationId: string): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  if (!supabase) return { error: "Supabase não configurado" };
+  const { error } = await supabase.rpc("unlink_salon_from_network", { p_organization_id: organizationId });
+  if (error) {
+    const msg = error.message ?? "";
+    if (msg.includes("não é dono de uma rede")) return { error: "Você não é dono de uma rede." };
+    if (msg.includes("não faz parte da sua rede")) return { error: "Este salão não faz parte da sua rede." };
+    if (msg.includes("Não autenticado")) return { error: "Sua sessão expirou. Entre novamente." };
+    return { error: "Não foi possível desvincular o salão. Tente novamente." };
+  }
+  return {};
+}
