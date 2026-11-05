@@ -158,6 +158,7 @@ export async function register(prevState: any, formData: FormData) {
       requested_plan_code: owner.planCode,
     }]).select('id').single();
 
+    if (!org?.id) return { error: "Não foi possível registrar o salão. Contate o suporte." };
     if (org?.id) {
       const { error: ownerError } = await adminClient.from('organization_owner_data').insert([{
         organization_id: org.id,
@@ -185,21 +186,25 @@ export async function register(prevState: any, formData: FormData) {
       
       if (existingProfile) {
         // Update
-        await adminClient.from('profiles').update({
+        const { error: profileUpdateError } = await adminClient.from('profiles').update({
           organization_id: org.id,
           full_name: fullName,
           role: 'owner'
         }).eq('id', user.id);
+        if (profileUpdateError) return { error: "Conta criada, mas não foi possível vincular o proprietário ao salão. Contate o suporte." };
       } else {
         // Insert
-        await adminClient.from('profiles').insert([{
+        const { error: profileInsertError } = await adminClient.from('profiles').insert([{
           id: user.id,
           organization_id: org.id,
           full_name: fullName,
           role: 'owner'
         }]);
+        if (profileInsertError) return { error: "Conta criada, mas não foi possível vincular o proprietário ao salão. Contate o suporte." };
       }
     }
+  } else {
+    return { error: "Serviço indisponível para concluir o cadastro. Contate o suporte." };
   }
 
   // No payment is accepted as proof of activation: the verified webhook is authoritative.
