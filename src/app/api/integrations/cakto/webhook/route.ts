@@ -1,6 +1,8 @@
 import { createHmac, createHash, timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import { activationEnabled } from "@/lib/cakto/webhook-queue";
+import { processPendingCaktoEvents, type Db } from "@/lib/cakto/process-events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -79,6 +81,18 @@ export async function POST(request: NextRequest) {
   if (error && error.code !== "23505") {
     console.error("Cakto webhook storage failed", { code: error.code });
     return NextResponse.json({ error: "Unable to persist event" }, { status: 503 });
+  }
+  // Processa os eventos pendentes só com a ativação ligada. Falha aqui não derruba o recebimento:
+  // o evento continua pendente e é tentado de novo na próxima chamada.
+  if (activationEnabled()) {
+    try {
+      const { data: offerRows } = await db.from("cakto_plan_offers").select("offer_id,plan_code").eq("active", true);
+      const offers: Record<string, string> = {};
+      for (const row of (offerRows ?? []) as { offer_id: string; plan_code: string }[]) offers[row.offer_id] = row.plan_code;
+      await processPendingCaktoEvents(db as unknown as Db, offers);
+    } catch (processError) {
+      console.error("Cakto processing failed", { message: (processError as Error).message });
+    }
   }
   return NextResponse.json({ received: true }, { headers: { "Cache-Control": "no-store" } });
 }
