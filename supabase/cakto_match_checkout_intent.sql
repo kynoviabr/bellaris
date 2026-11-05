@@ -1,0 +1,3 @@
+-- Homologation-only. Never invoke before verified Cakto checkout correlation.
+-- This migration documents the routine installed in homologation.
+-- Promotion requires reviewing its full function definition and privileges.
