@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { listMyOrganizations, switchActiveOrganization, type MyOrganization } from "@/lib/actions/organizations";
+import { listMyOrganizations, setSalonMembershipActive, switchActiveOrganization, type MyOrganization } from "@/lib/actions/organizations";
 
 // Troca de salão ativo. Só aparece quando o usuário tem mais de um salão.
 // Ao trocar, a página recarrega para não manter dados do salão anterior na tela.
@@ -11,6 +11,7 @@ export function MyOrganizationsCard() {
   const [items, setItems] = useState<MyOrganization[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [switchingId, setSwitchingId] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -28,7 +29,8 @@ export function MyOrganizationsCard() {
     return () => { active = false; };
   }, []);
 
-  if (!loaded || items.length <= 1) return null;
+  // Aparece com mais de um vínculo, ou quando algum salão está desativado (para não sumir da tela).
+  if (!loaded || (items.length <= 1 && items.every((org) => org.membershipActive))) return null;
 
   async function handleSwitch(organizationId: string) {
     setSwitchingId(organizationId);
@@ -44,6 +46,18 @@ export function MyOrganizationsCard() {
     window.location.reload();
   }
 
+  async function handleToggle(org: MyOrganization) {
+    setTogglingId(org.organizationId);
+    setError("");
+    const res = await setSalonMembershipActive(org.organizationId, !org.membershipActive);
+    if (res.error) {
+      setError(res.error);
+      setTogglingId(null);
+      return;
+    }
+    window.location.reload();
+  }
+
   return (
     <div className="bg-white rounded-lg border shadow-sm p-6 space-y-3">
       <h3 className="font-semibold text-lg text-ink">Seus salões</h3>
@@ -52,14 +66,22 @@ export function MyOrganizationsCard() {
         {items.map((org) => (
           <li key={org.organizationId} className="flex items-center justify-between gap-3 py-3">
             <div className="min-w-0">
-              <p className="text-sm font-medium text-ink truncate">{org.name}</p>
-              {org.isActive && <p className="text-xs text-muted">Salão atual</p>}
+              <p className={`text-sm font-medium truncate ${org.membershipActive ? "text-ink" : "text-muted"}`}>{org.name}</p>
+              {!org.membershipActive && <p className="text-xs font-semibold text-rose-700">Desativado</p>}
+              {org.membershipActive && org.isActive && <p className="text-xs text-muted">Salão atual</p>}
             </div>
-            {!org.isActive && (
-              <button className="btn-outline" disabled={switchingId !== null} onClick={() => handleSwitch(org.organizationId)}>
-                {switchingId === org.organizationId ? "Trocando..." : "Usar este salão"}
-              </button>
-            )}
+            <div className="flex shrink-0 items-center gap-2">
+              {org.membershipActive && !org.isActive && (
+                <button className="btn-outline" disabled={switchingId !== null || togglingId !== null} onClick={() => handleSwitch(org.organizationId)}>
+                  {switchingId === org.organizationId ? "Trocando..." : "Usar este salão"}
+                </button>
+              )}
+              {org.canManage && (
+                <button className="btn-outline" disabled={switchingId !== null || togglingId !== null} onClick={() => handleToggle(org)}>
+                  {togglingId === org.organizationId ? "Salvando..." : org.membershipActive ? "Desativar acesso" : "Ativar acesso"}
+                </button>
+              )}
+            </div>
           </li>
         ))}
       </ul>
