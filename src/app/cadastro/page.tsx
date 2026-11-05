@@ -16,6 +16,13 @@ export default function RegisterPage() {
     getActivePlans().then(setPlans).catch(() => setPlans([]));
   }, []);
 
+  // Abre o pagamento da Cakto quando o cadastro devolve o endereço do checkout.
+  useEffect(() => {
+    if (state && "checkoutUrl" in state && state.checkoutUrl) {
+      window.location.assign(state.checkoutUrl);
+    }
+  }, [state]);
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg p-4 sm:p-8">
       <div className="w-full max-w-2xl rounded-lg border border-[#DBE3EC] bg-white p-6 shadow-card sm:p-8">
