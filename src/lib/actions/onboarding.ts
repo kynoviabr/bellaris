@@ -1,5 +1,6 @@
 "use server";
 
+import { getCurrentOrganizationId } from "@/lib/auth/current-organization";
 import { revalidatePath } from "next/cache";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { OWNER_FIELD_NAMES, validateOwnerData, type OwnerData } from "@/lib/validation/owner-data.ts";
@@ -51,6 +52,8 @@ export async function submitOwnerOnboarding(_prev: unknown, formData: FormData) 
     p_cidade: v.cidade,
     p_uf: v.uf,
     p_plan_code: v.planCode,
+    p_document_type: v.documentType,
+    p_cnpj: v.cnpj,
   });
 
   if (error) return { error: error.message };
@@ -68,24 +71,25 @@ export async function getOwnerOnboardingState() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, organization_id")
+    .select("role")
     .eq("id", user.id)
     .single();
-  if (!profile?.organization_id) return null;
+  const organizationId = await getCurrentOrganizationId(supabase);
+  if (!profile || !organizationId) return null;
   const isOwner = profile.role === "owner";
 
   const { data: org } = await supabase
     .from("organizations")
     .select("access_status, access_note, requested_plan_code")
-    .eq("id", profile.organization_id)
+    .eq("id", organizationId)
     .single();
 
   // Dados do dono só são lidos pelo próprio dono (RLS).
   const { data: owner } = isOwner
     ? await supabase
         .from("organization_owner_data")
-        .select("full_name, whatsapp, cpf, cep, logradouro, numero, complemento, bairro, cidade, uf")
-        .eq("organization_id", profile.organization_id)
+        .select("full_name, whatsapp, document_type, cpf, cnpj, cep, logradouro, numero, complemento, bairro, cidade, uf")
+        .eq("organization_id", organizationId)
         .maybeSingle()
     : { data: null };
 

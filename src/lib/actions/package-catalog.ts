@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentOrganizationId, getCurrentProfile } from "@/lib/auth/current-organization";
 import { revalidatePath } from "next/cache";
 
 export type PackageTemplateInput = {
@@ -27,11 +28,11 @@ export async function getPackageTemplates() {
   if (!supabase) return [];
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return [];
-  const { data: profile } = await supabase.from("profiles").select("organization_id").eq("id", auth.user.id).single();
-  if (!profile?.organization_id) return [];
+  const orgId = await getCurrentOrganizationId(supabase);
+  if (!orgId) return [];
   const { data, error } = await supabase.from("package_templates")
     .select("id,name,price,validity_days,active,package_template_items(service_id,sessions)")
-    .eq("organization_id", profile.organization_id).order("name");
+    .eq("organization_id", orgId).order("name");
   if (error) {
     console.error("getPackageTemplates", error.code);
     return [];
@@ -44,24 +45,24 @@ export async function createPackageTemplate(input: PackageTemplateInput) {
   if (!supabase) return { success: false, error: "Sem conexão." };
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return { success: false, error: "Sessão expirada." };
-  const { data: profile } = await supabase.from("profiles").select("organization_id,role").eq("id", auth.user.id).single();
-  if (!profile?.organization_id) return { success: false, error: "Organização não encontrada." };
-  if (!["admin", "owner", "manager"].includes(profile.role)) return { success: false, error: "Sem permissão para cadastrar pacotes." };
+  const profile = await getCurrentProfile(supabase);
+  if (!profile?.organizationId) return { success: false, error: "Organização não encontrada." };
+  if (!["admin", "owner", "manager"].includes(profile.role ?? "")) return { success: false, error: "Sem permissão para cadastrar pacotes." };
   const name = input.name?.trim();
   const items = input.items ?? [];
   const validationError = validatePackageInput(name, input, items);
   if (validationError) return { success: false, error: validationError };
   const ids = items.map(i => i.serviceId);
   const { data: services, error: serviceError } = await supabase.from("services")
-    .select("id").eq("organization_id", profile.organization_id).eq("active", true).in("id", ids);
+    .select("id").eq("organization_id", profile.organizationId).eq("active", true).in("id", ids);
   if (serviceError || services?.length !== ids.length) return { success: false, error: "Selecione somente serviços ativos deste salão." };
   const { data: template, error } = await supabase.from("package_templates").insert({
-    organization_id: profile.organization_id, name, price: input.price,
+    organization_id: profile.organizationId, name, price: input.price,
     validity_days: input.validityDays ?? null, active: false
   }).select("id").single();
   if (error || !template) return { success: false, error: "Não foi possível criar o pacote." };
   const { error: itemError } = await supabase.from("package_template_items").insert(items.map(i => ({
-    organization_id: profile.organization_id, template_id: template.id,
+    organization_id: profile.organizationId, template_id: template.id,
     service_id: i.serviceId, sessions: i.sessions
   })));
   if (itemError) {
@@ -69,7 +70,7 @@ export async function createPackageTemplate(input: PackageTemplateInput) {
     return { success: false, error: "Não foi possível associar os serviços. O pacote permaneceu inativo." };
   }
   const { error: activateError } = await supabase.from("package_templates")
-    .update({ active: true }).eq("id", template.id).eq("organization_id", profile.organization_id);
+    .update({ active: true }).eq("id", template.id).eq("organization_id", profile.organizationId);
   if (activateError) return { success: false, error: "Pacote criado, mas ainda não foi ativado." };
   revalidatePath("/");
   return { success: true, id: template.id };
@@ -80,10 +81,10 @@ export async function setPackageTemplateActive(id: string, active: boolean) {
   if (!supabase) return { success: false, error: "Sem conexão." };
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return { success: false, error: "Sessão expirada." };
-  const { data: profile } = await supabase.from("profiles").select("organization_id,role").eq("id", auth.user.id).single();
-  if (!profile?.organization_id || !["admin", "owner", "manager"].includes(profile.role)) return { success: false, error: "Sem permissão." };
+  const profile = await getCurrentProfile(supabase);
+  if (!profile?.organizationId || !["admin", "owner", "manager"].includes(profile.role ?? "")) return { success: false, error: "Sem permissão." };
   const { error } = await supabase.from("package_templates").update({ active })
-    .eq("id", id).eq("organization_id", profile.organization_id);
+    .eq("id", id).eq("organization_id", profile.organizationId);
   if (error) return { success: false, error: "Não foi possível atualizar o pacote." };
   revalidatePath("/");
   return { success: true };
@@ -94,10 +95,10 @@ export async function updatePackageTemplate(id: string, input: PackageTemplateIn
   if (!supabase) return { success: false, error: "Sem conexão." };
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return { success: false, error: "Sessão expirada." };
-  const { data: profile } = await supabase.from("profiles").select("organization_id,role").eq("id", auth.user.id).single();
-  if (!profile?.organization_id) return { success: false, error: "Organização não encontrada." };
-  if (!["admin", "owner", "manager"].includes(profile.role)) return { success: false, error: "Sem permissão para editar pacotes." };
-  const orgId = profile.organization_id;
+  const profile = await getCurrentProfile(supabase);
+  if (!profile?.organizationId) return { success: false, error: "Organização não encontrada." };
+  if (!["admin", "owner", "manager"].includes(profile.role ?? "")) return { success: false, error: "Sem permissão para editar pacotes." };
+  const orgId = profile.organizationId;
   const name = input.name?.trim();
   const items = input.items ?? [];
   const validationError = validatePackageInput(name, input, items);
@@ -159,13 +160,13 @@ export async function checkPackageTemplateDeletable(id: string) {
   if (!supabase) return { success: false as const, error: "Sem conexão." };
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return { success: false as const, error: "Sessão expirada." };
-  const { data: profile } = await supabase.from("profiles").select("organization_id").eq("id", auth.user.id).single();
-  if (!profile?.organization_id) return { success: false as const, error: "Organização não encontrada." };
+  const orgId = await getCurrentOrganizationId(supabase);
+  if (!orgId) return { success: false as const, error: "Organização não encontrada." };
   const { data: template } = await supabase.from("package_templates").select("name")
-    .eq("id", id).eq("organization_id", profile.organization_id).maybeSingle();
+    .eq("id", id).eq("organization_id", orgId).maybeSingle();
   if (!template) return { success: false as const, error: "Pacote não encontrado." };
   const { count, error } = await supabase.from("packages").select("id", { count: "exact", head: true })
-    .eq("organization_id", profile.organization_id).eq("name", template.name);
+    .eq("organization_id", orgId).eq("name", template.name);
   if (error) return { success: false as const, error: "Não foi possível verificar o pacote." };
   return { success: true as const, deletable: (count ?? 0) === 0, name: template.name };
 }

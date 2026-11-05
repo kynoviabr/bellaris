@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/server";
+import { getCurrentOrganizationId } from "@/lib/auth/current-organization";
 import { revalidatePath } from "next/cache";
 
 export interface ServiceItem {
@@ -48,13 +49,13 @@ export async function createServiceRecord(service: Omit<ServiceItem, 'id' | 'act
   const supabase = await createClient();
   if (!supabase) return { success: false, error: "No connection" };
 
-  const { data: profile } = await supabase.from('profiles').select('organization_id').single();
-  if (!profile?.organization_id) return { success: false, error: "Organização não encontrada" };
+  const orgId = await getCurrentOrganizationId(supabase);
+  if (!orgId) return { success: false, error: "Organização não encontrada" };
 
   const { data, error } = await supabase
     .from("services")
     .insert([{
-      organization_id: profile.organization_id,
+      organization_id: orgId,
       name: service.name,
       category: service.category,
       duration_minutes: service.duration,
@@ -78,8 +79,8 @@ export async function updateServiceConsumables(serviceId: string, consumables: {
   const supabase = await createClient();
   if (!supabase) return { success: false, error: "Sem conexão com o banco de dados." };
 
-  const { data: profile } = await supabase.from('profiles').select('organization_id').single();
-  if (!profile?.organization_id) return { success: false, error: "Organização não encontrada." };
+  const orgId = await getCurrentOrganizationId(supabase);
+  if (!orgId) return { success: false, error: "Organização não encontrada." };
 
   const normalized = consumables.map(item => ({
     product_id: item.product_id,
@@ -95,7 +96,7 @@ export async function updateServiceConsumables(serviceId: string, consumables: {
     .from("services")
     .select("id")
     .eq("id", serviceId)
-    .eq("organization_id", profile.organization_id)
+    .eq("organization_id", orgId)
     .maybeSingle();
   if (serviceError || !service) return { success: false, error: "Serviço não encontrado." };
 
@@ -104,7 +105,7 @@ export async function updateServiceConsumables(serviceId: string, consumables: {
     const { data: products, error: productsError } = await supabase
       .from("products")
       .select("id")
-      .eq("organization_id", profile.organization_id)
+      .eq("organization_id", orgId)
       .in("id", productIds);
     if (productsError || products?.length !== productIds.length) {
       return { success: false, error: "Um ou mais produtos não pertencem a este estoque." };
@@ -112,7 +113,7 @@ export async function updateServiceConsumables(serviceId: string, consumables: {
 
     const { error: upsertError } = await supabase.from("service_consumables").upsert(
       normalized.map(item => ({
-        organization_id: profile.organization_id,
+        organization_id: orgId,
         service_id: serviceId,
         product_id: item.product_id,
         estimated_quantity: item.quantity
@@ -126,7 +127,7 @@ export async function updateServiceConsumables(serviceId: string, consumables: {
     .from("service_consumables")
     .delete()
     .eq("service_id", serviceId)
-    .eq("organization_id", profile.organization_id);
+    .eq("organization_id", orgId);
   if (normalized.length > 0) deleteQuery = deleteQuery.not("product_id", "in", `(${normalized.map(item => item.product_id).join(",")})`);
   const { error: deleteError } = await deleteQuery;
   if (deleteError) return { success: false, error: deleteError.message };

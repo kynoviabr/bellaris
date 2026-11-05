@@ -1,28 +1,17 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentOrganizationId, getCurrentProfile } from "@/lib/auth/current-organization";
 import { revalidatePath } from "next/cache";
 import type { Appointment, AppointmentStatus } from "@/lib/demo-data"; // We will map DB to this for now to not break the UI
 
-async function getAuthenticatedOrganizationId(supabase: any) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("organization_id")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  return profile?.organization_id || null;
-}
 
 export async function getAppointments(): Promise<Appointment[]> {
   const supabase = await createClient();
   if (!supabase) return [];
 
   // Profissional não recebe telefone do cliente (ocultado no servidor, não só na tela). Observações são visíveis para a atendente.
-  const { data: viewer } = await supabase.from("profiles").select("role").maybeSingle();
+  const viewer = await getCurrentProfile(supabase);
   const hideContact = viewer?.role === "professional";
 
   const { data, error } = await supabase
@@ -133,7 +122,7 @@ export async function getAppointments(): Promise<Appointment[]> {
   });
 
   // Also query active day blocks from professional_availability for this org
-  const orgId = await getAuthenticatedOrganizationId(supabase);
+  const orgId = await getCurrentOrganizationId(supabase);
 
   let mappedAvailBlocks: Appointment[] = [];
   if (orgId) {
@@ -197,7 +186,7 @@ export async function createAppointmentRecord(data: {
   const supabase = await createClient();
   if (!supabase) return { success: false, error: "No connection" };
 
-  const organizationId = await getAuthenticatedOrganizationId(supabase);
+  const organizationId = await getCurrentOrganizationId(supabase);
   if (!organizationId) return { success: false, error: "Organização não encontrada" };
 
   // Calculate timestamps
@@ -323,7 +312,7 @@ export async function updateAppointmentRecord(appointmentId: string, data: {
   const supabase = await createClient();
   if (!supabase) return { success: false, error: "No connection" };
 
-  const organizationId = await getAuthenticatedOrganizationId(supabase);
+  const organizationId = await getCurrentOrganizationId(supabase);
   if (!organizationId) return { success: false, error: "Organização não encontrada" };
 
   const startsAt = new Date(`${data.dateStr}T${data.timeStr}:00-03:00`).toISOString();
@@ -375,7 +364,7 @@ export async function addServiceToAppointment(appointmentId: string, professiona
   const supabase = await createClient();
   if (!supabase) return { success: false, error: "No connection" };
 
-  const organizationId = await getAuthenticatedOrganizationId(supabase);
+  const organizationId = await getCurrentOrganizationId(supabase);
   if (!organizationId) return { success: false, error: "Organização não encontrada" };
 
   const { data, error } = await supabase.from("appointment_items").insert([{
@@ -407,7 +396,7 @@ export async function toggleBlockDayRecord(dateStr: string) {
   const supabase = await createClient();
   if (!supabase) return { success: false, error: "Sem conexão com o banco" };
 
-  const orgId = await getAuthenticatedOrganizationId(supabase);
+  const orgId = await getCurrentOrganizationId(supabase);
   if (!orgId) return { success: false, error: "Organização não encontrada" };
   const startOfDaySP = `${dateStr}T00:00:00-03:00`;
   const endOfDaySP = `${dateStr}T23:59:59-03:00`;
@@ -504,7 +493,7 @@ export async function toggleBlockDayRecord(dateStr: string) {
 export async function registerAdvancePayment(input: { appointmentId: string; amount: number; method: string }) {
   const supabase = await createClient();
   if (!supabase) return { success: false, error: "Banco indisponível." };
-  const orgId = await getAuthenticatedOrganizationId(supabase);
+  const orgId = await getCurrentOrganizationId(supabase);
   if (!orgId) return { success: false, error: "Sessão ou organização inválida." };
   const amount = Math.round(input.amount * 100) / 100;
   if (!Number.isFinite(amount) || amount <= 0) return { success: false, error: "Informe um valor positivo." };
@@ -548,7 +537,7 @@ async function findAgendaBlockConflicts(supabase: any, orgId: string, startIso: 
 export async function createPartialAgendaBlock(input: { date: string; start: string; end: string; notes?: string }) {
   const supabase = await createClient();
   if (!supabase) return { success: false, error: "Banco indisponível" };
-  const orgId = await getAuthenticatedOrganizationId(supabase);
+  const orgId = await getCurrentOrganizationId(supabase);
   if (!orgId) return { success: false, error: "Organização não encontrada" };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date) || !/^\d{2}:\d{2}$/.test(input.start) || !/^\d{2}:\d{2}$/.test(input.end) || input.start >= input.end)
     return { success: false, error: "Informe uma data e um intervalo válido." };
@@ -577,7 +566,7 @@ export async function createPartialAgendaBlock(input: { date: string; start: str
 export async function removePartialAgendaBlock(input: { date: string; start: string; end: string }) {
   const supabase = await createClient();
   if (!supabase) return { success: false, error: "Banco indisponível" };
-  const orgId = await getAuthenticatedOrganizationId(supabase);
+  const orgId = await getCurrentOrganizationId(supabase);
   if (!orgId) return { success: false, error: "Organização não encontrada" };
   const start = new Date(`${input.date}T${input.start}:00-03:00`);
   const end = new Date(`${input.date}T${input.end}:00-03:00`);

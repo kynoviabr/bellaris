@@ -1,27 +1,15 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentOrganizationId } from "@/lib/auth/current-organization";
 import { revalidatePath } from "next/cache";
 
-async function getAuthenticatedOrganizationId(supabase: any) {
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return null;
-
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("organization_id")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (profileError) return null;
-  return profile?.organization_id || null;
-}
 
 export async function getInventory() {
   const supabase = await createClient();
   if (!supabase) return [];
 
-  const orgId = await getAuthenticatedOrganizationId(supabase);
+  const orgId = await getCurrentOrganizationId(supabase);
   if (!orgId) return [];
 
   const nowISO = new Date().toISOString();
@@ -109,7 +97,7 @@ export async function addStockMovement(productId: string, type: string, quantity
   const supabase = await createClient();
   if (!supabase) return { success: false, error: "No connection" };
 
-  const orgId = await getAuthenticatedOrganizationId(supabase);
+  const orgId = await getCurrentOrganizationId(supabase);
   if (!orgId) return { success: false, error: "Organização não encontrada" };
 
   const { error } = await supabase.from("stock_movements").insert([{
@@ -129,7 +117,7 @@ export async function createProduct(data: { name: string; unit: string; minimum:
   const supabase = await createClient();
   if (!supabase) return { success: false, error: "Sem conexão com o banco de dados." };
 
-  const orgId = await getAuthenticatedOrganizationId(supabase);
+  const orgId = await getCurrentOrganizationId(supabase);
   if (!orgId) return { success: false, error: "Organização não encontrada." };
 
   const name = data.name.trim();
@@ -171,7 +159,7 @@ export async function updateProduct(id: string, data: { name: string; unit: stri
   const supabase = await createClient();
   if (!supabase) return { success: false };
 
-  const orgId = await getAuthenticatedOrganizationId(supabase);
+  const orgId = await getCurrentOrganizationId(supabase);
   if (!orgId) return { success: false, error: "Organização não encontrada" };
 
   const { error } = await supabase.from("products").update({

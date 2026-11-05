@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { getCurrentOrganizationId, getCurrentProfile } from "@/lib/auth/current-organization";
 
 
 function translateError(msg: string) {
@@ -18,10 +19,10 @@ export async function updateOrganization(name: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Não autenticado" };
 
-  const { data: profile } = await supabase.from('profiles').select('organization_id').eq('id', user.id).single();
-  if (!profile?.organization_id) return { error: "Organização não encontrada" };
+  const orgId = await getCurrentOrganizationId(supabase);
+  if (!orgId) return { error: "Organização não encontrada" };
 
-  const { error } = await supabase.from('organizations').update({ name }).eq('id', profile.organization_id);
+  const { error } = await supabase.from('organizations').update({ name }).eq('id', orgId);
   
   if (error) return { error: error.message };
   return { success: true };
@@ -81,9 +82,9 @@ export async function getOrganizationPixKey() {
   if (!supabase) return { error: "Supabase não configurado", pixKey: "", orgName: "" };
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Não autenticado", pixKey: "", orgName: "" };
-  const { data: profile } = await supabase.from("profiles").select("organization_id").eq("id", user.id).single();
-  if (!profile?.organization_id) return { error: "Organização não encontrada", pixKey: "", orgName: "" };
-  const { data, error } = await supabase.from("organizations").select("pix_key, name").eq("id", profile.organization_id).single();
+  const orgId = await getCurrentOrganizationId(supabase);
+  if (!orgId) return { error: "Organização não encontrada", pixKey: "", orgName: "" };
+  const { data, error } = await supabase.from("organizations").select("pix_key, name").eq("id", orgId).single();
   return error ? { error: error.message, pixKey: "", orgName: "" } : { pixKey: data?.pix_key || "", orgName: data?.name || "" };
 }
 
@@ -92,14 +93,14 @@ export async function updateOrganizationPixKey(pixKey: string) {
   if (!supabase) return { error: "Supabase não configurado" };
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Não autenticado" };
-  const { data: profile } = await supabase.from("profiles").select("organization_id,role").eq("id", user.id).single();
-  if (!profile?.organization_id) return { error: "Organização não encontrada" };
+  const profile = await getCurrentProfile(supabase);
+  if (!profile?.organizationId) return { error: "Organização não encontrada" };
   if (profile.role !== "owner") return { error: "Apenas a proprietária pode alterar a chave Pix." };
   const key = pixKey.trim();
   if (key.length > 255) return { error: "Chave Pix muito longa." };
   const admin = await createAdminClient();
   if (!admin) return { error: "Acesso administrativo indisponível no servidor." };
-  const { data, error } = await admin.from("organizations").update({ pix_key: key || null }).eq("id", profile.organization_id).select("pix_key").single();
+  const { data, error } = await admin.from("organizations").update({ pix_key: key || null }).eq("id", profile.organizationId).select("pix_key").single();
   if (error) return { error: error.message };
   if ((data?.pix_key || "") !== key) return { error: "A chave Pix não foi confirmada no banco." };
   return { success: true };

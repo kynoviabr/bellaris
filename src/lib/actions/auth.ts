@@ -71,7 +71,7 @@ export async function register(prevState: any, formData: FormData) {
 
   // Dados do responsável e do plano são obrigatórios e validados antes de criar qualquer conta.
   const ownerInput = Object.fromEntries(
-    ["whatsapp", "cpf", "cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf", "planCode"]
+    ["whatsapp", "documentType", "cpf", "cnpj", "cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf", "planCode"]
       .map((key) => [key, String(formData.get(key) ?? "")])
   ) as Record<string, string>;
   const ownerParsed = validateOwnerData({ ...ownerInput, fullName });
@@ -141,7 +141,9 @@ export async function register(prevState: any, formData: FormData) {
         organization_id: org.id,
         full_name: owner.fullName,
         whatsapp: owner.whatsapp,
+        document_type: owner.documentType,
         cpf: owner.cpf,
+        cnpj: owner.cnpj,
         cep: owner.cep,
         logradouro: owner.logradouro,
         numero: owner.numero,

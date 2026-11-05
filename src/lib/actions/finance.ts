@@ -1,26 +1,14 @@
 "use server";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentOrganizationId } from "@/lib/auth/current-organization";
 import { revalidatePath } from "next/cache";
 
-async function getAuthenticatedOrganizationId(supabase: any) {
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return null;
-
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("organization_id")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (profileError) return null;
-  return profile?.organization_id || null;
-}
 
 export async function getFinance(period?: string) {
   const supabase = await createClient();
   if (!supabase) return { stats: null, data: [] };
 
-  const orgId = await getAuthenticatedOrganizationId(supabase);
+  const orgId = await getCurrentOrganizationId(supabase);
   if (!orgId) return { stats: null, data: [] };
 
   let fromDate = new Date(0);
@@ -220,7 +208,7 @@ export async function getFutureRevenue(period: string = "month"): Promise<{
   const supabase = await createClient();
   if (!supabase) return { total: 0, lastDate: null, count: 0 };
 
-  const orgId = await getAuthenticatedOrganizationId(supabase);
+  const orgId = await getCurrentOrganizationId(supabase);
   if (!orgId) return { total: 0, lastDate: null, count: 0 };
 
   const nowISO = new Date().toISOString();
@@ -279,7 +267,7 @@ export async function getFutureRevenue(period: string = "month"): Promise<{
 export async function reversePayment(paymentId: string) {
   const supabase = await createClient();
   if (!supabase) return { success: false };
-  const orgId = await getAuthenticatedOrganizationId(supabase);
+  const orgId = await getCurrentOrganizationId(supabase);
   if (!orgId) return { success: false, error: "Organização não encontrada" };
   const { error } = await supabase
     .from('payments')
@@ -295,7 +283,7 @@ export async function createExpense(description: string, amount: number) {
   const supabase = await createClient();
   if (!supabase) return { success: false };
 
-  const orgId = await getAuthenticatedOrganizationId(supabase);
+  const orgId = await getCurrentOrganizationId(supabase);
   if (!orgId) return { success: false, error: "Organização não encontrada" };
 
   const { error } = await supabase.from('expenses').insert([{
@@ -317,7 +305,7 @@ export async function createExpense(description: string, amount: number) {
 export async function getExpenseTemplates() {
   const supabase = await createClient();
   if (!supabase) return { data: [], error: "Banco indisponível" };
-  const orgId = await getAuthenticatedOrganizationId(supabase);
+  const orgId = await getCurrentOrganizationId(supabase);
   if (!orgId) return { data: [], error: "Organização não encontrada" };
   const { data, error } = await supabase.from("expense_templates")
     .select("id, name, category, default_amount, active, recurring_monthly, recurring_day")
@@ -328,7 +316,7 @@ export async function getExpenseTemplates() {
 export async function saveExpenseTemplate(input: { id?: string; name: string; category?: string; defaultAmount?: number | null; active?: boolean }) {
   const supabase = await createClient();
   if (!supabase) return { success: false, error: "Banco indisponível" };
-  const orgId = await getAuthenticatedOrganizationId(supabase);
+  const orgId = await getCurrentOrganizationId(supabase);
   if (!orgId) return { success: false, error: "Organização não encontrada" };
   const name = input.name.trim().replace(/\\s+/g, " ");
   if (!name || name.length > 120) return { success: false, error: "Informe uma descrição de até 120 caracteres." };
@@ -346,7 +334,7 @@ export async function saveExpenseTemplate(input: { id?: string; name: string; ca
 export async function createCatalogExpense(input: { templateId: string; amount: number; dueDate: string; paid: boolean }) {
   const supabase = await createClient();
   if (!supabase) return { success: false, error: "Banco indisponível" };
-  const orgId = await getAuthenticatedOrganizationId(supabase);
+  const orgId = await getCurrentOrganizationId(supabase);
   if (!orgId) return { success: false, error: "Organização não encontrada" };
   if (!Number.isFinite(input.amount) || input.amount <= 0 || !/^\d{4}-\d{2}-\d{2}$/.test(input.dueDate)) return { success: false, error: "Valor ou data inválidos" };
   const { data: template, error: templateError } = await supabase.from("expense_templates")
@@ -366,7 +354,7 @@ export async function createCatalogExpense(input: { templateId: string; amount: 
 export async function updateExpenseRecord(input: { id: string; amount: number; dueDate: string; paid: boolean; templateId?: string }) {
   const supabase = await createClient();
   if (!supabase) return { success: false, error: "Banco indisponível" };
-  const orgId = await getAuthenticatedOrganizationId(supabase);
+  const orgId = await getCurrentOrganizationId(supabase);
   if (!orgId) return { success: false, error: "Organização não encontrada" };
   if (!Number.isFinite(input.amount) || input.amount <= 0 || !/^\d{4}-\d{2}-\d{2}$/.test(input.dueDate)) return { success: false, error: "Valor ou data inválidos" };
   const payload: Record<string, unknown> = {
@@ -397,7 +385,7 @@ function isoDate(year: number, month: number, day: number) {
 export async function ensureRecurringExpenses() {
   const supabase = await createClient();
   if (!supabase) return { success: false, error: "Banco indisponível" };
-  const orgId = await getAuthenticatedOrganizationId(supabase);
+  const orgId = await getCurrentOrganizationId(supabase);
   if (!orgId) return { success: false, error: "Organização não encontrada" };
   const { data: templates, error } = await supabase.from("expense_templates")
     .select("id,name,category,default_amount,recurring_day")
@@ -433,7 +421,7 @@ export async function ensureRecurringExpenses() {
 export async function getPayablesAndCategories(period?: string) {
   const supabase = await createClient();
   if (!supabase) return { payables: [], categories: [], error: "Banco indisponível" };
-  const orgId = await getAuthenticatedOrganizationId(supabase);
+  const orgId = await getCurrentOrganizationId(supabase);
   if (!orgId) return { payables: [], categories: [], error: "Organização não encontrada" };
   const { data, error } = await supabase.from("expenses")
     .select("id,description,category,amount,due_date,paid_at,status")
@@ -481,7 +469,7 @@ export async function getPayablesAndCategories(period?: string) {
 export async function markExpensePaid(id: string) {
   const supabase = await createClient();
   if (!supabase) return { success: false, error: "Banco indisponível" };
-  const orgId = await getAuthenticatedOrganizationId(supabase);
+  const orgId = await getCurrentOrganizationId(supabase);
   if (!orgId) return { success: false, error: "Organização não encontrada" };
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
   const { data, error } = await supabase.from("expenses")
@@ -496,7 +484,7 @@ export async function markExpensePaid(id: string) {
 export async function saveRecurringExpense(input: {templateId: string; enabled: boolean; day: number; amount: number}) {
   const supabase = await createClient();
   if (!supabase) return { success: false, error: "Banco indisponível" };
-  const orgId = await getAuthenticatedOrganizationId(supabase);
+  const orgId = await getCurrentOrganizationId(supabase);
   if (!orgId) return { success: false, error: "Organização não encontrada" };
   if (!Number.isInteger(input.day) || input.day < 1 || input.day > 31 ||
     (input.enabled && (!Number.isFinite(input.amount) || input.amount <= 0)))

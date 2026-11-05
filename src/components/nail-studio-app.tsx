@@ -19,6 +19,11 @@ import { Agenda } from "./dashboard/agenda";
 import { canOpenView, type PermissionRow, type StudioRole } from "@/lib/authorization/permissions";
 import { RolePermissionsManager } from "./dashboard/role-permissions-manager";
 import { TeamUsersManager } from "./dashboard/team-users-manager";
+import { MyOrganizationsCard, RETURN_TO_SETTINGS_KEY } from "./dashboard/my-organizations-card";
+import { SalonBillingCard } from "./dashboard/salon-billing-card";
+import { OwnerDocumentCard } from "./dashboard/owner-document-card";
+import { LinkProfessionalCard } from "./dashboard/link-professional-card";
+import { NetworkCard } from "./dashboard/network-card";
 import { updateAppointmentRecord, addServiceToAppointment, removeServiceFromAppointment } from "@/lib/actions/appointments";
 
 import { useState, useEffect, useRef } from "react";
@@ -1306,6 +1311,11 @@ function SettingsView({ tenant, updateToast, role }: { tenant: any; updateToast:
   return (
     <div className="mx-auto max-w-4xl p-4 sm:p-6 space-y-6">
 
+      <MyOrganizationsCard />
+      {(role === "owner" || role === "admin") && <SalonBillingCard />}
+      {role === "owner" && <OwnerDocumentCard />}
+      {(role === "owner" || role === "admin") && <LinkProfessionalCard />}
+      {role === "owner" && <NetworkCard />}
       {(role === "owner" || role === "admin") && <TeamUsersManager isOwner={role === "owner"} />}
       <RolePermissionsManager />
       <div className="bg-white rounded-lg border shadow-sm p-6 space-y-3">
@@ -1383,11 +1393,39 @@ function SettingsView({ tenant, updateToast, role }: { tenant: any; updateToast:
   );
 }
 
+// Componentes de apresentação ficam fora do componente principal: definidos dentro dele,
+// eram recriados a cada renderização e desmontavam o conteúdo filho.
+function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return <div className={`rounded-xl border border-[#E8D9C7] bg-white p-5 ${className}`}>{children}</div>;
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-[#E8D9C7] bg-white p-4">
+      <p className="text-xs text-muted">{label}</p>
+      <p className="mt-1 text-2xl font-bold text-ink">{value}</p>
+    </div>
+  );
+}
+
+function ReportStat({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div className="rounded-xl border border-[#E8D9C7] bg-white p-4">
+      <p className="text-xs text-muted">{label}</p>
+      <p className="mt-1 text-2xl font-bold text-ink">{value}</p>
+      {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
+    </div>
+  );
+}
+
 function NailStudioAppInner({ tenant = { profileName: "Usuária", orgName: "Salão" }, initialClients = demoClients, initialProfessionals = demoProfessionals, initialSpecialties = [], initialAppointments = [], initialInventory = [], initialServices = demoServices as any[], initialFinancials = [], initialStats = { revenue: 0, expenses: 0, commissions: 0, balance: 0 }, initialReports = {}, initialCommissions = [], professionalMode = false, role = professionalMode ? "professional" : "owner", permissionRows }: { initialCommissions?: {id:string;amount:number;status:string;date:string;service:string}[]; professionalMode?: boolean; role?: StudioRole; permissionRows?: PermissionRow[]; tenant?: { profileName: string; orgName: string; email?: string; orgSlug?: string; }; initialClients?: ClientItem[]; initialProfessionals?: ProfessionalItem[]; initialSpecialties?: {id: string, name: string}[]; initialAppointments?: Appointment[]; initialServices?: any[]; initialInventory?: any[]; initialFinancials?: any[]; initialStats?: any; initialReports?: any }) {
-  const [view, setView] = useState<View>(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("view") === "packages" ? "packages" : canOpenView(role, "dashboard", permissionRows) ? "dashboard" : "agenda"); const [menu, setMenu] = useState(false); const [booking, setBooking] = useState(false); const [bookingDate, setBookingDate] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" })); const [finish, setFinish] = useState(false); const [activeAppointment, setActiveAppointment] = useState<Appointment | null>(null); const [toast, setToast] = useState(""); const [rows, setRows] = useState(initialAppointments);
+  const [view, setView] = useState<View>(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("view") === "packages" ? "packages" : typeof window !== "undefined" && (() => { try { return sessionStorage.getItem(RETURN_TO_SETTINGS_KEY) === "1"; } catch { return false; } })() ? "settings" : canOpenView(role, "dashboard", permissionRows) ? "dashboard" : "agenda"); const [menu, setMenu] = useState(false); const [booking, setBooking] = useState(false); const [bookingDate, setBookingDate] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" })); const [finish, setFinish] = useState(false); const [activeAppointment, setActiveAppointment] = useState<Appointment | null>(null); const [toast, setToast] = useState(""); const [rows, setRows] = useState(initialAppointments);
   const [cancelPending, setCancelPending] = useState<{ id: string; client: string; date: string; time: string } | null>(null);
   const [cancelBusy, setCancelBusy] = useState(false);
   const [systemAlertMessage, setSystemAlertMessage] = useState<string | null>(null);
+
+  const [clientRows, setClientRows] = useState(() => [...initialClients]); const [serviceRows, setServiceRows] = useState(() => [...initialServices]);
+  const [professionalRows, setProfessionalRows] = useState(() => [...initialProfessionals]); const [productRows, setProductRows] = useState<any[]>(initialInventory);
 
   // Catch native alert calls and display styled SystemAlertModal instead
   useEffect(() => {
@@ -1408,7 +1446,7 @@ function NailStudioAppInner({ tenant = { profileName: "Usuária", orgName: "Sal�
       }, 5000);
       return () => clearInterval(interval);
     }
-  }, [view]);
+  }, [view, professionalMode]);
 
   // Auto-promoção: ao abrir a tela de clientes, promove automaticamente
   // quem tem >= 3 visitas e ainda não está na whitelist
@@ -1421,9 +1459,8 @@ function NailStudioAppInner({ tenant = { profileName: "Usuária", orgName: "Sal�
         }
       });
     }
-  }, [view]);
+  }, [view, professionalMode]);
 
-  const [clientRows, setClientRows] = useState(() => [...initialClients]); const [serviceRows, setServiceRows] = useState(() => [...initialServices]);
   // Recarrega serviços, profissionais e clientes ao abrir essas telas, para refletir cargas feitas em Configurações
   useEffect(() => {
     if (view === "services" && !professionalMode) getServices().then(fresh => setServiceRows(fresh));
@@ -1431,7 +1468,6 @@ function NailStudioAppInner({ tenant = { profileName: "Usuária", orgName: "Sal�
     if (view === "clients" && !professionalMode) getClients().then(fresh => setClientRows(fresh));
     if (view === "inventory" && !professionalMode) import("@/lib/actions/inventory").then(({ getInventory }) => getInventory()).then(fresh => setProductRows(fresh));
   }, [view, professionalMode]);
-  const [professionalRows, setProfessionalRows] = useState(() => [...initialProfessionals]); const [productRows, setProductRows] = useState<any[]>(initialInventory);
   const initialTemplates = [{ name: "Lembrete 24h", count: "18 agendadas", tone: "success" }, { name: "Sinal pendente", count: "3 aguardando", tone: "warning" }, { name: "Manutenção vencida", count: "7 oportunidades", tone: "danger" }, { name: "Aniversário", count: "2 nesta semana", tone: "primary" }];
 const [automationRows, setAutomationRows] = useState(() => [...initialTemplates]); const [specialtyList, setSpecialtyList] = useState(() => [...initialSpecialties]); const [financialRows, setFinancialRows] = useState(() => [...initialFinancials]);
 const [reportsData] = useState(() => initialReports); const [entityModal, setEntityModal] = useState<EntityModalState | null>(null);
@@ -1592,11 +1628,12 @@ const [reportsData] = useState(() => initialReports); const [entityModal, setEnt
     } finally { setCancelBusy(false); }
   };
   const content = (() => {
+    // Configurações da profissional: o cartão de salões é da própria conta, então não depende de permissão de módulo.
+    if (view === "settings" && professionalMode) return <main className="page-content"><h2 className="text-xl font-semibold">Configurações</h2><p className="mt-2 text-sm text-muted">Tela administrativa visível para avaliação. Alterações de gestão estão reservadas à proprietária.</p><div className="mt-4 max-w-4xl"><MyOrganizationsCard /></div></main>;
     if (!canOpenView(role, view, permissionRows)) return <main className="page-content"><div className="card"><h2 className="text-lg font-semibold">Acesso restrito</h2><p className="mt-2 text-sm text-muted">Este módulo não está liberado para o seu perfil. Fale com a gestora do salão.</p></div></main>;
     if (professionalMode && !["dashboard", "agenda", "services", "attendance", "packages", "reports", "automations", "commissions", "professionals", "finance", "inventory", "settings", "online"].includes(view)) return <main className="page-content"><div className="card"><h2 className="text-lg font-semibold">Acesso restrito</h2><p className="mt-2 text-sm text-muted">Este módulo está visível no menu, mas o acesso aos dados e às operações depende das permissões do seu perfil. Nenhum dado de outras profissionais ou salões será exibido.</p></div></main>;
     if (view === "dashboard" && professionalMode) return <ProfessionalDashboard rows={rows} services={serviceRows} commissions={initialCommissions} onOpen={setView} onAgenda={() => setView("agenda")} onAttendances={() => setView("attendance")} />;
     if (view === "dashboard") return <Dashboard stats={initialStats} go={setView} appointments={rows} clients={clientRows} tenant={tenant} onAttendance={(a) => { setActiveAppointment(a); setView("attendance"); }} />;
-    if (view === "settings" && professionalMode) return <main className="page-content"><h2 className="text-xl font-semibold">Configurações</h2><p className="mt-2 text-sm text-muted">Tela administrativa visível para avaliação. Alterações de gestão estão reservadas à proprietária.</p></main>;
     if (view === "settings") return <SettingsView tenant={tenant} role={role} updateToast={(t) => { setToast(t); setTimeout(() => setToast(""), 3000); }} />;
     if (view === "agenda") return <Agenda readOnly={professionalMode} rows={rows} onPaymentsUpdated={(fresh) => setRows(fresh)} onNew={(dateStr) => { setBookingDate(dateStr); setBooking(true); }} onAttendance={(a) => { setActiveAppointment(a); setView("attendance"); }} onAction={(mode, index) => openEntity("appointment", mode, index)} onToggleBlockDay={async (dateStr) => {
       const res = await toggleBlockDayRecord(dateStr);
@@ -1956,10 +1993,6 @@ function ProfessionalDashboard({ rows, services, commissions, onOpen, onAgenda, 
     .sort((a, b) => a.due.localeCompare(b.due));
 
 
-  const Card = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-    <div className={`rounded-xl border border-[#E8D9C7] bg-white p-5 ${className}`}>{children}</div>
-  );
-
   return (
     <main className="page-content">
       <div className="mb-5 flex flex-wrap gap-3">
@@ -2080,13 +2113,6 @@ function ProfessionalAttendances({ rows, onCompleted }: { rows: Appointment[]; o
   const pill = (status: string) => status === "Concluído"
     ? "bg-green-50 text-green-800 border-green-200"
     : status === "Cliente chegou" ? "bg-amber-50 text-amber-800 border-amber-200" : "bg-primary/10 text-primary border-primary/20";
-
-  const Stat = ({ label, value }: { label: string; value: string }) => (
-    <div className="rounded-xl border border-[#E8D9C7] bg-white p-4">
-      <p className="text-xs text-muted">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-ink">{value}</p>
-    </div>
-  );
 
   return (
     <main className="page-content">
@@ -2212,14 +2238,6 @@ function ProfessionalReport({ rows, commissions }: { rows: Appointment[]; commis
   });
   const toReceive = commissionsInPeriod.filter(c => c.status === "generated").reduce((sum, c) => sum + Number(c.amount || 0), 0);
   const received = commissionsInPeriod.filter(c => c.status === "paid").reduce((sum, c) => sum + Number(c.amount || 0), 0);
-
-  const ReportStat = ({ label, value, hint }: { label: string; value: string; hint?: string }) => (
-    <div className="rounded-xl border border-[#E8D9C7] bg-white p-4">
-      <p className="text-xs text-muted">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-ink">{value}</p>
-      {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
-    </div>
-  );
 
   return (
     <main className="page-content">

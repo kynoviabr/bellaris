@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentOrganizationId, getCurrentProfile } from "@/lib/auth/current-organization";
 import { revalidatePath } from "next/cache";
 
 export async function finishAppointment(data: {
@@ -17,13 +18,9 @@ export async function finishAppointment(data: {
     return { success: false, error: "Sessão expirada. Faça login novamente." };
   }
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("organization_id")
-    .eq("id", user.id)
-    .maybeSingle();
+  const orgId = await getCurrentOrganizationId(supabase);
 
-  if (profileError || !profile?.organization_id) {
+  if (!orgId) {
     return { success: false, error: "Perfil ou organização não encontrado." };
   }
 
@@ -43,7 +40,7 @@ export async function finishAppointment(data: {
       )
     `)
     .eq('id', data.appointmentId)
-    .eq('organization_id', profile.organization_id)
+    .eq('organization_id', orgId)
     .single();
 
   if (getErr || !appointment) return { success: false, error: "Agendamento não encontrado" };
@@ -119,13 +116,13 @@ export async function getCheckoutCorrectionPackages(appointmentId: string) {
   if (!supabase) return { success: false, error: "Sem conexão", packages: [] as { id: string; name: string; remaining_sessions: number; linked: boolean }[] };
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, error: "Sessão expirada", packages: [] as { id: string; name: string; remaining_sessions: number; linked: boolean }[] };
-  const { data: profile } = await supabase.from("profiles").select("organization_id,role").eq("id",user.id).maybeSingle();
-  if (!profile || !["admin","owner","manager"].includes(profile.role)) return { success: false, error: "Acesso administrativo necessário", packages: [] as { id: string; name: string; remaining_sessions: number; linked: boolean }[] };
-  const { data: appointment } = await supabase.from("appointments").select("client_id,status").eq("id",appointmentId).eq("organization_id",profile.organization_id).maybeSingle();
+  const profile = await getCurrentProfile(supabase);
+  if (!profile || !["admin","owner","manager"].includes(profile.role ?? "")) return { success: false, error: "Acesso administrativo necessário", packages: [] as { id: string; name: string; remaining_sessions: number; linked: boolean }[] };
+  const { data: appointment } = await supabase.from("appointments").select("client_id,status").eq("id",appointmentId).eq("organization_id",profile.organizationId).maybeSingle();
   if (!appointment || appointment.status !== "completed") return { success: false, error: "Atendimento não concluído", packages: [] as { id: string; name: string; remaining_sessions: number; linked: boolean }[] };
-  const { data: packages, error } = await supabase.from("packages").select("id,name,remaining_sessions").eq("organization_id",profile.organization_id).eq("client_id",appointment.client_id).order("created_at",{ascending:false});
+  const { data: packages, error } = await supabase.from("packages").select("id,name,remaining_sessions").eq("organization_id",profile.organizationId).eq("client_id",appointment.client_id).order("created_at",{ascending:false});
   if (error) return { success:false,error:error.message,packages:[] as { id:string;name:string;remaining_sessions:number;linked:boolean }[] };
-  const { data: sessions } = await supabase.from("package_sessions").select("package_id").eq("appointment_id",appointmentId).eq("organization_id",profile.organization_id).eq("status","used");
+  const { data: sessions } = await supabase.from("package_sessions").select("package_id").eq("appointment_id",appointmentId).eq("organization_id",profile.organizationId).eq("status","used");
   return { success:true, packages:(packages || []).map(p=>({...p,linked:!!sessions?.some(s=>s.package_id===p.id)})) };
 }
 

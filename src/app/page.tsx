@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NailStudioApp } from "@/components/nail-studio-app";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentOrganizationId } from "@/lib/auth/current-organization";
 import { redirect } from "next/navigation";
 import { getClients } from "@/lib/actions/clients";
 import { getProfessionals } from "@/lib/actions/professionals";
@@ -14,6 +15,8 @@ import type { PermissionRow, StudioRole } from "@/lib/authorization/permissions"
 import { getActivePlans, getOwnerOnboardingState } from "@/lib/actions/onboarding";
 import { OwnerOnboardingScreen } from "@/components/onboarding/owner-onboarding-screen";
 import { AccessSuspendedScreen } from "@/components/onboarding/access-suspended-screen";
+import { AccessDeactivatedScreen } from "@/components/onboarding/access-deactivated-screen";
+import { NetworkBlockedScreen } from "@/components/onboarding/network-blocked-screen";
 
 export default async function Page() {
   const supabase = await createClient();
@@ -35,11 +38,35 @@ export default async function Page() {
     if (profile?.role === "platform_master") redirect("/plataforma");
     if (!profile || !["owner", "admin", "staff"].includes(profile.role)) redirect("/login");
     viewerRole = profile.role;
-    viewerOrg = profile.organization_id ?? null;
+    viewerOrg = await getCurrentOrganizationId(supabase);
+    // Perfil com salão mas sem salão ativo: vínculo desativado. Não carrega nenhum dado do salão.
+    if (!viewerOrg && profile.organization_id) {
+      const logoutAction = async () => { "use server"; const { logout } = await import("@/lib/actions/auth"); await logout(); };
+      const { data: orgs } = await supabase.rpc("my_organizations");
+      const rows = (orgs ?? []) as { organization_id: string; accessible: boolean; can_manage: boolean; network_platform_blocked: boolean }[];
+      // Dono da rede: troca para um salão liberado e abre o sistema normal. Só mostra o bloqueio
+      // se não houver nenhum salão liberado (rede bloqueada pela Bellaris, ou todos os salões bloqueados).
+      if (rows.some((r) => r.can_manage)) {
+        const target = rows.find((r) => r.accessible);
+        if (target) {
+          const { error: switchError } = await supabase.rpc("switch_active_organization", { p_organization_id: target.organization_id });
+          // Se a troca falhar, não redireciona: evita laço entre as duas páginas.
+          if (!switchError) redirect("/");
+        }
+        return (
+          <NetworkBlockedScreen
+            email={user.email ?? ""}
+            platformBlocked={rows.some((r) => r.network_platform_blocked)}
+            logout={logoutAction}
+          />
+        );
+      }
+      return <AccessDeactivatedScreen email={user.email ?? ""} logout={logoutAction} />;
+    }
     let organization = { name: "Nail Studio" };
     tenantContext.profileName = profile?.full_name || "Usuário";
-    if (profile?.organization_id) {
-      const { data: org } = await supabase.from('organizations').select('name, slug').eq('id', profile.organization_id).single();
+    if (viewerOrg) {
+      const { data: org } = await supabase.from('organizations').select('name, slug').eq('id', viewerOrg).single();
       if (org) {
         tenantContext.orgName = org.name;
         tenantContext.orgSlug = org.slug || "";

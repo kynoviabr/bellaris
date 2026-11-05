@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { approveSalon, rejectSalon, updateSalonName, updateSalonOwner } from "@/lib/actions/platform-onboarding";
 import { OwnerFormFields } from "@/components/onboarding/owner-form-fields";
+import { formatCnpjDisplay } from "@/lib/validation/br.ts";
 
 export type SalonAdminRow = {
   organization_id: string;
@@ -14,7 +15,9 @@ export type SalonAdminRow = {
   created_at: string;
   owner_full_name: string | null;
   owner_whatsapp: string | null;
+  owner_document_type: string | null;
   owner_cpf: string | null;
+  owner_cnpj: string | null;
   owner_cep: string | null;
   owner_logradouro: string | null;
   owner_numero: string | null;
@@ -72,7 +75,9 @@ export function ownerDefaults(row: SalonAdminRow) {
   return {
     fullName: row.owner_full_name ?? "",
     whatsapp: row.owner_whatsapp ?? "",
+    documentType: row.owner_document_type ?? "cpf",
     cpf: row.owner_cpf ?? "",
+    cnpj: row.owner_cnpj ?? "",
     cep: row.owner_cep ?? "",
     logradouro: row.owner_logradouro ?? "",
     numero: row.owner_numero ?? "",
@@ -140,8 +145,8 @@ export function ApprovalCard({ row, plans }: { row: SalonAdminRow; plans: PlanCh
             <dd className="mt-1 text-ink">{formatWhatsappDisplay(row.owner_whatsapp)}</dd>
           </div>
           <div>
-            <dt className="text-xs font-semibold uppercase tracking-wide text-primary">CPF</dt>
-            <dd className="mt-1 text-ink">{formatCpfDisplay(row.owner_cpf)}</dd>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-primary">{row.owner_document_type === "cnpj" ? "CNPJ" : "CPF"}</dt>
+            <dd className="mt-1 text-ink">{row.owner_document_type === "cnpj" ? formatCnpjDisplay(row.owner_cnpj ?? "") : formatCpfDisplay(row.owner_cpf)}</dd>
           </div>
           <div className="sm:col-span-2 lg:col-span-3">
             <dt className="text-xs font-semibold uppercase tracking-wide text-primary">Endereço</dt>

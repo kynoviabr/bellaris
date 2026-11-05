@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/server";
+import { getCurrentOrganizationId } from "@/lib/auth/current-organization";
 
 const SALON_TZ = "America/Sao_Paulo";
 const OCCUPATION_BASE_MINUTES = 480; // jornada padrão de 8h, até existir jornada cadastrada
@@ -117,13 +118,13 @@ export async function createProfessionalRecord(data: { name: string; email?: str
   const supabase = await createClient();
   if (!supabase) return { success: false, error: "Supabase não conectado" };
 
-  const { data: profile } = await supabase.from('profiles').select('organization_id').single();
-  if (!profile?.organization_id) return { success: false, error: "Organização não encontrada" };
+  const orgId = await getCurrentOrganizationId(supabase);
+  if (!orgId) return { success: false, error: "Organização não encontrada" };
 
   const { data: newProf, error } = await supabase
     .from("professionals")
     .insert({
-      organization_id: profile.organization_id,
+      organization_id: orgId,
       name: data.name,
       email: data.email || null,
       phone: data.phone || null,
