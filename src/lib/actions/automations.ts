@@ -145,7 +145,6 @@ export async function getOverdueMaintenances(orgName: string = "Studio") {
 }
 
 export async function markMessageSent(clientId: string, list: string, appointmentId?: string) {
-  if (true /* branch homolog: registro de envio bloqueado */) return { success: false, error: "Envio bloqueado na homologação." };
   const supabase = await createClient();
   return markMessageSentService(supabase, clientId, list, appointmentId);
 }
