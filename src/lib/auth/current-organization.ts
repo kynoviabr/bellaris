@@ -1,9 +1,8 @@
 /**
  * Ponto único de resolução do usuário autenticado e do seu salão.
  *
- * O salão vem do salão ativo do perfil (profiles.active_organization_id), que o banco
- * só aceita com vínculo ativo do usuário. Sem salão ativo (sem vínculo ou vínculo desativado),
- * retorna null: não há fallback para profiles.organization_id.
+ * O salão vem de my_current_organization(), a mesma regra que o banco usa nas políticas de acesso.
+ * Sem salão liberado (sem vínculo ativo, vínculo desativado ou salão/rede bloqueados), retorna null.
  * Por isso nenhuma action deve ler profiles para escolher o salão ou o papel.
  */
 export type CurrentProfile = {
@@ -26,9 +25,11 @@ export async function getCurrentProfile(supabase: any): Promise<CurrentProfile |
     .maybeSingle();
 
   if (profileError || !profile) return null;
-  // Salão ativo, validado por vínculo ativo no banco. Vínculo desativado deixa o salão ativo nulo.
-  const organizationId = profile.active_organization_id ?? null;
-  return { organizationId, role: profile.role ?? null };
+  // Salão que o banco libera agora: exige vínculo ativo e salão e rede sem bloqueio.
+  // Salão bloqueado ou vínculo desativado devolve null, e as telas tratam esse caso.
+  const { data: accessibleOrg, error: accessError } = await supabase.rpc("my_current_organization");
+  if (accessError) return null;
+  return { organizationId: (accessibleOrg as string | null) ?? null, role: profile.role ?? null };
 }
 
 /** Salão do usuário autenticado, ou null (ver getCurrentProfile). */
