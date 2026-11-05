@@ -132,6 +132,11 @@ export async function register(prevState: any, formData: FormData) {
   if (!user) {
     return { error: "Não foi possível criar o usuário." };
   }
+  // Supabase can return an obfuscated user with no identities for an already registered email.
+  // Never create an orphan salon for that response.
+  if (!user.identities?.length) {
+    return { error: "Este e-mail já está cadastrado. Entre com sua conta ou procure o suporte para concluir o pagamento." };
+  }
 
   // 2. We use admin client to set up Org and Profile bypassing RLS, and confirm user email
   const adminClient = await createAdminClient();
