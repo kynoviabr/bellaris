@@ -8,6 +8,7 @@ import type { PermissionRow } from "@/lib/authorization/permissions";
 import { getOwnerOnboardingState } from "@/lib/actions/onboarding";
 import { OwnerOnboardingScreen } from "@/components/onboarding/owner-onboarding-screen";
 import { AccessSuspendedScreen } from "@/components/onboarding/access-suspended-screen";
+import { AccessDeactivatedScreen } from "@/components/onboarding/access-deactivated-screen";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,15 @@ export default async function ProfessionalHome() {
   if (!user) redirect("/login");
   const { data: profile } = await supabase.from("profiles").select("role,full_name,organization_id").eq("id", user.id).single();
   if (profile?.role !== "professional" || !profile.organization_id) redirect("/");
-  const orgId = (await getCurrentOrganizationId(supabase)) ?? profile.organization_id;
+  const orgId = await getCurrentOrganizationId(supabase);
+  if (!orgId) {
+    return (
+      <AccessDeactivatedScreen
+        email={user.email ?? ""}
+        logout={async () => { "use server"; const { logout } = await import("@/lib/actions/auth"); await logout(); }}
+      />
+    );
+  }
 
   // Salão ainda não liberado: a profissional vê só a espera. Nenhum dado do salão é carregado.
   const onboarding = await getOwnerOnboardingState();
