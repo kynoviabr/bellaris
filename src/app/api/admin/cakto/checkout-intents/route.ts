@@ -52,30 +52,29 @@ export async function POST(request: NextRequest) {
   } else if (pending) {
     return NextResponse.json({ error: "Checkout already pending", expires_at: pending.expires_at }, { status: 409 });
   }
-  const { data: intent, error: insertError } = await db.from("cakto_checkout_intents")
-    .insert({ organization_id: organizationId, plan_code: planCode, offer_id: offer[0].offer_id })
-    .select("id,offer_id,plan_code,expires_at").single();
-  if (insertError) return NextResponse.json({ error: insertError.code === "23505" ? "Checkout already pending" : "Unable to create checkout intent" }, { status: insertError.code === "23505" ? 409 : 503 });
-  const tracking = { utm_source: "klycx", utm_medium: "saas_checkout", utm_content: intent.id };
-  // Links must be copied from Cakto's offer-specific checkout Links screen.
   const checkoutLinks: Record<string, string | undefined> = {
     essencial: process.env.CAKTO_CHECKOUT_ESSENCIAL_URL,
     profissional: process.env.CAKTO_CHECKOUT_PROFISSIONAL_URL,
     completo: process.env.CAKTO_CHECKOUT_COMPLETO_URL
   };
   const configuredLink = checkoutLinks[planCode];
-  let checkoutUrl: string | null = null;
-  if (configuredLink) {
-    try {
-      const parsed = new URL(configuredLink);
-      if (parsed.protocol === "https:" && parsed.hostname === "pay.cakto.com.br") {
-        Object.entries(tracking).forEach(([name, value]) => parsed.searchParams.set(name, value));
-        checkoutUrl = parsed.toString();
-      }
-    } catch {
-      console.error("Invalid configured Cakto checkout URL for plan", planCode);
+  if (!configuredLink) return NextResponse.json({ error: "Checkout URL not configured for plan" }, { status: 503 });
+  let checkoutBase: URL;
+  try {
+    checkoutBase = new URL(configuredLink);
+    if (checkoutBase.protocol !== "https:" || checkoutBase.hostname !== "pay.cakto.com.br" || checkoutBase.username || checkoutBase.password) {
+      return NextResponse.json({ error: "Invalid checkout URL configuration" }, { status: 503 });
     }
+  } catch {
+    return NextResponse.json({ error: "Invalid checkout URL configuration" }, { status: 503 });
   }
+  const { data: intent, error: insertError } = await db.from("cakto_checkout_intents")
+    .insert({ organization_id: organizationId, plan_code: planCode, offer_id: offer[0].offer_id })
+    .select("id,offer_id,plan_code,expires_at").single();
+  if (insertError) return NextResponse.json({ error: insertError.code === "23505" ? "Checkout already pending" : "Unable to create checkout intent" }, { status: insertError.code === "23505" ? 409 : 503 });
+  const tracking = { utm_source: "klycx", utm_medium: "saas_checkout", utm_content: intent.id };
+  Object.entries(tracking).forEach(([name, value]) => checkoutBase.searchParams.set(name, value));
+  const checkoutUrl = checkoutBase.toString();
   return NextResponse.json({ intent, checkout_tracking: tracking, checkout_url: checkoutUrl },
     { status: 201, headers: { "Cache-Control": "no-store" } });
 }
