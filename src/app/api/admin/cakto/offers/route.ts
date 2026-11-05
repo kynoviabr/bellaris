@@ -5,7 +5,7 @@ import { listCaktoSubscriptionOffers } from "@/lib/cakto/api";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Read-only diagnostic; restricted to authenticated platform master users. */
+/** Read-only diagnostic; restricted to authenticated platform master or designated homologation admin. */
 export async function GET(request: NextRequest) {
   const authorization = request.headers.get("authorization") ?? "";
   const token = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
@@ -28,7 +28,9 @@ export async function GET(request: NextRequest) {
   if (!profile) {
     return NextResponse.json({ error: "Forbidden", diagnostic: "profile_not_found" }, { status: 403 });
   }
-  if (String(profile.role).trim().toLowerCase() !== "master") {
+  const role = String(profile.role).trim().toLowerCase();
+  const designatedHomologAdmin = role === "admin" && auth.user.email?.trim().toLowerCase() === "admin.gabi@example.com";
+  if (role !== "master" && !designatedHomologAdmin) {
     return NextResponse.json({ error: "Forbidden", diagnostic: "role_not_master", currentRole: profile.role }, { status: 403 });
   }
 
