@@ -21,7 +21,7 @@ export default function CaktoOffersAdminPage() {
         cache: "no-store"
       });
       if (!response.ok) {
-        if (response.status === 403) throw new Error("Acesso permitido somente ao perfil Master.");
+        if (response.status === 403) { const details = await response.json().catch(() => ({})); throw new Error(details.diagnostic === "profile_not_found" ? "Perfil não encontrado para este usuário (diagnóstico: profile_not_found)." : details.diagnostic === "role_not_master" ? "Seu perfil registrado é: " + String(details.currentRole ?? "desconhecido") + ". Acesso exige Master." : "Acesso permitido somente ao perfil Master."); }
         if (response.status === 401) throw new Error("Sessão expirada. Faça login novamente.");
         throw new Error("Consulta falhou (HTTP " + response.status + "). Verifique os logs do servidor.");
       }
