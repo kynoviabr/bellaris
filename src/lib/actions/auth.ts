@@ -91,6 +91,28 @@ export async function register(prevState: any, formData: FormData) {
     .maybeSingle();
   if (!plan) return { error: "Escolha um plano válido." };
 
+  // Validate the payment destination before creating an account.
+  const checkoutLinks: Record<string, string | undefined> = {
+    essencial: process.env.CAKTO_CHECKOUT_ESSENCIAL_URL,
+    profissional: process.env.CAKTO_CHECKOUT_PROFISSIONAL_URL,
+    completo: process.env.CAKTO_CHECKOUT_COMPLETO_URL,
+  };
+  const configuredCheckout = checkoutLinks[owner.planCode];
+  if (!configuredCheckout) return { error: "Checkout indisponível para este plano. Tente novamente mais tarde." };
+  let checkoutBase: URL;
+  try {
+    checkoutBase = new URL(configuredCheckout);
+    if (checkoutBase.protocol !== "https:" || checkoutBase.hostname !== "pay.cakto.com.br"
+      || checkoutBase.username || checkoutBase.password) throw new Error("Invalid checkout");
+  } catch {
+    return { error: "Checkout não configurado corretamente. Contate o suporte." };
+  }
+  const { data: mappedOffers, error: mappedOfferError } = await planAdmin.from("cakto_plan_offers")
+    .select("offer_id").eq("plan_code", owner.planCode).eq("active", true).limit(2);
+  if (mappedOfferError || !mappedOffers || mappedOffers.length !== 1) {
+    return { error: "Oferta de pagamento indisponível para o plano escolhido." };
+  }
+
   // 1. Create the user using standard client
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
@@ -180,5 +202,21 @@ export async function register(prevState: any, formData: FormData) {
     }
   }
 
-  redirect("/");
+  // No payment is accepted as proof of activation: the verified webhook is authoritative.
+  // Create the correlation intent only after the salon and owner profile exist.
+  const { data: registeredOrg, error: registeredOrgError } = await planAdmin.from("profiles")
+    .select("organization_id").eq("id", user.id).maybeSingle();
+  if (registeredOrgError || !registeredOrg?.organization_id) {
+    return { error: "Conta criada, mas não foi possível preparar o pagamento. Entre em contato com o suporte antes de tentar novo cadastro." };
+  }
+  const { data: checkoutIntent, error: checkoutError } = await planAdmin.from("cakto_checkout_intents")
+    .insert({ organization_id: registeredOrg.organization_id, plan_code: owner.planCode, offer_id: mappedOffers[0].offer_id })
+    .select("id").single();
+  if (checkoutError || !checkoutIntent) {
+    return { error: "Conta criada, mas o checkout não pôde ser iniciado. Entre em contato com o suporte antes de tentar novo cadastro." };
+  }
+  checkoutBase.searchParams.set("utm_source", "klycx");
+  checkoutBase.searchParams.set("utm_medium", "saas_checkout");
+  checkoutBase.searchParams.set("utm_content", checkoutIntent.id);
+  redirect(checkoutBase.toString());
 }
