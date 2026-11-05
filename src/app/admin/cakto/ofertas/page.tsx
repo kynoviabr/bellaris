@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-type Offer = { id: string; name: string; price: number; product: string; status: string; type: string };
+type Reconciliation = { event_id: string; event_type: string; received_at: string; offer_id: string | null; cakto_subscription_id: string | null; plan_code: string | null; organization_id: string | null; reconciliation_status: string };\ntype Offer = { id: string; name: string; price: number; product: string; status: string; type: string };
 export default function CaktoOffersAdminPage() {
-  const [offers, setOffers] = useState<Offer[]>([]);
+  const [offers, setOffers] = useState<Offer[]>([]);\n  const [events, setEvents] = useState<Reconciliation[]>([]);\n  const [reconciliationMessage, setReconciliationMessage] = useState("");
   const [message, setMessage] = useState("Verificando sua sessão...");
   const [loading, setLoading] = useState(false);
   async function loadOffers() {
@@ -28,7 +28,7 @@ export default function CaktoOffersAdminPage() {
       const result = await response.json();
       if (!Array.isArray(result.offers)) throw new Error("Resposta inesperada da API");
       setOffers(result.offers);
-      setMessage(result.offers.length ? "Ofertas retornadas pela Cakto" : "Nenhuma oferta retornada pela API");
+      setMessage(result.offers.length ? "Ofertas retornadas pela Cakto" : "Nenhuma oferta retornada pela API");\n      const reconciliationResponse = await fetch("/api/admin/cakto/reconciliation", { headers: { Authorization: "Bearer " + data.session.access_token }, cache: "no-store" });\n      if (reconciliationResponse.ok) {\n        const reconciliation = await reconciliationResponse.json();\n        setEvents(Array.isArray(reconciliation.events) ? reconciliation.events : []);\n        setReconciliationMessage("Eventos de webhook (somente leitura)");\n      } else {\n        setEvents([]);\n        setReconciliationMessage("Não foi possível consultar a conciliação (HTTP " + reconciliationResponse.status + ").");\n      }
     } catch (error) {
       setOffers([]);
       setMessage(error instanceof Error ? error.message : "Erro desconhecido");
