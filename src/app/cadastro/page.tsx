@@ -23,7 +23,7 @@ export default function RegisterPage() {
           <BellarisMark size={56} />
           <h1 className="mt-5 text-xl font-bold text-ink">Crie sua conta</h1>
           <p className="mt-1 text-sm text-muted">
-            Preencha os dados do salão e do responsável. O acesso é liberado após a análise.
+            Preencha os dados do salão e do responsável. Após cadastrar o salão, você será direcionado ao pagamento seguro da Cakto. O acesso depende da confirmação do pagamento e da aprovação do cadastro.
           </p>
         </div>
 
@@ -68,7 +68,7 @@ export default function RegisterPage() {
             disabled={pending}
             className="btn-primary mt-6 w-full justify-center border-emerald-600 bg-emerald-600 hover:bg-emerald-700"
           >
-            {pending ? "Enviando cadastro..." : "Enviar cadastro"} <ArrowRight size={16} />
+            {pending ? "Preparando checkout..." : "Cadastrar e ir para pagamento"} <ArrowRight size={16} />
           </button>
         </form>
 
