@@ -35,7 +35,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const offers = await listCaktoSubscriptionOffers();
+    const offers = (await listCaktoSubscriptionOffers()).filter(offer =>
+      offer.product === "b0489bfc-7184-4df8-bc9f-a4714bf95c45"
+    );
     return NextResponse.json({ offers }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("Cakto offer diagnostic failed", error instanceof Error ? error.message : "Unknown error");
