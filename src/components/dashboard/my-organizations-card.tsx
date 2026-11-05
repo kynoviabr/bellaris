@@ -1,17 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { listMyOrganizations, setSalonMembershipActive, switchActiveOrganization, type MyOrganization } from "@/lib/actions/organizations";
+import { listMyOrganizations, setSalonNetworkBlocked, switchActiveOrganization, type MyOrganization } from "@/lib/actions/organizations";
 
-// Troca de salão ativo. Só aparece quando o usuário tem mais de um salão.
-// Ao trocar, a página recarrega para não manter dados do salão anterior na tela.
+// Troca de salão ativo e bloqueio de salão pelo dono da rede.
+// Aparece com mais de um vínculo, ou quando algum salão está sem acesso, para o salão não sumir da tela.
 export const RETURN_TO_SETTINGS_KEY = "bellaris:return-to-settings";
 
 export function MyOrganizationsCard() {
   const [items, setItems] = useState<MyOrganization[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [switchingId, setSwitchingId] = useState<string | null>(null);
-  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -29,16 +28,15 @@ export function MyOrganizationsCard() {
     return () => { active = false; };
   }, []);
 
-  // Aparece com mais de um vínculo, ou quando algum salão está desativado (para não sumir da tela).
-  if (!loaded || (items.length <= 1 && items.every((org) => org.membershipActive))) return null;
+  if (!loaded || (items.length <= 1 && items.every((org) => org.accessible))) return null;
 
   async function handleSwitch(organizationId: string) {
-    setSwitchingId(organizationId);
+    setBusyId(organizationId);
     setError("");
     const res = await switchActiveOrganization(organizationId);
     if (res.error) {
       setError(res.error);
-      setSwitchingId(null);
+      setBusyId(null);
       return;
     }
     // Marcador de uso único: a próxima carga abre Configurações e apaga o marcador.
@@ -46,13 +44,13 @@ export function MyOrganizationsCard() {
     window.location.reload();
   }
 
-  async function handleToggle(org: MyOrganization) {
-    setTogglingId(org.organizationId);
+  async function handleBlock(org: MyOrganization) {
+    setBusyId(org.organizationId);
     setError("");
-    const res = await setSalonMembershipActive(org.organizationId, !org.membershipActive);
+    const res = await setSalonNetworkBlocked(org.organizationId, !org.salonBlocked);
     if (res.error) {
       setError(res.error);
-      setTogglingId(null);
+      setBusyId(null);
       return;
     }
     window.location.reload();
@@ -63,27 +61,31 @@ export function MyOrganizationsCard() {
       <h3 className="font-semibold text-lg text-ink">Seus salões</h3>
       <p className="text-sm text-muted">Você tem acesso a mais de um salão. O salão marcado é o que aparece no sistema.</p>
       <ul className="divide-y divide-[#DBE3EC]">
-        {items.map((org) => (
-          <li key={org.organizationId} className="flex items-center justify-between gap-3 py-3">
-            <div className="min-w-0">
-              <p className={`text-sm font-medium truncate ${org.membershipActive ? "text-ink" : "text-muted"}`}>{org.name}</p>
-              {!org.membershipActive && <p className="text-xs font-semibold text-rose-700">Desativado</p>}
-              {org.membershipActive && org.isActive && <p className="text-xs text-muted">Salão atual</p>}
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              {org.membershipActive && !org.isActive && (
-                <button className="btn-outline" disabled={switchingId !== null || togglingId !== null} onClick={() => handleSwitch(org.organizationId)}>
-                  {switchingId === org.organizationId ? "Trocando..." : "Usar este salão"}
-                </button>
-              )}
-              {org.canManage && (
-                <button className="btn-outline" disabled={switchingId !== null || togglingId !== null} onClick={() => handleToggle(org)}>
-                  {togglingId === org.organizationId ? "Salvando..." : org.membershipActive ? "Desativar acesso" : "Ativar acesso"}
-                </button>
-              )}
-            </div>
-          </li>
-        ))}
+        {items.map((org) => {
+          const disabled = busyId !== null;
+          return (
+            <li key={org.organizationId} className="flex items-center justify-between gap-3 py-3">
+              <div className="min-w-0">
+                <p className={`text-sm font-medium truncate ${org.accessible ? "text-ink" : "text-muted"}`}>{org.name}</p>
+                {org.networkPlatformBlocked && <p className="text-xs font-semibold text-rose-700">Rede bloqueada pela Bellaris</p>}
+                {!org.networkPlatformBlocked && org.salonBlocked && <p className="text-xs font-semibold text-rose-700">Bloqueado pela rede</p>}
+                {org.accessible && org.isActive && <p className="text-xs text-muted">Salão atual</p>}
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                {org.accessible && !org.isActive && (
+                  <button className="btn-outline" disabled={disabled} onClick={() => handleSwitch(org.organizationId)}>
+                    {busyId === org.organizationId ? "Trocando..." : "Usar este salão"}
+                  </button>
+                )}
+                {org.canManage && !org.networkPlatformBlocked && (
+                  <button className="btn-outline" disabled={disabled} onClick={() => handleBlock(org)}>
+                    {busyId === org.organizationId ? "Salvando..." : org.salonBlocked ? "Liberar salão" : "Bloquear salão"}
+                  </button>
+                )}
+              </div>
+            </li>
+          );
+        })}
       </ul>
       {error && <p className="text-sm text-red-600">{error}</p>}
     </div>

@@ -16,6 +16,7 @@ import { getActivePlans, getOwnerOnboardingState } from "@/lib/actions/onboardin
 import { OwnerOnboardingScreen } from "@/components/onboarding/owner-onboarding-screen";
 import { AccessSuspendedScreen } from "@/components/onboarding/access-suspended-screen";
 import { AccessDeactivatedScreen } from "@/components/onboarding/access-deactivated-screen";
+import { NetworkBlockedScreen } from "@/components/onboarding/network-blocked-screen";
 
 export default async function Page() {
   const supabase = await createClient();
@@ -40,12 +41,20 @@ export default async function Page() {
     viewerOrg = await getCurrentOrganizationId(supabase);
     // Perfil com salão mas sem salão ativo: vínculo desativado. Não carrega nenhum dado do salão.
     if (!viewerOrg && profile.organization_id) {
-      return (
-        <AccessDeactivatedScreen
-          email={user.email ?? ""}
-          logout={async () => { "use server"; const { logout } = await import("@/lib/actions/auth"); await logout(); }}
-        />
-      );
+      const logoutAction = async () => { "use server"; const { logout } = await import("@/lib/actions/auth"); await logout(); };
+      const { data: orgs } = await supabase.rpc("my_organizations");
+      const rows = (orgs ?? []) as { can_manage: boolean; network_platform_blocked: boolean }[];
+      // Dono da rede: vê o motivo, a fatura e a lista de salões. Os demais usuários veem só o aviso.
+      if (rows.some((r) => r.can_manage)) {
+        return (
+          <NetworkBlockedScreen
+            email={user.email ?? ""}
+            platformBlocked={rows.some((r) => r.network_platform_blocked)}
+            logout={logoutAction}
+          />
+        );
+      }
+      return <AccessDeactivatedScreen email={user.email ?? ""} logout={logoutAction} />;
     }
     let organization = { name: "Nail Studio" };
     tenantContext.profileName = profile?.full_name || "Usuário";
