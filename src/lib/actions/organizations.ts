@@ -14,11 +14,13 @@ export type MyOrganization = {
   name: string;
   slug: string;
   isActive: boolean;
-  membershipActive: boolean;
+  accessible: boolean;
   canManage: boolean;
+  salonBlocked: boolean;
+  networkPlatformBlocked: boolean;
 };
 
-// Lista os salões em que o usuário tem vínculo, ativo ou desativado, para a tela mostrar os dois.
+// Lista os salões em que o usuário tem vínculo, com o estado de acesso de cada um.
 export async function listMyOrganizations(): Promise<{ data?: MyOrganization[]; error?: string }> {
   const supabase = await createClient();
   if (!supabase) return { error: "Supabase não configurado" };
@@ -27,29 +29,30 @@ export async function listMyOrganizations(): Promise<{ data?: MyOrganization[]; 
   if (error) return { error: translateError(error.message) };
 
   return {
-    data: (data ?? []).map((row: { organization_id: string; name: string; slug: string; is_active: boolean; membership_active: boolean; can_manage: boolean }) => ({
+    data: (data ?? []).map((row: { organization_id: string; name: string; slug: string; is_active: boolean; accessible: boolean; can_manage: boolean; salon_blocked: boolean; network_platform_blocked: boolean }) => ({
       organizationId: row.organization_id,
       name: row.name,
       slug: row.slug,
       isActive: row.is_active,
-      membershipActive: row.membership_active,
+      accessible: row.accessible,
       canManage: row.can_manage,
+      salonBlocked: row.salon_blocked,
+      networkPlatformBlocked: row.network_platform_blocked,
     })),
   };
 }
 
-// Dono da rede ativa ou desativa o próprio acesso a um salão da rede. O banco confere a rede e o último salão ativo.
-export async function setSalonMembershipActive(organizationId: string, active: boolean): Promise<{ error?: string }> {
+// Dono da rede bloqueia ou libera um salão da própria rede. Os usuários do salão perdem o acesso a ele.
+export async function setSalonNetworkBlocked(organizationId: string, blocked: boolean): Promise<{ error?: string }> {
   const supabase = await createClient();
   if (!supabase) return { error: "Supabase não configurado" };
 
-  const { error } = await supabase.rpc("set_salon_membership_active", { p_organization_id: organizationId, p_active: active });
+  const { error } = await supabase.rpc("set_salon_network_blocked", { p_organization_id: organizationId, p_blocked: blocked });
   if (error) {
     const msg = error.message ?? "";
-    if (msg.includes("Só o dono da rede")) return { error: "Só o dono da rede pode alterar o acesso a este salão." };
-    if (msg.includes("único salão ativo")) return { error: "Não é possível desativar o único salão ativo. Ative outro salão antes." };
+    if (msg.includes("Só o dono da rede")) return { error: "Só o dono da rede pode bloquear este salão." };
     if (msg.includes("Não autenticado")) return { error: "Sua sessão expirou. Entre novamente." };
-    return { error: "Não foi possível alterar o acesso ao salão. Tente novamente." };
+    return { error: "Não foi possível alterar o bloqueio do salão. Tente novamente." };
   }
   return {};
 }
