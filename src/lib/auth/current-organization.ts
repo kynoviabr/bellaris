@@ -2,7 +2,8 @@
  * Ponto único de resolução do usuário autenticado e do seu salão.
  *
  * O salão vem do salão ativo do perfil (profiles.active_organization_id), que o banco
- * só aceita com vínculo ativo do usuário. Sem salão ativo, usa profiles.organization_id.
+ * só aceita com vínculo ativo do usuário. Sem salão ativo (sem vínculo ou vínculo desativado),
+ * retorna null: não há fallback para profiles.organization_id.
  * Por isso nenhuma action deve ler profiles para escolher o salão ou o papel.
  */
 export type CurrentProfile = {
@@ -25,8 +26,8 @@ export async function getCurrentProfile(supabase: any): Promise<CurrentProfile |
     .maybeSingle();
 
   if (profileError || !profile) return null;
-  // Salão ativo (validado por vínculo no banco); cai no salão do perfil se ainda não houver ativo.
-  const organizationId = profile.active_organization_id ?? profile.organization_id ?? null;
+  // Salão ativo, validado por vínculo ativo no banco. Vínculo desativado deixa o salão ativo nulo.
+  const organizationId = profile.active_organization_id ?? null;
   return { organizationId, role: profile.role ?? null };
 }
 

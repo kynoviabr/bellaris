@@ -15,6 +15,7 @@ import type { PermissionRow, StudioRole } from "@/lib/authorization/permissions"
 import { getActivePlans, getOwnerOnboardingState } from "@/lib/actions/onboarding";
 import { OwnerOnboardingScreen } from "@/components/onboarding/owner-onboarding-screen";
 import { AccessSuspendedScreen } from "@/components/onboarding/access-suspended-screen";
+import { AccessDeactivatedScreen } from "@/components/onboarding/access-deactivated-screen";
 
 export default async function Page() {
   const supabase = await createClient();
@@ -36,7 +37,16 @@ export default async function Page() {
     if (profile?.role === "platform_master") redirect("/plataforma");
     if (!profile || !["owner", "admin", "staff"].includes(profile.role)) redirect("/login");
     viewerRole = profile.role;
-    viewerOrg = (await getCurrentOrganizationId(supabase)) ?? profile.organization_id ?? null;
+    viewerOrg = await getCurrentOrganizationId(supabase);
+    // Perfil com salão mas sem salão ativo: vínculo desativado. Não carrega nenhum dado do salão.
+    if (!viewerOrg && profile.organization_id) {
+      return (
+        <AccessDeactivatedScreen
+          email={user.email ?? ""}
+          logout={async () => { "use server"; const { logout } = await import("@/lib/actions/auth"); await logout(); }}
+        />
+      );
+    }
     let organization = { name: "Nail Studio" };
     tenantContext.profileName = profile?.full_name || "Usuário";
     if (viewerOrg) {
