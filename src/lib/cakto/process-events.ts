@@ -113,8 +113,9 @@ export async function processPendingCaktoEvents(db: Db, offers: OfferMap, limit 
     const status = outcome === "processed" ? "done" : outcome === "ignored" ? "ignored" : "failed";
     const processingError = outcome === "manual_review" ? "revisão manual: correlação ou dados insuficientes"
       : outcome === "failed" ? "falha ao atualizar a assinatura" : null;
-    await db.from("cakto_webhook_events")
+    const { error: updateError } = await db.from("cakto_webhook_events")
       .update({ status, processed_at: new Date().toISOString(), processing_error: processingError }).eq("id", row.id);
+    if (updateError) throw new Error("atualização do evento: " + updateError.message);
     done++;
   }
   return done;
