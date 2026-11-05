@@ -237,5 +237,6 @@ export async function register(prevState: any, formData: FormData) {
   checkoutBase.searchParams.set("utm_source", "klycx");
   checkoutBase.searchParams.set("utm_medium", "saas_checkout");
   checkoutBase.searchParams.set("utm_content", checkoutIntent.id);
-  redirect(checkoutBase.toString());
+  // Devolve o endereço para a tela abrir: redirect() para outro domínio não chega ao navegador de forma confiável.
+  return { checkoutUrl: checkoutBase.toString() };
 }
