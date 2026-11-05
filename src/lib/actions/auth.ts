@@ -225,6 +225,15 @@ export async function register(prevState: any, formData: FormData) {
   if (checkoutError || !checkoutIntent) {
     return { error: "Conta criada, mas o checkout não pôde ser iniciado. Entre em contato com o suporte antes de tentar novo cadastro." };
   }
+  // Cakto-supported prefill parameters. Keep them only in the HTTPS checkout redirect;
+  // never store the resulting URL or include the password.
+  checkoutBase.searchParams.set("name", owner.fullName);
+  checkoutBase.searchParams.set("email", email);
+  checkoutBase.searchParams.set("confirmEmail", email);
+  checkoutBase.searchParams.set("cpf", owner.documentType === "cnpj" ? owner.cnpj! : owner.cpf!);
+  const phoneDigits = owner.whatsapp.replace(/\\D/g, "");
+  checkoutBase.searchParams.set("phone", phoneDigits.startsWith("55") && phoneDigits.length >= 12
+    ? phoneDigits : `55${phoneDigits}`);
   checkoutBase.searchParams.set("utm_source", "klycx");
   checkoutBase.searchParams.set("utm_medium", "saas_checkout");
   checkoutBase.searchParams.set("utm_content", checkoutIntent.id);
