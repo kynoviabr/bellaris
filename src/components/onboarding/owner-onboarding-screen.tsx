@@ -29,7 +29,23 @@ export function OwnerOnboardingScreen({ isOwner, accessStatus, accessNote, reque
     if (state && "ok" in state && state.ok) router.refresh();
   }, [state, router]);
 
-  if (!isOwner || accessStatus === "aguardando_aprovacao") {
+  const waiting = !isOwner || accessStatus === "aguardando_aprovacao";
+
+  // Enquanto o cadastro está em análise, a tela confere sozinha se o acesso foi liberado.
+  useEffect(() => {
+    if (!waiting) return;
+    const tick = () => {
+      if (document.visibilityState === "visible") router.refresh();
+    };
+    const id = window.setInterval(tick, 20000);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [waiting, router]);
+
+  if (waiting) {
     return (
       <div className="mx-auto mt-16 max-w-lg rounded-lg border border-[#DBE3EC] bg-white p-8 text-center shadow-card">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-amber-100">
