@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     .select("cakto_subscription_id").eq("organization_id", organizationId).maybeSingle();
   if (existingError) return NextResponse.json({ error: "Subscription lookup failed" }, { status: 503 });
   if (existing) return NextResponse.json({ error: "Organization already has a linked Cakto subscription" }, { status: 409 });
-  const { data: intent, error: insertError } = await db.from("cakto_checkout_intents")
+  const { data: pending, error: pendingError } = await db.from("cakto_checkout_intents")\n    .select("id,expires_at").eq("organization_id", organizationId).eq("status", "pending").maybeSingle();\n  if (pendingError) return NextResponse.json({ error: "Pending checkout lookup failed" }, { status: 503 });\n  if (pending && new Date(pending.expires_at).getTime() <= Date.now()) {\n    const { error: expireError } = await db.from("cakto_checkout_intents").update({ status: "expired" })\n      .eq("id", pending.id).eq("status", "pending");\n    if (expireError) return NextResponse.json({ error: "Unable to expire stale checkout" }, { status: 503 });\n  } else if (pending) {\n    return NextResponse.json({ error: "Checkout already pending", expires_at: pending.expires_at }, { status: 409 });\n  }\n  const { data: intent, error: insertError } = await db.from("cakto_checkout_intents")
     .insert({ organization_id: organizationId, plan_code: planCode, offer_id: offer[0].offer_id })
     .select("id,offer_id,plan_code,expires_at").single();
   if (insertError) return NextResponse.json({ error: insertError.code === "23505" ? "Checkout already pending" : "Unable to create checkout intent" }, { status: insertError.code === "23505" ? 409 : 503 });
