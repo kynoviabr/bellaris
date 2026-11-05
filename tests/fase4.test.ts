@@ -166,14 +166,23 @@ test('Fase 4 - Clientes: createClientRecordService e updateClientRecordService r
   let rpcParams: any = null;
 
   const mockSupabaseRpc: any = {
-    // createClientRecordService consulta duplicidade de WhatsApp antes do RPC.
-    from: () => ({
-      select: () => ({
-        eq: () => ({
-          limit: async () => ({ data: [], error: null })
+    auth: { getUser: async () => ({ data: { user: { id: 'user-1' } } }) },
+    // Consultas usadas pelo serviço: duplicidade de WhatsApp, organização da cliente e consentimento (anamnese).
+    from: (table: string) => {
+      if (table === 'client_consents') return {
+        select: () => ({ eq: () => ({ eq: () => ({ is: () => ({ limit: async () => ({ data: [] }) }) }) }) }),
+        insert: async () => ({ error: null })
+      };
+      if (table === 'data_processing_log') return { insert: async () => ({ error: null }) };
+      return {
+        select: () => ({
+          eq: () => ({
+            limit: async () => ({ data: [], error: null }),
+            maybeSingle: async () => ({ data: { organization_id: 'org1' }, error: null })
+          })
         })
-      })
-    }),
+      };
+    },
     rpc: async (name: string, params: any) => {
       rpcName = name;
       rpcParams = params;
@@ -184,6 +193,7 @@ test('Fase 4 - Clientes: createClientRecordService e updateClientRecordService r
   const clientWithAnamnesis = {
     name: 'Maria Silva',
     phone: '(11) 99999-8888',
+    anamnesisConsent: true, // anamnese só é gravada com o consentimento marcado na ficha
     notes: JSON.stringify({
       text: 'Observação livre',
       anamnesis: { diabetes: true, gestante: false, roeUnha: true, alergias: 'Látex' }

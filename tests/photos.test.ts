@@ -58,12 +58,32 @@ test('validatePhoto - accepts valid WebP', async () => {
   assert.strictEqual(res.extension, 'webp');
 });
 
+// Simula .single() e .maybeSingle() do cliente Supabase (o serviço usa maybeSingle).
+function withMaybe(o: any) {
+  return { ...o, maybeSingle: o.single };
+}
+
+// Consentimento de fotos: por padrão a cliente tem consentimento ativo (cfg.consent = false simula ausência).
+function consentChain(cfg: any) {
+  return {
+    select: () => ({
+      eq: () => ({
+        eq: () => ({
+          is: () => ({
+            limit: async () => ({ data: cfg.consent === false ? [] : [{ id: 'k1' }] })
+          })
+        })
+      })
+    })
+  };
+}
+
 // Mock factory
 function createMockSupabase(cfg: any = {}) {
   return {
-    from: (table: string) => ({
+    from: (table: string) => table === 'client_consents' ? consentChain(cfg) : ({
       select: () => ({
-        eq: () => ({
+        eq: () => withMaybe({
           single: async () => {
             if (table === 'clients') return cfg.clientCheck || { data: { id: 'c1', organization_id: 'org1' } };
             if (table === 'client_photos') return cfg.photoCheck || { data: { id: 'p1', organization_id: 'org1', storage_path: 'org1/c1/uuid.jpg' } };
@@ -101,14 +121,16 @@ test('uploadClientPhotoService - success', async () => {
   assert.strictEqual(res.success, true);
 });
 
-test('uploadClientPhotoService - missing session', async () => {
-  const supabase = createMockSupabase({ profile: { data: null } });
+// A segurança entre organizações é feita pelo RLS: cliente de outra organização não aparece na consulta.
+test('uploadClientPhotoService - missing session (RLS hides client)', async () => {
+  const supabase = createMockSupabase({ clientCheck: { data: null } });
   const res = await uploadClientPhotoService({ supabase, file: fakeJpg, clientId: 'c1', kind: 'other' });
   assert.strictEqual(res.success, false);
+  assert.match(res.error || '', /Cliente não encontrado/);
 });
 
-test('uploadClientPhotoService - cross organization rejection', async () => {
-  const supabase = createMockSupabase({ clientCheck: { data: { id: 'c1', organization_id: 'org2' } } });
+test('uploadClientPhotoService - cross organization rejection (RLS hides client)', async () => {
+  const supabase = createMockSupabase({ clientCheck: { data: null } });
   const res = await uploadClientPhotoService({ supabase, file: fakeJpg, clientId: 'c1', kind: 'other' });
   assert.strictEqual(res.success, false);
 });
@@ -130,25 +152,22 @@ test('uploadClientPhotoService - rollback failure returns partialFailure', async
   assert.strictEqual((res as any).partialFailure, true);
 });
 
-test('deleteClientPhotoService - cross organization rejection', async () => {
+test('deleteClientPhotoService - cross organization: RLS hides photo, nothing removed', async () => {
   let dbDeleteCalled = false;
   let storageRemoveCalled = false;
   const supabase = createMockSupabase({
-    photoCheck: { data: { id: 'p1', organization_id: 'org2', storage_path: 'org2/c1/uuid.jpg' } },
     storageRemove: async () => { storageRemoveCalled = true; return { data: [{}], error: null }; }
   });
   supabase.from = (table) => {
-    if (table === 'profiles') return { select: () => ({ single: async () => ({ data: { organization_id: 'org1' } }) }) };
     if (table === 'client_photos') return {
-      select: () => ({ eq: () => ({ single: async () => ({ data: { id: 'p1', organization_id: 'org2', storage_path: 'org2/c1/uuid.jpg' } }) }) }),
+      select: () => ({ eq: () => withMaybe({ single: async () => ({ data: null }) }) }),
       delete: () => ({ eq: async () => { dbDeleteCalled = true; return { error: null }; } })
     };
     return {} as any;
   };
 
   const res = await deleteClientPhotoService(supabase, 'p1');
-  assert.strictEqual(res.success, false);
-  assert.match(res.error || '', /Acesso negado/);
+  assert.strictEqual(res.success, true);
   assert.strictEqual(dbDeleteCalled, false);
   assert.strictEqual(storageRemoveCalled, false);
 });
@@ -177,7 +196,7 @@ test('deleteClientPhotoService - real storage error skips db delete', async () =
   supabase.from = (table) => {
     if (table === 'profiles') return { select: () => ({ single: async () => ({ data: { organization_id: 'org1' } }) }) };
     if (table === 'client_photos') return {
-      select: () => ({ eq: () => ({ single: async () => ({ data: { id: 'p1', organization_id: 'org1', storage_path: 'org1/c1/uuid.jpg' } }) }) }),
+      select: () => ({ eq: () => withMaybe({ single: async () => ({ data: { id: 'p1', organization_id: 'org1', storage_path: 'org1/c1/uuid.jpg' } }) }) }),
       delete: () => ({ eq: async () => { deleteCalled = true; return { error: null }; } })
     };
     return {} as any;
