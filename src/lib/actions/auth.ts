@@ -231,7 +231,7 @@ export async function register(prevState: any, formData: FormData) {
   checkoutBase.searchParams.set("email", email);
   checkoutBase.searchParams.set("confirmEmail", email);
   checkoutBase.searchParams.set("cpf", owner.documentType === "cnpj" ? owner.cnpj! : owner.cpf!);
-  const phoneDigits = owner.whatsapp.replace(/\\D/g, "");
+  const phoneDigits = owner.whatsapp.replace(/\D/g, "");
   checkoutBase.searchParams.set("phone", phoneDigits.startsWith("55") && phoneDigits.length >= 12
     ? phoneDigits : `55${phoneDigits}`);
   checkoutBase.searchParams.set("utm_source", "klycx");
