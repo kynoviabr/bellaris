@@ -21,8 +21,15 @@ export async function GET(request: NextRequest) {
 
   const { data: profile, error: profileError } = await db.from("profiles")
     .select("role").eq("id", auth.user.id).maybeSingle();
-  if (profileError || !profile || String(profile.role).toLowerCase() !== "master") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (profileError) {
+    console.error("Cakto admin profile lookup failed", { code: profileError.code });
+    return NextResponse.json({ error: "Profile lookup failed", diagnostic: "profile_query_error" }, { status: 503 });
+  }
+  if (!profile) {
+    return NextResponse.json({ error: "Forbidden", diagnostic: "profile_not_found" }, { status: 403 });
+  }
+  if (String(profile.role).trim().toLowerCase() !== "master") {
+    return NextResponse.json({ error: "Forbidden", diagnostic: "role_not_master", currentRole: profile.role }, { status: 403 });
   }
 
   try {
