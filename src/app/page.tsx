@@ -43,9 +43,16 @@ export default async function Page() {
     if (!viewerOrg && profile.organization_id) {
       const logoutAction = async () => { "use server"; const { logout } = await import("@/lib/actions/auth"); await logout(); };
       const { data: orgs } = await supabase.rpc("my_organizations");
-      const rows = (orgs ?? []) as { can_manage: boolean; network_platform_blocked: boolean }[];
-      // Dono da rede: vê o motivo, a fatura e a lista de salões. Os demais usuários veem só o aviso.
+      const rows = (orgs ?? []) as { organization_id: string; accessible: boolean; can_manage: boolean; network_platform_blocked: boolean }[];
+      // Dono da rede: troca para um salão liberado e abre o sistema normal. Só mostra o bloqueio
+      // se não houver nenhum salão liberado (rede bloqueada pela Bellaris, ou todos os salões bloqueados).
       if (rows.some((r) => r.can_manage)) {
+        const target = rows.find((r) => r.accessible);
+        if (target) {
+          const { error: switchError } = await supabase.rpc("switch_active_organization", { p_organization_id: target.organization_id });
+          // Se a troca falhar, não redireciona: evita laço entre as duas páginas.
+          if (!switchError) redirect("/");
+        }
         return (
           <NetworkBlockedScreen
             email={user.email ?? ""}
