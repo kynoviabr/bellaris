@@ -6,6 +6,7 @@ import { BellarisMark, BellarisWordmark } from "@/components/brand/bellaris-mark
 import { SalonRowActions, StatusBadge, type PlanOption, type SalonBilling } from "@/components/platform/billing-panel";
 import { ApprovalCard, OwnerEditForm, type PlanChoice, type SalonAdminRow } from "@/components/platform/salon-admin-cards";
 import { brDate } from "@/lib/platform-format";
+import { NetworksPanel } from "@/components/platform/networks-panel";
 export const dynamic = "force-dynamic";
 
 const SECTIONS = [
@@ -123,6 +124,7 @@ export default async function PlatformHome({ searchParams }: { searchParams: Pro
               <h2 id="saloes" className="text-xl font-semibold">Salões e responsáveis</h2>
               <p className="text-sm text-muted">Abra um salão para ver ou corrigir os dados do responsável. O nome do salão não é editável aqui.</p>
             </div>
+            <NetworksPanel />
             {adminRows.length === 0 ? (
               <div className="card py-10 text-center text-sm text-muted">Nenhum salão cadastrado.</div>
             ) : (
