@@ -84,15 +84,24 @@ export async function POST(request: NextRequest) {
   }
   // Processa os eventos pendentes só com a ativação ligada. Falha aqui não derruba o recebimento:
   // o evento continua pendente e é tentado de novo na próxima chamada.
-  if (activationEnabled()) {
+  const activation = activationEnabled();
+  let processed = 0;
+  let processingError: string | null = null;
+  if (activation) {
     try {
-      const { data: offerRows } = await db.from("cakto_plan_offers").select("offer_id,plan_code").eq("active", true);
+      const { data: offerRows, error: offerError } = await db.from("cakto_plan_offers").select("offer_id,plan_code").eq("active", true);
+      if (offerError) throw new Error("oferta: " + offerError.message);
       const offers: Record<string, string> = {};
       for (const row of (offerRows ?? []) as { offer_id: string; plan_code: string }[]) offers[row.offer_id] = row.plan_code;
-      await processPendingCaktoEvents(db as unknown as Db, offers);
+      processed = await processPendingCaktoEvents(db as unknown as Db, offers);
     } catch (processError) {
-      console.error("Cakto processing failed", { message: (processError as Error).message });
+      processingError = (processError as Error).message;
+      console.error("Cakto processing failed", { message: processingError });
     }
   }
-  return NextResponse.json({ received: true }, { headers: { "Cache-Control": "no-store" } });
+  // Diagnóstico sem dados pessoais nem segredos: só contagens e a mensagem de erro, se houver.
+  return NextResponse.json(
+    { received: true, activation, processed, processingError },
+    { headers: { "Cache-Control": "no-store" } },
+  );
 }
