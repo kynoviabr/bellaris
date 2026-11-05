@@ -64,6 +64,9 @@ export async function POST(request: NextRequest) {
   if (!supabaseUrl || !serviceKey) {
     return NextResponse.json({ error: "Webhook storage not configured" }, { status: 503 });
   }
+  // Never persist the shared webhook credential in the event inbox.
+  const sanitizedPayload = { ...data };
+  delete sanitizedPayload.secret;
   const db = createClient(supabaseUrl, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false }
   });
@@ -71,7 +74,7 @@ export async function POST(request: NextRequest) {
     event_key: eventKey,
     event_type: eventType,
     order_id: orderId,
-    payload: data
+    payload: sanitizedPayload
   });
   if (error && error.code !== "23505") {
     console.error("Cakto webhook storage failed", { code: error.code });
