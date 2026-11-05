@@ -63,6 +63,24 @@ export default function CaktoOffersAdminPage() {
           <tbody>{offers.map(o => <tr key={o.id}><td style={{ padding: 10 }}>{o.id}</td><td>{o.name}</td><td>{String(o.price)}</td><td>{o.product}</td><td>{o.status}</td><td>{o.type}</td></tr>)}</tbody>
         </table>
       </div>}
+      <section style={{ marginTop: 36 }}>
+        <h2>Conciliação dos webhooks</h2>
+        <p role="status">{reconciliationMessage || "Aguardando consulta de eventos."}</p>
+        {events.length === 0 ? <p>Nenhum evento encontrado.</p> : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+              <thead><tr>{["Recebido", "Evento", "Oferta", "Plano", "Assinatura", "Situação"].map(h => <th key={h} style={{ padding: 10, borderBottom: "1px solid #888" }}>{h}</th>)}</tr></thead>
+              <tbody>{events.map(e => (
+                <tr key={e.event_id}>
+                  <td style={{ padding: 10 }}>{new Date(e.received_at).toLocaleString("pt-BR")}</td>
+                  <td>{e.event_type}</td><td>{e.offer_id ?? "—"}</td><td>{e.plan_code ?? "—"}</td>
+                  <td>{e.cakto_subscription_id ?? "—"}</td><td>{e.reconciliation_status}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </main>
   );
 }
