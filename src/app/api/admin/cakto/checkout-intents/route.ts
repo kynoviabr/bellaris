@@ -56,5 +56,5 @@ export async function POST(request: NextRequest) {
     .insert({ organization_id: organizationId, plan_code: planCode, offer_id: offer[0].offer_id })
     .select("id,offer_id,plan_code,expires_at").single();
   if (insertError) return NextResponse.json({ error: insertError.code === "23505" ? "Checkout already pending" : "Unable to create checkout intent" }, { status: insertError.code === "23505" ? 409 : 503 });
-  return NextResponse.json({ intent }, { status: 201, headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json({ intent, checkout_tracking: { utm_source: "klycx", utm_medium: "saas_checkout", utm_content: intent.id } }, { status: 201, headers: { "Cache-Control": "no-store" } });
 }
