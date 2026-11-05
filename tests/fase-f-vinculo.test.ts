@@ -4,10 +4,13 @@ import { getCurrentOrganizationId, getCurrentProfile } from "../src/lib/auth/cur
 
 // Mock mínimo do cliente Supabase: um usuário autenticado e uma linha de perfil.
 function fakeSupabase(profile: Record<string, unknown> | null, user: { id: string } | null = { id: "user-1" }) {
+  // Salão que o banco libera: o mesmo critério de my_current_organization().
+  const accessible = profile?.active_organization_id ?? null;
   return {
     auth: {
       getUser: async () => ({ data: { user }, error: null }),
     },
+    rpc: async (name: string) => (name === "my_current_organization" ? { data: accessible, error: null } : { data: null, error: { message: "rpc desconhecida" } }),
     from: () => ({
       select: () => ({
         eq: () => ({
@@ -21,6 +24,15 @@ function fakeSupabase(profile: Record<string, unknown> | null, user: { id: strin
 test("salão ativo válido é o salão atual", async () => {
   const supabase = fakeSupabase({ organization_id: "salao-a", active_organization_id: "salao-a", role: "owner" });
   assert.equal(await getCurrentOrganizationId(supabase), "salao-a");
+});
+
+test("salão bloqueado (banco não libera) não aparece como salão atual", async () => {
+  // O perfil ainda aponta para o salão, mas o banco não libera: o app não pode usá-lo.
+  const supabase = {
+    ...fakeSupabase({ organization_id: "salao-a", active_organization_id: "salao-a", role: "owner" }),
+    rpc: async () => ({ data: null, error: null }),
+  };
+  assert.equal(await getCurrentOrganizationId(supabase), null);
 });
 
 test("vínculo desativado (salão ativo nulo) não cai no salão do perfil", async () => {
