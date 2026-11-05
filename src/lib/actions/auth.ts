@@ -230,7 +230,8 @@ export async function register(prevState: any, formData: FormData) {
   checkoutBase.searchParams.set("name", owner.fullName);
   checkoutBase.searchParams.set("email", email);
   checkoutBase.searchParams.set("confirmEmail", email);
-  checkoutBase.searchParams.set("cpf", owner.documentType === "cnpj" ? owner.cnpj! : owner.cpf!);
+  // A Cakto preenche CPF e CNPJ pelo parâmetro document (testado com CPF com zero à esquerda e com CNPJ).
+  checkoutBase.searchParams.set("document", owner.documentType === "cnpj" ? owner.cnpj! : owner.cpf!);
   const phoneDigits = owner.whatsapp.replace(/\D/g, "");
   checkoutBase.searchParams.set("phone", phoneDigits.startsWith("55") && phoneDigits.length >= 12
     ? phoneDigits : `55${phoneDigits}`);
