@@ -20,6 +20,9 @@
   .btn-outline { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[#E8D9C7] bg-[#FFFCF8] px-5 text-[14px] font-semibold text-ink transition-colors hover:border-primary hover:text-primary sm:min-h-[40px]; }
   .btn-ghost { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary-light px-5 text-[14px] font-semibold text-primary transition-colors hover:bg-[#EBD9DE] sm:min-h-[40px]; }
   .card { @apply rounded-lg border border-[#E8D9C7] bg-surface p-4 shadow-card sm:p-5; }
+  .card-green { @apply border-success/40 bg-[#F1F8F4]; }
+  .card-yellow { @apply border-warning/50 bg-[#FBF5EC]; }
+  .card-red { @apply border-danger/50 bg-[#FBF1F1]; }
   .field-label { @apply mb-1.5 block text-xs font-medium text-muted; }
   .field-input { @apply h-11 w-full rounded-md border border-[#E8D9C7] bg-[#FFFCF8] px-3 text-base text-ink placeholder:text-[#95858B] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15 sm:h-10 sm:text-sm; }
   .page-content { @apply mx-auto w-full max-w-[1600px] p-3 sm:p-6 lg:p-7; }
