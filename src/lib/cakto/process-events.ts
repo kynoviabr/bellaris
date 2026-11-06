@@ -11,6 +11,7 @@ export interface CaktoEventFields {
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const ACTIVATE_EVENTS = new Set(["purchase_approved", "subscription_created"]);
 
 /** Extrai os campos de correlação do payload da Cakto. Puro. */
 export function extractCaktoEventFields(payload: Record<string, unknown>): CaktoEventFields {
@@ -83,15 +84,20 @@ export async function processCaktoEvent(
     }
   }
 
+  // Intenção pendente: o vínculo é feito antes da decisão, porque a decisão só ativa com correlação confirmada.
+  if (intentStatus === "pending" && f.intentId && f.subscriptionId && f.offerId && orgId && ACTIVATE_EVENTS.has(f.eventType)) {
+    const { data: linkResult, error: linkError } = await db.rpc("cakto_match_checkout_intent", {
+      p_intent_id: f.intentId, p_subscription_id: f.subscriptionId, p_offer_id: f.offerId,
+    });
+    if (linkError) return "failed";
+    if (linkResult !== "matched" && linkResult !== "already_linked") return "manual_review";
+    intentStatus = "matched";
+  }
+
   const action: PlanAction = decideSubscriptionAction({ event: f.eventType, offerId: f.offerId, intentStatus }, offers);
 
   if (action.kind === "activate") {
-    if (!f.intentId || !f.subscriptionId || !f.offerId || !orgId) return "manual_review";
-    const { data: result, error } = await db.rpc("cakto_match_checkout_intent", {
-      p_intent_id: f.intentId, p_subscription_id: f.subscriptionId, p_offer_id: f.offerId,
-    });
-    if (error) return "failed";
-    if (result !== "matched" && result !== "already_linked") return "manual_review";
+    if (!orgId) return "manual_review";
     return activateSalon(db, orgId, action.planCode);
   }
   if (action.kind === "block") {
