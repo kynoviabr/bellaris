@@ -2,6 +2,8 @@
 const nextConfig = {
   reactStrictMode: true,
   allowedDevOrigins: ["192.168.1.33"],
+  // Fotos de celular passam de 1 MB. O limite do envio precisa acompanhar a validação de 5 MB das fotos.
+  experimental: { serverActions: { bodySizeLimit: "6mb" } },
   images: {
     remotePatterns: [
       {

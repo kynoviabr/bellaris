@@ -26,7 +26,7 @@ import { LinkProfessionalCard } from "./dashboard/link-professional-card";
 import { NetworkCard } from "./dashboard/network-card";
 import { updateAppointmentRecord, addServiceToAppointment, removeServiceFromAppointment } from "@/lib/actions/appointments";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   Archive, ArrowRight, Calendar, BarChart3, Bell, CalendarDays, Check, ChevronDown, CircleDollarSign,
   ClipboardCheck, Clock3, CreditCard, Download, Gift, HeartHandshake, Home, Menu, MessageCircle,
@@ -250,12 +250,27 @@ function ProductModal({ product, close, save }: { product?: any; close: () => vo
 
 
 
+const PHOTO_KIND_OPTIONS = [
+  { value: "before", label: "Antes" },
+  { value: "after", label: "Depois" },
+  { value: "evolution", label: "Evolução" },
+  { value: "other", label: "Outro" },
+];
+const PHOTO_KIND_LABELS: Record<string, string> = Object.fromEntries(PHOTO_KIND_OPTIONS.map(option => [option.value, option.label]));
+// Mesmo limite de src/lib/utils/photos.ts: a checagem aqui só mostra o aviso antes do envio.
+const PHOTO_MAX_BYTES = 5 * 1024 * 1024;
+type PhotoSlot = { kind: string; file: File | null; error: string | null };
+const INITIAL_PHOTO_SLOTS: PhotoSlot[] = [
+  { kind: "before", file: null, error: null },
+  { kind: "after", file: null, error: null },
+];
+
 function ClientDetailsModal({ client, close }: { client: any; close: () => void }) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [photoDialog, setPhotoDialog] = useState(false);
+  const [photoSlots, setPhotoSlots] = useState(INITIAL_PHOTO_SLOTS);
 
   useEffect(() => {
     if (client?.id) {
@@ -287,47 +302,52 @@ function ClientDetailsModal({ client, close }: { client: any; close: () => void 
     }
   };
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !client?.id) return;
+  const photoSlotsFilled = photoSlots.filter(slot => slot.file);
 
+  const uploadPhotoSlots = async () => {
+    if (!client?.id || photoSlotsFilled.length === 0) return;
+    const isDemo = client.id.startsWith("demo-");
     setUploading(true);
 
     try {
-      if (client.id.startsWith("demo-")) {
-        const reader = new FileReader();
-        await new Promise(resolve => {
-          reader.onloadend = () => {
-            const base64 = reader.result as string;
-            setData((curr: any) => ({
-              ...curr,
-              photos: [{ id: "mock-" + Date.now(), kind: "other", url: base64, storage_path: base64, created_at: new Date().toISOString() }, ...(curr?.photos || [])]
-            }));
-            resolve(true);
-          };
-          reader.readAsDataURL(file);
-        });
-        return;
+      for (const slot of photoSlotsFilled) {
+        const file = slot.file as File;
+        if (isDemo) {
+          const base64 = await new Promise<string>(resolve => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(file);
+          });
+          setData((curr: any) => ({
+            ...curr,
+            photos: [{ id: "mock-" + Date.now() + Math.random(), kind: slot.kind, url: base64, storage_path: base64, created_at: new Date().toISOString() }, ...(curr?.photos || [])]
+          }));
+          continue;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('clientId', client.id);
+        formData.append('kind', slot.kind);
+
+        const res = await uploadClientPhoto(formData);
+        if (!res.success) {
+          appNotify("Erro ao salvar foto: " + ("error" in res ? res.error : "Erro desconhecido"));
+          break;
+        }
       }
 
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('clientId', client.id);
-      formData.append('kind', 'other');
-
-      const res = await uploadClientPhoto(formData);
-      if (res.success) {
+      if (!isDemo) {
         const fresh = await getClientDetails(client.id);
         setData(fresh);
-      } else {
-        appNotify("Erro ao salvar foto: " + ("error" in res ? res.error : "Erro desconhecido"));
       }
+      setPhotoDialog(false);
+      setPhotoSlots(INITIAL_PHOTO_SLOTS);
     } catch (err) {
       console.error(err);
       appNotify("Ocorreu um erro inesperado ao enviar a foto.");
     } finally {
       setUploading(false);
-      e.target.value = '';
     }
   };
 
@@ -390,11 +410,39 @@ function ClientDetailsModal({ client, close }: { client: any; close: () => void 
               <section className="card p-5 flex flex-col">
                 <div className="flex justify-between items-center mb-4">
                   <SectionTitle title="Galeria Antes & Depois" />
-                  <input type="file" accept=".jpg,.jpeg,.png,.webp" className="hidden" ref={fileInputRef} onChange={handlePhotoUpload} />
-                  <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="btn-primary text-xs py-1.5 px-3">
-                    <Plus size={14} /> {uploading ? "Enviando..." : "Adicionar foto"}
+                  <button onClick={() => setPhotoDialog(true)} disabled={uploading} className="btn-primary text-xs py-1.5 px-3">
+                    <Plus size={14} /> {uploading ? "Enviando..." : "Adicionar fotos"}
                   </button>
                 </div>
+
+                {photoDialog && (
+                  <div className="fixed inset-0 z-[60] flex items-center justify-center bg-navy-dark/40 p-4" role="dialog" aria-modal="true" aria-label="Adicionar fotos">
+                    <div className="w-full max-w-lg rounded-lg bg-white p-5 shadow-card">
+                      <h3 className="text-base font-semibold text-ink">Adicionar fotos</h3>
+                      <p className="mt-1 text-xs text-muted">Escolha o momento de cada foto antes de enviar.</p>
+                      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                        {photoSlots.map((slot, index) => (
+                          <div key={index} className="space-y-2 rounded-md border border-[#E7EDF3] p-3">
+                            <label className="field-label" htmlFor={`photo-kind-${index}`}>Momento da foto {index + 1}</label>
+                            <select id={`photo-kind-${index}`} value={slot.kind} onChange={e => { const kind = e.target.value; setPhotoSlots(curr => curr.map((s, i) => i === index ? { ...s, kind } : s)); }} className="field-input">
+                              {PHOTO_KIND_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                            </select>
+                            <input type="file" accept=".jpg,.jpeg,.png,.webp" aria-label={`Arquivo da foto ${index + 1}`} aria-invalid={Boolean(slot.error)} onChange={e => {
+                              const file = e.target.files?.[0] ?? null;
+                              const error = file && file.size > PHOTO_MAX_BYTES ? `Foto acima de 5 MB (${(file.size / 1024 / 1024).toFixed(1)} MB). Escolha um arquivo menor.` : null;
+                              setPhotoSlots(curr => curr.map((s, i) => i === index ? { ...s, file: error ? null : file, error } : s));
+                            }} className="block w-full text-xs text-muted" />
+                            {slot.error && <p role="alert" className="text-xs text-danger">{slot.error}</p>}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-5 flex justify-end gap-2">
+                        <button onClick={() => { setPhotoDialog(false); setPhotoSlots(INITIAL_PHOTO_SLOTS); }} className="btn-outline">Cancelar</button>
+                        <button onClick={uploadPhotoSlots} disabled={uploading || photoSlotsFilled.length === 0 || photoSlots.some(slot => slot.error)} className="btn-primary disabled:opacity-50">{uploading ? "Enviando..." : "Enviar fotos"}</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {!data.photos || data.photos.length === 0 ? (
                   <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-[#E7EDF3] rounded-lg p-6 bg-bg/50">
@@ -405,6 +453,7 @@ function ClientDetailsModal({ client, close }: { client: any; close: () => void 
                     {(data.photos || []).map((p: any) => (
 
                       <div key={p.id} className="relative aspect-square rounded-md overflow-hidden border border-[#E7EDF3] group">
+                        <span className="absolute top-1 left-1 z-10 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">{PHOTO_KIND_LABELS[p.kind] ?? "Outro"}</span>
                         {p.url ? (
     <NextImage src={p.url} alt="Unhas" fill className="object-cover" unoptimized={p.url.startsWith("data:image/")} />
   ) : (

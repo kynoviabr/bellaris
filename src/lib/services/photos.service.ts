@@ -2,8 +2,8 @@ import { hasActiveConsent } from './consent.service.ts';
 import { validatePhoto } from '../utils/photos.ts';
 import crypto from 'crypto';
 
-export type PhotoKind = 'before' | 'after' | 'other';
-export const ALLOWED_KINDS: readonly PhotoKind[] = ['before', 'after', 'other'];
+export type PhotoKind = 'before' | 'after' | 'evolution' | 'other';
+export const ALLOWED_KINDS: readonly PhotoKind[] = ['before', 'after', 'evolution', 'other'];
 
 export function isValidKind(kind: any): kind is PhotoKind {
   return ALLOWED_KINDS.includes(kind);
