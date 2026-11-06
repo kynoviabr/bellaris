@@ -11,6 +11,10 @@ import Link from "next/link";
 export default function RegisterPage() {
   const [state, formAction, pending] = useActionState(register, undefined);
   const [plans, setPlans] = useState<PlanOption[]>([]);
+  // Campos controlados: o formulário não os limpa quando o cadastro devolve erro.
+  const [orgName, setOrgName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   useEffect(() => {
     getActivePlans().then(setPlans).catch(() => setPlans([]));
@@ -39,7 +43,7 @@ export default function RegisterPage() {
             <h2 className="text-sm font-semibold text-ink">Salão</h2>
             <div>
               <label className="field-label" htmlFor="orgName">Nome do salão</label>
-              <input id="orgName" name="orgName" type="text" required placeholder="Ex: Amanda Beauty Studio" className="field-input" />
+              <input id="orgName" name="orgName" type="text" required value={orgName} onChange={(e) => setOrgName(e.target.value)} placeholder="Ex: Amanda Beauty Studio" className="field-input" />
             </div>
           </section>
 
@@ -52,11 +56,11 @@ export default function RegisterPage() {
             <h2 className="text-sm font-semibold text-ink">Acesso</h2>
             <div>
               <label className="field-label" htmlFor="email">E-mail</label>
-              <input id="email" name="email" type="email" required placeholder="contato@salao.com" className="field-input" />
+              <input id="email" name="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contato@salao.com" className="field-input" />
             </div>
             <div>
               <label className="field-label" htmlFor="password">Senha</label>
-              <input id="password" name="password" type="password" required placeholder="••••••••" className="field-input" />
+              <input id="password" name="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="field-input" />
             </div>
           </section>
 
