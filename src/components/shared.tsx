@@ -24,9 +24,9 @@ export function statusTone(status: AppointmentStatus) {
   return map[status] || "neutral";
 }
 
-export function Metric({ label, value, detail, icon: Icon, tone = "primary", onClick, className = "" }: { label: string; value: string; detail: string; icon: LucideIcon; tone?: string; onClick?: () => void; className?: string }) {
+export function Metric({ label, value, detail, icon: Icon, tone = "primary", onClick }: { label: string; value: string; detail: string; icon: LucideIcon; tone?: string; onClick?: () => void }) {
   const content = <><div className="flex items-start justify-between gap-3"><div><p className="text-xs text-muted">{label}</p><p className="mt-1.5 text-2xl font-semibold tracking-tight text-ink">{value}</p></div><div className={`rounded-md p-2 ${tone === "danger" ? "bg-rose-50 text-danger" : tone === "warning" ? "bg-amber-50 text-warning" : "bg-primary-light text-primary"}`}><Icon size={18} strokeWidth={1.7} /></div></div><p className="mt-2 text-[11px] text-muted">{detail}</p></>;
-  return onClick ? <button onClick={onClick} type="button" className={`card min-w-0 text-left transition ${className}`} hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/25">{content}</button> : <div className={`card min-w-0 ${className}`}>{content}</div>;
+  return onClick ? <button onClick={onClick} type="button" className="card min-w-0 text-left transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/25">{content}</button> : <div className="card min-w-0">{content}</div>;
 }
 
 export function RowActions({ onView, onEdit, onDelete, deleteLabel = "Excluir" }: { onView: () => void; onEdit: () => void; onDelete: () => void; deleteLabel?: string }) {
