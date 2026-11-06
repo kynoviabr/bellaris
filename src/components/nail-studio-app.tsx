@@ -257,9 +257,12 @@ const PHOTO_KIND_OPTIONS = [
   { value: "other", label: "Outro" },
 ];
 const PHOTO_KIND_LABELS: Record<string, string> = Object.fromEntries(PHOTO_KIND_OPTIONS.map(option => [option.value, option.label]));
-const INITIAL_PHOTO_SLOTS: { kind: string; file: File | null }[] = [
-  { kind: "before", file: null },
-  { kind: "after", file: null },
+// Mesmo limite de src/lib/utils/photos.ts: a checagem aqui só mostra o aviso antes do envio.
+const PHOTO_MAX_BYTES = 5 * 1024 * 1024;
+type PhotoSlot = { kind: string; file: File | null; error: string | null };
+const INITIAL_PHOTO_SLOTS: PhotoSlot[] = [
+  { kind: "before", file: null, error: null },
+  { kind: "after", file: null, error: null },
 ];
 
 function ClientDetailsModal({ client, close }: { client: any; close: () => void }) {
@@ -424,13 +427,18 @@ function ClientDetailsModal({ client, close }: { client: any; close: () => void 
                             <select id={`photo-kind-${index}`} value={slot.kind} onChange={e => { const kind = e.target.value; setPhotoSlots(curr => curr.map((s, i) => i === index ? { ...s, kind } : s)); }} className="field-input">
                               {PHOTO_KIND_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                             </select>
-                            <input type="file" accept=".jpg,.jpeg,.png,.webp" aria-label={`Arquivo da foto ${index + 1}`} onChange={e => { const file = e.target.files?.[0] ?? null; setPhotoSlots(curr => curr.map((s, i) => i === index ? { ...s, file } : s)); }} className="block w-full text-xs text-muted" />
+                            <input type="file" accept=".jpg,.jpeg,.png,.webp" aria-label={`Arquivo da foto ${index + 1}`} aria-invalid={Boolean(slot.error)} onChange={e => {
+                              const file = e.target.files?.[0] ?? null;
+                              const error = file && file.size > PHOTO_MAX_BYTES ? `Foto acima de 5 MB (${(file.size / 1024 / 1024).toFixed(1)} MB). Escolha um arquivo menor.` : null;
+                              setPhotoSlots(curr => curr.map((s, i) => i === index ? { ...s, file: error ? null : file, error } : s));
+                            }} className="block w-full text-xs text-muted" />
+                            {slot.error && <p role="alert" className="text-xs text-danger">{slot.error}</p>}
                           </div>
                         ))}
                       </div>
                       <div className="mt-5 flex justify-end gap-2">
                         <button onClick={() => { setPhotoDialog(false); setPhotoSlots(INITIAL_PHOTO_SLOTS); }} className="btn-outline">Cancelar</button>
-                        <button onClick={uploadPhotoSlots} disabled={uploading || photoSlotsFilled.length === 0} className="btn-primary disabled:opacity-50">{uploading ? "Enviando..." : "Enviar fotos"}</button>
+                        <button onClick={uploadPhotoSlots} disabled={uploading || photoSlotsFilled.length === 0 || photoSlots.some(slot => slot.error)} className="btn-primary disabled:opacity-50">{uploading ? "Enviando..." : "Enviar fotos"}</button>
                       </div>
                     </div>
                   </div>
