@@ -3,6 +3,7 @@
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { validateOwnerData } from "@/lib/validation/owner-data.ts";
+import { businessDayOrdinal, nthBusinessDay, saoPauloDate } from "@/lib/cakto/billing-day.ts";
 
 export async function login(prevState: any, formData: FormData) {
   const email = (formData.get("email") as string)?.trim();
@@ -218,6 +219,20 @@ export async function register(prevState: any, formData: FormData) {
     .select("organization_id").eq("id", user.id).maybeSingle();
   if (registeredOrgError || !registeredOrg?.organization_id) {
     return { error: "Conta criada, mas não foi possível preparar o pagamento. Entre em contato com o suporte antes de tentar novo cadastro." };
+  }
+  // Registro da cobrança do salão. O vencimento é ajustado na liberação, pelo pagamento aprovado.
+  const today = saoPauloDate();
+  const dueBusinessDay = businessDayOrdinal(today);
+  const { error: subscriptionError } = await planAdmin.from("platform_subscriptions").upsert({
+    organization_id: registeredOrg.organization_id,
+    plan_code: owner.planCode,
+    billing_mode: "mensalidade",
+    due_business_day: dueBusinessDay,
+    current_period_end: nthBusinessDay(today.year, today.month, dueBusinessDay),
+    cancelled: false,
+  }, { onConflict: "organization_id" });
+  if (subscriptionError) {
+    return { error: "Conta criada, mas não foi possível preparar a cobrança. Entre em contato com o suporte antes de tentar novo cadastro." };
   }
   const { data: checkoutIntent, error: checkoutError } = await planAdmin.from("cakto_checkout_intents")
     .insert({ organization_id: registeredOrg.organization_id, plan_code: owner.planCode, offer_id: mappedOffers[0].offer_id })

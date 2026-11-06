@@ -1,6 +1,7 @@
 // Processa eventos da Cakto gravados em cakto_webhook_events.
 // Só age quando CAKTO_ACTIVATION_ENABLED=true (ver webhook-queue.ts). Sem correlação confirmada, nunca ativa.
 import { decideSubscriptionAction, type OfferMap, type PlanAction } from "./subscription-plan.ts";
+import { businessDayOrdinal, nthBusinessDay, saoPauloDate } from "./billing-day.ts";
 
 export interface CaktoEventFields {
   eventType: string;
@@ -39,15 +40,21 @@ export interface Db {
   rpc(name: string, args: Record<string, unknown>): Promise<{ data: unknown; error: { message: string } | null }>;
 }
 
-/** Libera o salão da intenção e registra a assinatura. Sem vencimento cadastrado, não libera. */
-async function activateSalon(db: Db, orgId: string, planCode: string): Promise<ProcessOutcome> {
-  const { data: sub } = await db.from("platform_subscriptions")
-    .select("organization_id,due_business_day").eq("organization_id", orgId).maybeSingle();
-  if (!sub || sub.due_business_day == null) return "manual_review";
-  const now = new Date().toISOString();
-  const { error: subError } = await db.from("platform_subscriptions")
-    .update({ plan_code: planCode, billing_mode: "mensalidade", cancelled: false, cancelled_at: null, updated_at: now })
-    .eq("organization_id", orgId);
+/** Libera o salão. O vencimento é o dia útil da liberação, e a cobrança segue mensal a partir dele. */
+async function activateSalon(db: Db, orgId: string, planCode: string, now: Date = new Date()): Promise<ProcessOutcome> {
+  const today = saoPauloDate(now);
+  const dueBusinessDay = businessDayOrdinal(today);
+  const nowIso = now.toISOString();
+  const { error: subError } = await db.from("platform_subscriptions").upsert({
+    organization_id: orgId,
+    plan_code: planCode,
+    billing_mode: "mensalidade",
+    due_business_day: dueBusinessDay,
+    current_period_end: nthBusinessDay(today.year, today.month, dueBusinessDay),
+    cancelled: false,
+    cancelled_at: null,
+    updated_at: nowIso,
+  }, { onConflict: "organization_id" });
   if (subError) return "failed";
   const { error: orgError } = await db.from("organizations")
     .update({ access_status: "ativo", access_note: null }).eq("id", orgId);
