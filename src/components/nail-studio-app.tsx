@@ -1264,7 +1264,8 @@ function ServiceModal({ mode, service, close, save }: { mode: "create" | "view" 
     category: service?.category || "Geral",
     duration: service?.duration || 60,
     price: service?.price || 0,
-    maintenance: service?.maintenance || 0
+    maintenance: service?.maintenance || 0,
+    showOnline: service?.showOnline ?? true
   });
   const readOnly = mode === "view";
 
@@ -1307,6 +1308,14 @@ function ServiceModal({ mode, service, close, save }: { mode: "create" | "view" 
                 <input type="number" min="0" className="field-input" value={formData.maintenance || ''} onChange={e => setFormData({...formData, maintenance: Number(e.target.value)})} disabled={readOnly} placeholder="0 = Sem manutenção" />
               </div>
             </div>
+            <label className="flex items-start gap-3 rounded-md border border-[#DBE3EC] p-3 text-sm">
+              <input type="checkbox" className="mt-0.5" checked={formData.showOnline} disabled={readOnly}
+                onChange={e => setFormData({...formData, showOnline: e.target.checked})} />
+              <span>
+                <span className="font-medium text-ink">Mostrar no agendamento online</span>
+                <span className="block text-xs text-muted">Desmarque para o serviço ficar só no atendimento interno.</span>
+              </span>
+            </label>
           </div>
           <div className="mt-6 flex justify-end gap-3">
             <button type="button" onClick={close} className="btn-outline">Cancelar</button>

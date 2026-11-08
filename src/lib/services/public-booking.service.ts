@@ -83,6 +83,7 @@ export async function fetchPublicBookingData(supabase: SupabaseClient, orgId?: s
       .select("id, name, category, duration_minutes, price")
       .eq("organization_id", orgId)
       .eq("active", true)
+      .eq("show_online", true)
       .order("name");
 
     if (srvError) {
