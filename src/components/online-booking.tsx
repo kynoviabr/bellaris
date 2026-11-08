@@ -130,7 +130,7 @@ export function OnlineBooking({
       <div className="mx-auto max-w-md overflow-hidden rounded-lg border border-[#DBE3EC] bg-white shadow-card">
         <div className="bg-navy px-5 py-6 text-white">
           <div className="flex items-center gap-3">
-            <SalonMark logoUrl={logoUrl} boxClassName="h-9 w-9 rounded-md bg-primary" fallback={<Sparkles size={17} />} />
+            <SalonMark logoUrl={logoUrl} boxClassName={logoUrl ? "h-12 w-12 shrink-0" : "h-9 w-9 rounded-md bg-primary"} fallback={<Sparkles size={17} />} />
             <div>
               <p className="font-semibold">{orgName}</p>
               <p className="text-xs text-white/60">Agendamento online oficial</p>
