@@ -6,18 +6,14 @@ import { fetchPublicBookingData, getOrgBySlug, fetchPublicBookingDataBySlug } fr
 
 test("fetchPublicBookingData & Multi-Tenant Slug Tests", async (t) => {
   const mockSupabase = (profData: any, profError: any, srvData: any, srvError: any) => ({
-    from: (table: any) => ({
-      select: () => ({
-        eq: (col: any, val: any) => ({
-          eq: () => ({
-            order: () => {
-              if (table === "professionals") return Promise.resolve({ data: profData, error: profError });
-              if (table === "services") return Promise.resolve({ data: srvData, error: srvError });
-            }
-          })
-        })
-      })
-    })
+    from: (table: any) => {
+      const result = table === "professionals"
+        ? { data: profData, error: profError }
+        : table === "services" ? { data: srvData, error: srvError } : { data: [], error: null };
+      // Cadeia de .eq() de tamanho variável, terminando em .order().
+      const chain: any = { eq: () => chain, order: () => Promise.resolve(result) };
+      return { select: () => chain };
+    }
   }) as any;
 
   await t.test("error when GABI_ORG_ID is missing", async () => {
@@ -135,21 +131,20 @@ test("fetchPublicBookingData & Multi-Tenant Slug Tests", async (t) => {
               };
             }
             const orgId = val1;
-            return {
-              eq: (_col2: string, _val2: any) => ({
-                order: async () => {
-                  if (table === "professionals") {
-                    const data = orgId === "org-a" ? dbOrgA.professionals : dbOrgB.professionals;
-                    return { data, error: null };
-                  }
-                  if (table === "services") {
-                    const data = orgId === "org-a" ? dbOrgA.services : dbOrgB.services;
-                    return { data, error: null };
-                  }
-                  return { data: [], error: null };
-                }
-              })
+            // Cadeia de .eq() de tamanho variável, terminando em .order().
+            const orderResult = async () => {
+              if (table === "professionals") {
+                const data = orgId === "org-a" ? dbOrgA.professionals : dbOrgB.professionals;
+                return { data, error: null };
+              }
+              if (table === "services") {
+                const data = orgId === "org-a" ? dbOrgA.services : dbOrgB.services;
+                return { data, error: null };
+              }
+              return { data: [], error: null };
             };
+            const chain: any = { eq: () => chain, order: orderResult };
+            return chain;
           }
         })
       })
