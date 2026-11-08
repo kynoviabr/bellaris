@@ -127,7 +127,7 @@ export function OnlineBooking({
   return (
     <main className="page-content">
       <div className="mx-auto max-w-md overflow-hidden rounded-lg border border-[#DBE3EC] bg-white shadow-card">
-        <div className="bg-navy px-5 py-6 text-white">
+        <div className={logoUrl ? "border-b border-[#DBE3EC] bg-white px-5 py-6 text-ink" : "bg-navy px-5 py-6 text-white"}>
           <div className="flex items-center gap-3">
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -139,7 +139,7 @@ export function OnlineBooking({
             )}
             <div>
               <p className="font-semibold">{orgName}</p>
-              <p className="text-xs text-white/60">Agendamento online oficial</p>
+              <p className={`text-xs ${logoUrl ? "text-muted" : "text-white/60"}`}>Agendamento online oficial</p>
             </div>
           </div>
         </div>
