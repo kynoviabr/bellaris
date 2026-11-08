@@ -7,7 +7,7 @@ export async function getOrgBySlug(supabase: SupabaseClient, slug: string) {
   if (!slug || !supabase) return null;
   const { data: org, error } = await supabase
     .from("organizations")
-    .select("id, name, slug, access_status")
+    .select("id, name, slug, access_status, logo_path")
     .eq("slug", slug.toLowerCase().trim())
     .maybeSingle();
 
@@ -40,12 +40,12 @@ export async function getBookableOrgBySlug(supabase: SupabaseClient, slug: strin
 
 export async function fetchPublicBookingDataBySlug(supabase: SupabaseClient, slug: string) {
   if (!slug || !supabase) {
-    return { success: false, services: [], professionals: [], orgName: "", orgId: null, slug: "", error: "Missing configuration" };
+    return { success: false, services: [], professionals: [], orgName: "", orgId: null, slug: "", logoPath: null, error: "Missing configuration" };
   }
 
   const org = await getBookableOrgBySlug(supabase, slug);
   if (!org) {
-    return { success: false, services: [], professionals: [], orgName: "", orgId: null, slug: "", error: "Organization not found" };
+    return { success: false, services: [], professionals: [], orgName: "", orgId: null, slug: "", logoPath: null, error: "Organization not found" };
   }
 
   const result = await fetchPublicBookingData(supabase, org.id);
@@ -53,7 +53,8 @@ export async function fetchPublicBookingDataBySlug(supabase: SupabaseClient, slu
     ...result,
     orgName: org.name,
     orgId: org.id,
-    slug: org.slug
+    slug: org.slug,
+    logoPath: org.logo_path ?? null
   };
 }
 

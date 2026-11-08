@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NailStudioApp } from "@/components/nail-studio-app";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentOrganizationId } from "@/lib/auth/current-organization";
+import { getSalonLogoUrl } from "@/lib/salon-logo";
 import { redirect } from "next/navigation";
 import { getClients } from "@/lib/actions/clients";
 import { getProfessionals } from "@/lib/actions/professionals";
@@ -22,7 +23,7 @@ export default async function Page() {
   const supabase = await createClient();
 
   // Protect route
-  let tenantContext: { profileName: string; orgName: string; email: string; orgSlug: string } = { profileName: "Usuário", orgName: "Studio", email: "", orgSlug: "" };
+  let tenantContext: { profileName: string; orgName: string; email: string; orgSlug: string; logoUrl: string | null } = { profileName: "Usuário", orgName: "Studio", email: "", orgSlug: "", logoUrl: null };
   let viewerRole: string = "owner";
   let viewerOrg: string | null = null;
   if (supabase) {
@@ -66,10 +67,11 @@ export default async function Page() {
     let organization = { name: "Nail Studio" };
     tenantContext.profileName = profile?.full_name || "Usuário";
     if (viewerOrg) {
-      const { data: org } = await supabase.from('organizations').select('name, slug').eq('id', viewerOrg).single();
+      const { data: org } = await supabase.from('organizations').select('name, slug, logo_path').eq('id', viewerOrg).single();
       if (org) {
         tenantContext.orgName = org.name;
         tenantContext.orgSlug = org.slug || "";
+        tenantContext.logoUrl = getSalonLogoUrl(org.logo_path);
       }
     }
     
