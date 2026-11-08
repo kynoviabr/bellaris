@@ -164,7 +164,6 @@ export function OnlineBooking({
                       <p className="font-medium">{s.name}</p>
                       <p className="text-xs text-muted">{s.duration} min · {s.category}</p>
                     </div>
-                    <p className="font-semibold text-primary">{money.format(s.price)}</p>
                   </button>
                 ))}
               </div>
