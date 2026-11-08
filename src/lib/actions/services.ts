@@ -12,6 +12,7 @@ export interface ServiceItem {
   price: number;
   maintenance: number;
   active: boolean;
+  showOnline?: boolean; // aparece na lista do agendamento online (padrão: sim)
   consumables?: { product_id: string; estimated_quantity: number }[];
 }
 
@@ -41,6 +42,7 @@ export async function getServices(): Promise<ServiceItem[]> {
     price: item.price,
     maintenance: item.maintenance_days || 0,
     active: item.active,
+    showOnline: item.show_online !== false,
     consumables: consumables?.filter(c => c.service_id === item.id).map(c => ({ product_id: c.product_id, estimated_quantity: c.estimated_quantity })) || []
   }));
 }
@@ -61,6 +63,7 @@ export async function createServiceRecord(service: Omit<ServiceItem, 'id' | 'act
       duration_minutes: service.duration,
       price: service.price,
       maintenance_days: service.maintenance,
+      show_online: service.showOnline ?? true,
       active: true
     }])
     .select()
@@ -168,7 +171,8 @@ export async function updateServiceRecord(serviceId: string, service: Omit<Servi
     category: service.category,
     duration_minutes: service.duration,
     price: service.price,
-    maintenance_days: service.maintenance
+    maintenance_days: service.maintenance,
+    show_online: service.showOnline ?? true
   }).eq('id', serviceId);
   if (error) return { success: false, error: error.message };
   revalidatePath("/");
