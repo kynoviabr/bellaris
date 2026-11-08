@@ -37,6 +37,7 @@ import { appointments as demoAppointments, clients as demoClients, inventory, mo
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { logout } from "@/lib/actions/auth";
 import { SalonMark } from "@/components/salon-mark";
+import { useRouter } from "next/navigation";
 import { createClientRecord, updateClientRecord, archiveClientRecord, type ClientItem } from "@/lib/actions/clients";
 import { getClientPrivacyStatus } from "@/lib/actions/privacy";
 import { ClientPrivacyPanel } from "@/components/dashboard/client-privacy-panel";
@@ -1350,6 +1351,7 @@ function SettingsView({ tenant, updateToast, role }: { tenant: any; updateToast:
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [savingLogo, setSavingLogo] = useState(false);
   const [logoError, setLogoError] = useState("");
+  const router = useRouter();
 
   async function handleSaveOrg() {
     setSavingOrg(true);
@@ -1375,6 +1377,7 @@ function SettingsView({ tenant, updateToast, role }: { tenant: any; updateToast:
       setLogoUrl(res.logoUrl ?? null);
       setLogoFile(null);
       updateToast("Logo atualizado! Ele aparece no agendamento e no menu do painel.");
+      router.refresh();
     }
     setSavingLogo(false);
   }
