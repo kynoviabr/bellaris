@@ -61,7 +61,7 @@ Observação: o logo preto tem contraste fraco sobre roxo escuro. Para fundos es
 | `40530b3` | Cor primária do sistema no cabeçalho | `4f54c86` (cópia) |
 | `9883902` | Logo novo aparece sem recarregar a página | `4f54c86` (cópia) |
 
-Os nove commits foram para a `main` como cópias (cherry-pick), no último commit `4f54c86`. A `main` não recebeu os demais commits do homolog. O deploy de produção foi disparado com esse push. O status `READY` não foi conferido no registro.
+Os nove commits foram para a `main` como cópias (cherry-pick), no último commit `4f54c86`. A `main` não recebeu os demais commits do homolog. O deploy de produção foi disparado com esse push e está `READY` na Vercel (`dpl_GgpEbbAVTABhh525sZqfXwVQXw5q`).
 
 ## 2. Mensagem de pagamento antecipado (agenda)
 
@@ -88,8 +88,7 @@ Detalhes da revisão de segurança estão em `2026-11-08-seguranca-resumo.md`, n
 
 ## 4. Pendências
 
-- Confirmar `READY` do deploy de produção dos commits `4f54c86` e `079e389` na Vercel.
-- Testar o login do salão (`/login/[slug]`) e o agendamento com logo real em produção.
+- Testar o login do salão (`/login/[slug]`), o agendamento com logo real e a mensagem de pagamento em produção.
 - Restringir a variável `SUPABASE_SERVICE_ROLE_KEY` do Preview à branch `homolog`.
 - Decidir sobre a proteção contra senhas vazadas (plano Pro ou aceitar o risco).
 - Reaplicar as alterações de `globals.css` e `tailwind.config.ts` que ficaram guardadas numa stash local, se ainda forem necessárias.
