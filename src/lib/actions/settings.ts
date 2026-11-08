@@ -2,6 +2,7 @@
 
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { getCurrentOrganizationId, getCurrentProfile } from "@/lib/auth/current-organization";
+import { getSalonLogoUrl } from "@/lib/salon-logo";
 
 
 function translateError(msg: string) {
@@ -26,6 +27,45 @@ export async function updateOrganization(name: string) {
   
   if (error) return { error: error.message };
   return { success: true };
+}
+
+const LOGO_BUCKET = "salon-logos";
+const LOGO_MAX_BYTES = 2 * 1024 * 1024;
+const LOGO_EXTENSIONS: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" };
+
+// Envia o logo do salão logado. O salão vem da sessão, nunca do formulário.
+export async function updateSalonLogo(formData: FormData) {
+  const supabase = await createClient();
+  if (!supabase) return { error: "Supabase não configurado" };
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Não autenticado" };
+
+  const orgId = await getCurrentOrganizationId(supabase);
+  if (!orgId) return { error: "Organização não encontrada" };
+
+  const file = formData.get("logo");
+  if (!(file instanceof File) || file.size === 0) return { error: "Escolha uma imagem." };
+  const extension = LOGO_EXTENSIONS[file.type];
+  if (!extension) return { error: "Use uma imagem PNG, JPG ou WebP." };
+  if (file.size > LOGO_MAX_BYTES) return { error: "A imagem deve ter no máximo 2 MB." };
+
+  const adminClient = await createAdminClient();
+  if (!adminClient) return { error: "Service Role Key não configurada no servidor." };
+
+  const path = `${orgId}/logo-${Date.now()}.${extension}`;
+  const { error: uploadError } = await adminClient.storage.from(LOGO_BUCKET).upload(path, file, { contentType: file.type });
+  if (uploadError) return { error: uploadError.message };
+
+  const { data: current } = await adminClient.from('organizations').select('logo_path').eq('id', orgId).single();
+  const { error: updateError } = await adminClient.from('organizations').update({ logo_path: path }).eq('id', orgId);
+  if (updateError) {
+    await adminClient.storage.from(LOGO_BUCKET).remove([path]);
+    return { error: updateError.message };
+  }
+
+  if (current?.logo_path) await adminClient.storage.from(LOGO_BUCKET).remove([current.logo_path]);
+  return { success: true, logoUrl: getSalonLogoUrl(path) };
 }
 
 export async function updateProfile(fullName: string) {

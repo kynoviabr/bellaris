@@ -12,7 +12,7 @@ export default async function AgendarSlugPage({ params }: { params: Promise<{ sl
     notFound();
   }
 
-  const { success, professionals, services, orgName } = await getPublicBookingDataBySlug(slug);
+  const { success, professionals, services, orgName, logoUrl } = await getPublicBookingDataBySlug(slug);
 
   if (!success) {
     notFound();
@@ -36,7 +36,7 @@ export default async function AgendarSlugPage({ params }: { params: Promise<{ sl
 
   return (
     <div className="min-h-screen bg-[#F0F4F8] sm:py-8">
-      <OnlineBooking professionals={professionals} services={services} slug={slug} orgName={orgName} />
+      <OnlineBooking professionals={professionals} services={services} slug={slug} orgName={orgName} logoUrl={logoUrl} />
     </div>
   );
 }

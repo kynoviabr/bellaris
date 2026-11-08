@@ -2,13 +2,14 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/server";
 import { fetchPublicBookingDataBySlug } from "@/lib/services/public-booking.service";
+import { getSalonLogoUrl } from "@/lib/salon-logo";
 
 export async function getPublicBookingDataBySlug(slug: string) {
   const supabase = await createAdminClient();
 
   if (!supabase) {
     console.error("[PublicBooking] Supabase admin client not configured.");
-    return { success: false, services: [], professionals: [], orgName: "", orgId: null, slug: "" };
+    return { success: false, services: [], professionals: [], orgName: "", orgId: null, slug: "", logoUrl: null };
   }
 
   const result = await fetchPublicBookingDataBySlug(supabase, slug);
@@ -22,7 +23,8 @@ export async function getPublicBookingDataBySlug(slug: string) {
     services: result.services,
     orgName: result.orgName,
     orgId: result.orgId,
-    slug: result.slug
+    slug: result.slug,
+    logoUrl: getSalonLogoUrl(result.logoPath)
   };
 }
 

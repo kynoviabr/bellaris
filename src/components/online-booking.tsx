@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Clock, Plus, Users, ArrowRight, ShieldCheck, Clock3, Check, Copy, Sparkles } from "lucide-react";
 import { checkClientWhitelist } from "@/lib/actions/clients";
+import { SalonMark } from "@/components/salon-mark";
 import { clients as demoClients } from "@/lib/demo-data";
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -11,11 +12,13 @@ export function OnlineBooking({
   services = [],
   slug = "",
   orgName = "Salão",
+  logoUrl = null,
 }: {
   professionals?: any[];
   services?: any[];
   slug?: string;
   orgName?: string;
+  logoUrl?: string | null;
 }) {
   const [step, setStep] = useState(1);
   const [selectedService, setSelectedService] = useState<any>(services[0] || null);
@@ -127,9 +130,7 @@ export function OnlineBooking({
       <div className="mx-auto max-w-md overflow-hidden rounded-lg border border-[#DBE3EC] bg-white shadow-card">
         <div className="bg-navy px-5 py-6 text-white">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary">
-              <Sparkles size={17} />
-            </div>
+            <SalonMark logoUrl={logoUrl} boxClassName="h-9 w-9 rounded-md bg-primary" fallback={<Sparkles size={17} />} />
             <div>
               <p className="font-semibold">{orgName}</p>
               <p className="text-xs text-white/60">Agendamento online oficial</p>
