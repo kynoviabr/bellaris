@@ -52,7 +52,7 @@ import { getProfessionalCommissions, payCommissions } from "@/lib/actions/commis
 import { getClientDetails, uploadClientPhoto, deleteClientPhoto, getClients, toggleClientWhitelist, toggleClientBlacklist, runAutoPromoteWhitelist } from "@/lib/actions/clients";
 import { OnlineBooking } from "./online-booking";
 import { DataImportCard } from "./dashboard/data-import";
-import { getRemindersForTomorrow } from "@/lib/actions/automations";
+import { getRemindersInThreeDays } from "@/lib/actions/automations";
 import { createProduct, updateProduct, addStockMovement, getInventory } from "@/lib/actions/inventory";
 import { updateServiceConsumables, getServices, deleteServiceRecord, updateServiceRecord } from "@/lib/actions/services";
 
