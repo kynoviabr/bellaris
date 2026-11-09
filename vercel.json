@@ -1,5 +1,12 @@
 {
   "crons": [
-    { "path": "/api/cron/retencao", "schedule": "0 6 * * *" }
+    {
+      "path": "/api/cron/retencao",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/lembretes",
+      "schedule": "0 12 * * *"
+    }
   ]
 }
