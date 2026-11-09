@@ -113,7 +113,7 @@ export function Automations({ go, tenant }: { go: (v: View) => void, tenant?: an
       {tab === "reminders" && (
         <>
           <div className="grid gap-4 sm:grid-cols-3 mb-6">
-            <Metric label="Lembretes pendentes" value={reminders.filter(r => !r.sent).length.toString()} detail="Horários marcados para daqui a 3 dias" icon={MessageCircle} />
+            <Metric label="Lembretes pendentes" value={reminders.filter(r => !r.sent).length.toString()} detail="Horários de hoje até daqui a 3 dias" icon={MessageCircle} />
             <Metric label="Já enviados" value={reminders.filter(r => r.sent).length.toString()} detail="Envio confirmado manualmente" icon={Check} />
             <Metric onClick={() => go("agenda")} label="Agendamentos vazios" value="0" detail="Clientes sem celular" icon={Users} />
           </div>
