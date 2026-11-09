@@ -2,7 +2,7 @@ import { appNotify, appConfirm, appPrompt } from "@/components/ui/app-dialog";
 import React, { useState, useEffect } from "react";
 import { Plus, Search, Mail, MessageCircle, Settings, ChevronRight, Activity, CalendarDays, ArrowRight } from "lucide-react";
 import { Badge, SectionTitle, type View, Metric } from "../shared";
-import { getRemindersForTomorrow, getOverdueMaintenances } from "@/lib/actions/automations";
+import { getRemindersInThreeDays, getOverdueMaintenances } from "@/lib/actions/automations";
 import { Check, Calendar, Users, Copy, AlertTriangle } from "lucide-react";
 
 export const initialTemplates = [{ name: "Lembrete 24h", count: "18 agendadas", tone: "success" }, { name: "Sinal pendente", count: "3 aguardando", tone: "warning" }, { name: "Manutenção vencida", count: "7 oportunidades", tone: "danger" }, { name: "Aniversário", count: "2 nesta semana", tone: "primary" }];
@@ -20,7 +20,7 @@ export function Automations({ go, tenant }: { go: (v: View) => void, tenant?: an
   const loadData = React.useCallback(async () => {
     setLoading(true);
     const [remRes, overRes] = await Promise.all([
-      getRemindersForTomorrow(tenant?.orgName),
+      getRemindersInThreeDays(tenant?.orgName),
       getOverdueMaintenances(tenant?.orgName)
     ]);
     setReminders(remRes);
@@ -113,7 +113,7 @@ export function Automations({ go, tenant }: { go: (v: View) => void, tenant?: an
       {tab === "reminders" && (
         <>
           <div className="grid gap-4 sm:grid-cols-3 mb-6">
-            <Metric label="Lembretes pendentes" value={reminders.filter(r => !r.sent).length.toString()} detail="Próximos horários marcados" icon={MessageCircle} />
+            <Metric label="Lembretes pendentes" value={reminders.filter(r => !r.sent).length.toString()} detail="Horários marcados para daqui a 3 dias" icon={MessageCircle} />
             <Metric label="Já enviados" value={reminders.filter(r => r.sent).length.toString()} detail="Envio confirmado manualmente" icon={Check} />
             <Metric onClick={() => go("agenda")} label="Agendamentos vazios" value="0" detail="Clientes sem celular" icon={Users} />
           </div>

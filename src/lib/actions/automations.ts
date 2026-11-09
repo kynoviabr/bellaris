@@ -2,14 +2,22 @@
 import { createClient } from "@/lib/supabase/server";
 import { markMessageSentService } from "@/lib/services/automations.service";
 
-export async function getRemindersForTomorrow(orgName: string = "Studio") {
+// Dia do lembrete: hoje + 3 dias, no fuso de São Paulo. Retorna aaaa-mm-dd.
+const REMINDER_DAYS_AHEAD = 3;
+
+function addDaysSaoPaulo(days: number): string {
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  const [y, m, d] = today.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
+export async function getRemindersInThreeDays(orgName: string = "Studio") {
   const supabase = await createClient();
   if (!supabase) return [];
 
-  // Limit strictly to tomorrow (America/Sao_Paulo)
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowStr = tomorrow.toISOString().split("T")[0]; // simplistic
+  // Somente o dia exato de antecedência (America/Sao_Paulo): de 00:00 até 00:00 do dia seguinte.
+  const targetStr = addDaysSaoPaulo(REMINDER_DAYS_AHEAD);
+  const nextDayStr = addDaysSaoPaulo(REMINDER_DAYS_AHEAD + 1);
 
   const { data: appts } = await supabase
     .from("appointments")
@@ -24,8 +32,8 @@ export async function getRemindersForTomorrow(orgName: string = "Studio") {
       message_jobs(id, status, payload)
     `)
     .eq("status", "scheduled")
-    .gte("starts_at", `${tomorrowStr}T00:00:00-03:00`)
-    .lt("starts_at", `${tomorrowStr}T23:59:59-03:00`)
+    .gte("starts_at", `${targetStr}T00:00:00-03:00`)
+    .lt("starts_at", `${nextDayStr}T00:00:00-03:00`)
     .order("starts_at", { ascending: true })
     .limit(50);
 
