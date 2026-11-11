@@ -41,15 +41,11 @@ export async function POST(request: NextRequest) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
-  const record = payload as Record<string, unknown>;
-  const bodyCredential = typeof record.secret === "string" ? record.secret : "";
-  const supplied = Buffer.from(bodyCredential, "utf8");
-  const configured = Buffer.from(secret, "utf8");
-  const bodyAuthenticated = supplied.length === configured.length && timingSafeEqual(supplied, configured);
+  // Só a assinatura HMAC no cabeçalho autentica. O segredo nunca vem no corpo, para não aparecer em logs.
   const timestamp = request.headers.get("x-cakto-timestamp") ?? "";
   const signature = request.headers.get("x-cakto-signature") ?? "";
-  const headerAuthenticated = Boolean(timestamp && signature) && verifySignature(body, timestamp, signature, secret);
-  if (!bodyAuthenticated && !headerAuthenticated) {
+  const authenticated = Boolean(timestamp && signature) && verifySignature(body, timestamp, signature, secret);
+  if (!authenticated) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
