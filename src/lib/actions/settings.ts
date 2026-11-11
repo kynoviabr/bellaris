@@ -44,6 +44,12 @@ export async function updateSalonLogo(formData: FormData) {
   const orgId = await getCurrentOrganizationId(supabase);
   if (!orgId) return { error: "Organização não encontrada" };
 
+  // Só dono ou administrador troca o logo. A escrita usa o cliente admin, que ignora RLS.
+  const profile = await getCurrentProfile(supabase);
+  if (!profile || !["owner", "admin"].includes(profile.role ?? "")) {
+    return { error: "Apenas o dono ou o administrador do salão pode trocar o logo." };
+  }
+
   const file = formData.get("logo");
   if (!(file instanceof File) || file.size === 0) return { error: "Escolha uma imagem." };
   const extension = LOGO_EXTENSIONS[file.type];
