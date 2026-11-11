@@ -2,8 +2,16 @@ import { NextResponse } from "next/server";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/server";
 import { findAvailableProfessionalForSlot } from "@/lib/availability-engine";
 import { getBookableOrgBySlug } from "@/lib/services/public-booking.service";
+import { checkRateLimit, clientIp, tooManyRequestsResponse } from "@/lib/rate-limit";
+
+// Reserva é escrita pública: 10 tentativas por IP a cada 10 minutos.
+const HOLD_LIMIT = 10;
+const HOLD_WINDOW_MS = 10 * 60 * 1000;
 
 export async function POST(request: Request) {
+  const limit = checkRateLimit(`hold:${clientIp(request)}`, HOLD_LIMIT, HOLD_WINDOW_MS);
+  if (!limit.allowed) return tooManyRequestsResponse(limit.retryAfterSeconds);
+
   try {
     const body = await request.json();
     const {
