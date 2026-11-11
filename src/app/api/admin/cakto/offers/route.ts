@@ -29,8 +29,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Forbidden", diagnostic: "profile_not_found" }, { status: 403 });
   }
   const role = String(profile.role).trim().toLowerCase();
-  const designatedHomologAdmin = role === "admin" && auth.user.email?.trim().toLowerCase() === "admin.gabi@example.com";
-  if (role !== "master" && !designatedHomologAdmin) {
+  if (role !== "master") {
     return NextResponse.json({ error: "Forbidden", diagnostic: "role_not_master", currentRole: profile.role }, { status: 403 });
   }
 

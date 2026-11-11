@@ -18,8 +18,7 @@ export async function POST(request: NextRequest) {
   const { data: profile, error: profileError } = await db.from("profiles").select("role").eq("id", auth.user.id).maybeSingle();
   if (profileError) return NextResponse.json({ error: "Profile lookup failed" }, { status: 503 });
   const role = String(profile?.role ?? "").trim().toLowerCase();
-  const designatedAdmin = role === "admin" && auth.user.email?.trim().toLowerCase() === "admin.gabi@example.com";
-  if (role !== "master" && !designatedAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (role !== "master") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   let input: unknown;
   try { input = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
