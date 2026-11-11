@@ -3,8 +3,16 @@ import { NextResponse } from "next/server";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/server";
 import { calculateAvailability } from "@/lib/availability-engine";
 import { getBookableOrgBySlug } from "@/lib/services/public-booking.service";
+import { checkRateLimit, clientIp, tooManyRequestsResponse } from "@/lib/rate-limit";
+
+// Consulta de horários: 120 por IP a cada 5 minutos, folgado para quem navega pelos dias.
+const AVAILABILITY_LIMIT = 120;
+const AVAILABILITY_WINDOW_MS = 5 * 60 * 1000;
 
 export async function GET(request: Request) {
+  const limit = checkRateLimit(`availability:${clientIp(request)}`, AVAILABILITY_LIMIT, AVAILABILITY_WINDOW_MS);
+  if (!limit.allowed) return tooManyRequestsResponse(limit.retryAfterSeconds);
+
   try {
     const { searchParams } = new URL(request.url);
     const slug = searchParams.get("slug") || "";
