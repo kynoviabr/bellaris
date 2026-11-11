@@ -18,8 +18,7 @@ export async function GET(request: NextRequest) {
   const { data: profile, error } = await db.from("profiles").select("role").eq("id", auth.user.id).maybeSingle();
   if (error) return NextResponse.json({ error: "Profile lookup failed" }, { status: 503 });
   const role = String(profile?.role ?? "").trim().toLowerCase();
-  const designatedAdmin = role === "admin" && auth.user.email?.trim().toLowerCase() === "admin.gabi@example.com";
-  if (role !== "master" && !designatedAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (role !== "master") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { data, error: queryError } = await db.from("cakto_webhook_reconciliation")
     .select("event_id,event_type,received_at,offer_id,cakto_subscription_id,plan_code,organization_id,reconciliation_status")
     .order("received_at", { ascending: false }).limit(50);
