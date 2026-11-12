@@ -73,7 +73,7 @@ export function LoginScreen({
           </button>
         </form>
         <p className="mt-4 text-center text-sm"><Link href="/recuperar-senha" className="text-primary hover:underline font-medium">Esqueci minha senha</Link></p>
-        <p className="mt-4 text-center text-xs text-muted"><a href="/privacidade" className="underline">Política de privacidade</a></p>
+        <p className="mt-4 text-center text-xs text-muted"><a href="/privacidade" className="underline">Política de privacidade</a> · <a href="/termos" className="underline">Termos de uso</a></p>
 
         <div className="mt-6 text-center text-sm text-muted">
           Não tem uma conta? <Link href="/cadastro" className="text-primary hover:underline font-medium">Cadastre seu Salão</Link>
