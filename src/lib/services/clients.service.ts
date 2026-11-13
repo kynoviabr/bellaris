@@ -10,7 +10,7 @@ function friendlyClientError(error: { code?: string; message?: string; details?:
   }
   return "Não foi possível salvar a cliente. Confira os dados e tente novamente.";
 }
-export async function createClientRecordService(supabase: any, client: { name: string; phone: string; notes?: string; birthDate?: string; cep?: string; street?: string; number?: string; complement?: string; neighborhood?: string; city?: string; state?: string; anamnesisConsent?: boolean }) {
+export async function createClientRecordService(supabase: any, client: { name: string; phone: string; country?: string; notes?: string; birthDate?: string; cep?: string; street?: string; number?: string; complement?: string; neighborhood?: string; city?: string; state?: string; anamnesisConsent?: boolean }) {
   if (!supabase) {
     return { success: false, error: "Supabase não conectado" };
   }
@@ -69,6 +69,7 @@ export async function createClientRecordService(supabase: any, client: { name: s
     return { success: false, error: friendlyClientError(error) };
   }
 
+  if (client.country && clientId) await supabase.from("clients").update({ country: client.country }).eq("id", clientId);
   if (consentGiven && anamnesisInput) {
     const { data: row } = await supabase.from("clients").select("organization_id").eq("id", clientId).maybeSingle();
     if (row?.organization_id) await recordConsent(supabase, row.organization_id, clientId, "anamnesis");
@@ -77,7 +78,7 @@ export async function createClientRecordService(supabase: any, client: { name: s
   return { success: true, mode: "supabase", data: { id: clientId } };
 }
 
-export async function updateClientRecordService(supabase: any, id: string, client: { name: string; phone: string; notes?: string; birthDate?: string; cep?: string; street?: string; number?: string; complement?: string; neighborhood?: string; city?: string; state?: string; anamnesisConsent?: boolean }) {
+export async function updateClientRecordService(supabase: any, id: string, client: { name: string; phone: string; country?: string; notes?: string; birthDate?: string; cep?: string; street?: string; number?: string; complement?: string; neighborhood?: string; city?: string; state?: string; anamnesisConsent?: boolean }) {
   if (!supabase) return { success: false, error: "Supabase não conectado" };
   const phoneNormalized = client.phone.replace(/\D/g, "");
   // Validate duplicates before RPC; the database unique index remains the final safeguard.
@@ -133,6 +134,7 @@ export async function updateClientRecordService(supabase: any, id: string, clien
     return { success: false, error: friendlyClientError(error) };
   }
 
+  if (client.country) await supabase.from("clients").update({ country: client.country }).eq("id", id);
   if (consentGiven && anamnesisInput) {
     const { data: row } = await supabase.from("clients").select("organization_id").eq("id", id).maybeSingle();
     if (row?.organization_id) await recordConsent(supabase, row.organization_id, id, "anamnesis");
