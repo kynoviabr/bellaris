@@ -3,6 +3,8 @@ import { appNotify, appConfirm, appPrompt, AppDialogProvider } from "@/component
 /* eslint-disable react-hooks/set-state-in-effect */
 import NextImage from "next/image";
 import { formatBrazilPhone, formatCep, normalizeEmail, digitsOnly } from "@/lib/utils/input-masks";
+import { COUNTRY_OPTIONS, countryNameFor } from "@/lib/phone/countries";
+import { applyPhoneInput, parseStoredPhone, displayFor, localDigitsOf } from "@/lib/phone/phone-display";
 import { View, EntityKind, EntityModalState, Badge, statusTone, Metric, RowActions, SectionTitle, SmallMetricLink, SystemAlertModal } from "./shared";
 import { formatAgeInYearsAndMonths } from "@/lib/utils/age";
 import { Professionals } from "./dashboard/professionals";
@@ -674,7 +676,9 @@ function ClientModal({ mode, client, close, save }: { mode: "create" | "edit" | 
     }
   }, [client?.id]);
   const [name, setName] = useState(client?.name || "");
-  const [phone, setPhone] = useState(formatBrazilPhone(client?.phone || ""));
+  const initialPhone = parseStoredPhone(client?.phone || "");
+  const [phoneDial, setPhoneDial] = useState(initialPhone.dial);
+  const [phone, setPhone] = useState(initialPhone.display);
   const [birthDate, setBirthDate] = useState(client?.birthDate || "");
   const [email, setEmail] = useState(client?.email || "");
   const [cep, setCep] = useState(client?.cep || "");
@@ -750,7 +754,17 @@ function ClientModal({ mode, client, close, save }: { mode: "create" | "edit" | 
   const readOnly = mode === "view";
   const clientAge = formatAgeInYearsAndMonths(birthDate);
 
-  const handlePhone = (v: string) => setPhone(v.trim().startsWith("+") ? v.replace(/[^\d+\s()\-]/g, "") : formatBrazilPhone(v));
+  const handlePhone = (v: string) => {
+    const r = applyPhoneInput(v, phoneDial);
+    if (r.dial !== phoneDial && country.trim().toLowerCase() === "brasil") setCountry(countryNameFor(r.dial) || country);
+    setPhoneDial(r.dial);
+    setPhone(r.display);
+  };
+  const handleDial = (d: string) => {
+    if (country.trim() === countryNameFor(phoneDial) || country.trim().toLowerCase() === "brasil") setCountry(countryNameFor(d) || country);
+    setPhone(displayFor(d, localDigitsOf(phone, phoneDial)));
+    setPhoneDial(d);
+  };
 
   const handleCep = async (v: string) => {
     setCep(isBrazil ? formatCep(v) : v);
@@ -802,7 +816,7 @@ function ClientModal({ mode, client, close, save }: { mode: "create" | "edit" | 
             {tab === "info" && (
               <div className="grid gap-4 sm:grid-cols-2">
                 <div><label className="field-label">Nome Completo</label><input className="field-input" value={name} onChange={e => setName(e.target.value)} required disabled={readOnly} /></div>
-                <div><label className="field-label">WhatsApp</label><input className="field-input" value={phone} onChange={e => handlePhone(e.target.value)} placeholder="(11) 99999-9999 ou +1 555 123 4567" maxLength={20} required disabled={readOnly} /></div>
+                <div><label className="field-label">WhatsApp</label><div className="flex gap-2"><select className="field-input w-[12rem] shrink-0" aria-label="Código do país do WhatsApp" value={phoneDial} onChange={e => handleDial(e.target.value)} disabled={readOnly}>{COUNTRY_OPTIONS.map(c => <option key={c.code} value={c.code}>{`+${c.code} ${c.name}`}</option>)}</select><input className="field-input min-w-0 flex-1" value={phone} onChange={e => handlePhone(e.target.value)} placeholder={phoneDial === "55" ? "(11) 99999-9999" : "Número com DDI"} maxLength={20} required disabled={readOnly} /></div></div>
                 <div>
                   <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
                     <label className="field-label">Data de Nascimento</label>
