@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/server";
-import { reminderWindow, normalizeBrazilPhone, reminderParams } from "@/lib/whatsapp/reminders";
+import { reminderWindow, normalizeWhatsappPhone, reminderParams } from "@/lib/whatsapp/reminders";
 import { sendReminderTemplate } from "@/lib/whatsapp/meta";
 
 export const dynamic = "force-dynamic";
@@ -53,7 +53,7 @@ export async function GET(request: Request) {
   let skipped = 0;
 
   for (const row of candidates) {
-    const to = normalizeBrazilPhone(row.client_phone);
+    const to = normalizeWhatsappPhone(row.client_phone);
     if (!to) {
       // Telefone inválido: não envia e não registra, para não tentar de novo todo dia.
       skipped++;

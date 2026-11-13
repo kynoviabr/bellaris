@@ -17,6 +17,16 @@ export function reminderWindow(now: Date, daysAhead: number): { start: string; e
   };
 }
 
+/** Telefone do cliente para envio. Se começar com +, é internacional e vale o que foi digitado (com o código do país). Senão, trata como brasileiro. */
+export function normalizeWhatsappPhone(raw: string | null | undefined): string | null {
+  const t = (raw ?? "").trim();
+  if (t.startsWith("+")) {
+    const digits = t.replace(/\D/g, "");
+    return digits.length >= 8 && digits.length <= 15 ? digits : null;
+  }
+  return normalizeBrazilPhone(raw);
+}
+
 /** Telefone brasileiro em formato internacional (55 + DDD + número). Retorna null se não for válido. */
 export function normalizeBrazilPhone(raw: string | null | undefined): string | null {
   const digits = (raw ?? "").replace(/\D/g, "");

@@ -10,6 +10,7 @@ export interface ClientItem {
   id?: string;
   name: string;
   phone: string;
+  country?: string;
   last: string;
   next: string;
   visits: number;
@@ -47,6 +48,7 @@ export async function getClients(): Promise<ClientItem[]> {
       neighborhood,
       city,
       state,
+      country,
       created_at,
       appointments (
         status,
@@ -108,6 +110,7 @@ export async function getClients(): Promise<ClientItem[]> {
       neighborhood: item.neighborhood,
       city: item.city,
       state: item.state,
+      country: item.country,
       last: (() => {
         const past = item.appointments?.filter(a => a.status === 'completed' && new Date(a.starts_at) <= new Date()).sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime())[0];
         if (!past) return "—";
@@ -242,7 +245,7 @@ export async function runAutoPromoteWhitelist(
   return { success: true, promoted: data ?? 0 };
 }
 
-export async function createClientRecord(client: { name: string; phone: string; notes?: string; birthDate?: string; cep?: string; street?: string; number?: string; complement?: string; neighborhood?: string; city?: string; state?: string }) {
+export async function createClientRecord(client: { name: string; phone: string; country?: string; notes?: string; birthDate?: string; cep?: string; street?: string; number?: string; complement?: string; neighborhood?: string; city?: string; state?: string }) {
   if (!isSupabaseConfigured() || client.phone.startsWith("demo-")) {
     return {
       success: true,
@@ -265,7 +268,7 @@ export async function createClientRecord(client: { name: string; phone: string; 
   return createClientRecordService(supabase, client);
 }
 
-export async function updateClientRecord(id: string, client: { name: string; phone: string; notes?: string; birthDate?: string; cep?: string; street?: string; number?: string; complement?: string; neighborhood?: string; city?: string; state?: string }) {
+export async function updateClientRecord(id: string, client: { name: string; phone: string; country?: string; notes?: string; birthDate?: string; cep?: string; street?: string; number?: string; complement?: string; neighborhood?: string; city?: string; state?: string }) {
   if (!isSupabaseConfigured() || id.startsWith("demo-")) return { success: true };
   const supabase = await createClient();
   return updateClientRecordService(supabase, id, client);

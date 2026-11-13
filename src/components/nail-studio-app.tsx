@@ -684,6 +684,8 @@ function ClientModal({ mode, client, close, save }: { mode: "create" | "edit" | 
   const [neighborhood, setNeighborhood] = useState(client?.neighborhood || "");
   const [city, setCity] = useState(client?.city || "");
   const [state, setState] = useState(client?.state || "");
+  const [country, setCountry] = useState(client?.country || "Brasil");
+  const isBrazil = /^(brasil|br)$/i.test(country.trim());
   const [loadingCep, setLoadingCep] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -748,12 +750,12 @@ function ClientModal({ mode, client, close, save }: { mode: "create" | "edit" | 
   const readOnly = mode === "view";
   const clientAge = formatAgeInYearsAndMonths(birthDate);
 
-  const handlePhone = (v: string) => setPhone(formatBrazilPhone(v));
+  const handlePhone = (v: string) => setPhone(v.trim().startsWith("+") ? v.replace(/[^\d+\s()\-]/g, "") : formatBrazilPhone(v));
 
   const handleCep = async (v: string) => {
-    setCep(formatCep(v));
+    setCep(isBrazil ? formatCep(v) : v);
     const cleanCep = digitsOnly(v);
-    if (cleanCep.length === 8) {
+    if (isBrazil && cleanCep.length === 8) {
       setLoadingCep(true);
       try {
         const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
@@ -792,7 +794,7 @@ function ClientModal({ mode, client, close, save }: { mode: "create" | "edit" | 
           e.preventDefault();
           setSubmitting(true);
           const finalNotes = JSON.stringify({ text: notes, anamnesis });
-          await save({ name, phone, birthDate, cep, street, number, complement, neighborhood, city, state, notes: finalNotes, email, anamnesisConsent });
+          await save({ name, phone, birthDate, cep, street, number, complement, neighborhood, city, state, country, notes: finalNotes, email, anamnesisConsent });
           setSubmitting(false);
         }} className="flex-1 min-h-0 flex flex-col overflow-hidden">
 
@@ -800,7 +802,7 @@ function ClientModal({ mode, client, close, save }: { mode: "create" | "edit" | 
             {tab === "info" && (
               <div className="grid gap-4 sm:grid-cols-2">
                 <div><label className="field-label">Nome Completo</label><input className="field-input" value={name} onChange={e => setName(e.target.value)} required disabled={readOnly} /></div>
-                <div><label className="field-label">WhatsApp</label><input className="field-input" value={phone} onChange={e => handlePhone(e.target.value)} placeholder="(11) 99999-9999" maxLength={15} required disabled={readOnly} /></div>
+                <div><label className="field-label">WhatsApp</label><input className="field-input" value={phone} onChange={e => handlePhone(e.target.value)} placeholder="(11) 99999-9999 ou +1 555 123 4567" maxLength={20} required disabled={readOnly} /></div>
                 <div>
                   <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
                     <label className="field-label">Data de Nascimento</label>
@@ -817,13 +819,13 @@ function ClientModal({ mode, client, close, save }: { mode: "create" | "edit" | 
                 <div className="sm:col-span-2 border-t border-[#E7EDF3] pt-4 mt-2">
                   <h3 className="text-sm font-semibold mb-3">Endereço</h3>
                   <div className="grid gap-4 sm:grid-cols-6">
-                    <div className="sm:col-span-2"><label className="field-label">CEP {loadingCep && <span className="text-xs text-primary animate-pulse">(Buscando...)</span>}</label><input className="field-input" value={cep} onChange={e => handleCep(e.target.value)} disabled={readOnly} maxLength={9} placeholder="00000-000" /></div>
+                    <div className="sm:col-span-3"><label className="field-label">País</label><input className="field-input" value={country} onChange={e => setCountry(e.target.value)} disabled={readOnly} placeholder="Brasil" /></div><div className="sm:col-span-3"><label className="field-label">{isBrazil ? "CEP" : "Código postal"} {loadingCep && <span className="text-xs text-primary animate-pulse">(Buscando...)</span>}</label><input className="field-input" value={cep} onChange={e => handleCep(e.target.value)} disabled={readOnly} maxLength={isBrazil ? 9 : 12} placeholder={isBrazil ? "00000-000" : ""} /></div>
                     <div className="sm:col-span-4"><label className="field-label">Rua</label><input className="field-input" value={street} onChange={e => setStreet(e.target.value)} disabled={readOnly} /></div>
                     <div className="sm:col-span-2"><label className="field-label">Número</label><input id="address-number" className="field-input" value={number} onChange={e => setNumber(e.target.value)} disabled={readOnly} /></div>
                     <div className="sm:col-span-4"><label className="field-label">Complemento</label><input className="field-input" value={complement} onChange={e => setComplement(e.target.value)} disabled={readOnly} /></div>
                     <div className="sm:col-span-2"><label className="field-label">Bairro</label><input className="field-input" value={neighborhood} onChange={e => setNeighborhood(e.target.value)} disabled={readOnly} /></div>
                     <div className="sm:col-span-3"><label className="field-label">Cidade</label><input className="field-input" value={city} onChange={e => setCity(e.target.value)} disabled={readOnly} /></div>
-                    <div className="sm:col-span-1"><label className="field-label">UF</label><input className="field-input" value={state} onChange={e => setState(e.target.value)} disabled={readOnly} maxLength={2} /></div>
+                    <div className="sm:col-span-3"><label className="field-label">{isBrazil ? "UF" : "Estado / província"}</label><input className="field-input" value={state} onChange={e => setState(e.target.value)} disabled={readOnly} maxLength={isBrazil ? 2 : 60} /></div>
                   </div>
                 </div>
               </div>
@@ -919,7 +921,7 @@ function ClientModal({ mode, client, close, save }: { mode: "create" | "edit" | 
                             if (!catalogChoice) return appNotify("Selecione um pacote do catálogo");
                             const btn = e.target as HTMLButtonElement; btn.disabled = true; btn.innerText = "Processando...";
                             try {
-                              await save({ name, phone, birthDate, cep, street, number, complement, neighborhood, city, state, notes: JSON.stringify({ text: notes, anamnesis }), email, anamnesisConsent });
+                              await save({ name, phone, birthDate, cep, street, number, complement, neighborhood, city, state, country, notes: JSON.stringify({ text: notes, anamnesis }), email, anamnesisConsent });
                               const { sellPackageFromTemplate, getActivePackages } = await import("@/lib/actions/packages");
                               const res = await sellPackageFromTemplate(client.id, catalogChoice, newPkg.method);
                               if (res.success) {
