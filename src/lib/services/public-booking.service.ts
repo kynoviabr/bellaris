@@ -35,7 +35,27 @@ export async function getBookableOrgBySlug(supabase: SupabaseClient, slug: strin
     return null;
   }
   if (BOOKING_BLOCKED_BILLING.includes(String(status))) return null;
+  if (!(await isBookingAllowedByPlan(supabase, org.id))) return null;
   return org;
+}
+
+/** Agendamento online é recurso do plano Completo. Em dúvida (erro na consulta), não libera. */
+async function isBookingAllowedByPlan(supabase: SupabaseClient, orgId: string) {
+  const { data, error } = await supabase.rpc("platform_booking_allowed", { p_org: orgId });
+  if (error) {
+    console.error("[PublicBooking] Plan check failed:", { code: error.code, message: error.message });
+    return false;
+  }
+  return data === true;
+}
+
+/** Verdadeiro quando o salão está liberado pela assinatura, mas o plano não inclui agendamento online. */
+async function isBlockedOnlyByPlan(supabase: SupabaseClient, slug: string) {
+  const base = await getOrgBySlug(supabase, slug);
+  if (!base) return false;
+  const { data: status } = await supabase.rpc("platform_billing_status_of", { p_org: base.id });
+  if (BOOKING_BLOCKED_BILLING.includes(String(status))) return false;
+  return !(await isBookingAllowedByPlan(supabase, base.id));
 }
 
 export async function fetchPublicBookingDataBySlug(supabase: SupabaseClient, slug: string) {
@@ -45,7 +65,8 @@ export async function fetchPublicBookingDataBySlug(supabase: SupabaseClient, slu
 
   const org = await getBookableOrgBySlug(supabase, slug);
   if (!org) {
-    return { success: false, services: [], professionals: [], orgName: "", orgId: null, slug: "", logoPath: null, error: "Organization not found" };
+    const planBlocked = await isBlockedOnlyByPlan(supabase, slug);
+    return { success: false, services: [], professionals: [], orgName: "", orgId: null, slug: "", logoPath: null, error: planBlocked ? "Plan not allowed" : "Organization not found" };
   }
 
   const result = await fetchPublicBookingData(supabase, org.id);

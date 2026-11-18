@@ -12,9 +12,24 @@ export default async function AgendarSlugPage({ params }: { params: Promise<{ sl
     notFound();
   }
 
-  const { success, professionals, services, orgName, logoUrl } = await getPublicBookingDataBySlug(slug);
+  const { success, professionals, services, orgName, logoUrl, error } = await getPublicBookingDataBySlug(slug);
 
   if (!success) {
+    if (error === "Plan not allowed") {
+      return (
+        <div className="min-h-screen bg-[#F0F4F8] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full text-center shadow-lg">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CalendarX2 className="w-8 h-8 text-gray-400" />
+            </div>
+            <h1 className="text-xl font-bold text-gray-800 mb-2">Agendamento indisponível para este salão</h1>
+            <p className="text-gray-500 text-sm">
+              Para agendar, entre em contato diretamente com o salão.
+            </p>
+          </div>
+        </div>
+      );
+    }
     notFound();
   }
 

@@ -133,7 +133,17 @@ export default async function Page() {
   const inventory = await getInventory();
   const reports = isStaff ? {} : await getReports();
 
-  const billingBanner = billingStatus === "somente_leitura" ? (
+  // Fim do teste gratuito (só existe enquanto o salão não tem primeiro pagamento).
+  const { data: trialEndsAt } = supabase ? await supabase.rpc("salon_trial_ends_at") : { data: null as string | null };
+  const todayIso = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
+  const trialDaysLeft = trialEndsAt ? Math.round((Date.parse(String(trialEndsAt)) - Date.parse(todayIso)) / 86400000) : null;
+  const trialDate = trialEndsAt ? String(trialEndsAt).split("-").reverse().slice(0, 2).join("/") : "";
+
+  const billingBanner = billingStatus === "somente_leitura" && trialEndsAt ? (
+    <div className="mx-4 mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+      <strong>Teste gratuito encerrado.</strong> O salão está em modo somente leitura. Você pode consultar agenda, clientes e histórico. Para continuar alterando dados, escolha um plano. Fale com a Bellaris.
+    </div>
+  ) : billingStatus === "somente_leitura" ? (
     <div className="mx-4 mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
       <strong>Assinatura em atraso.</strong> O salão está em modo somente leitura. Você pode consultar agenda, clientes e histórico, mas não pode criar nem alterar atendimentos, pagamentos, comissões, clientes, despesas, estoque ou pacotes. Regularize a mensalidade para liberar o sistema.
     </div>
@@ -144,6 +154,10 @@ export default async function Page() {
   ) : billingStatus === "sem_plano" ? (
     <div className="mx-4 mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
       <strong>Sem plano ativo.</strong> Não é possível alterar dados deste salão. Fale com a Bellaris.
+    </div>
+  ) : billingStatus === "trial" && trialDaysLeft !== null && trialDaysLeft <= 3 ? (
+    <div className="mx-4 mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+      <strong>Teste gratuito termina em {trialDate}.</strong> Escolha um plano para continuar alterando dados sem interrupção.
     </div>
   ) : billingStatus === "aviso" ? (
     <div className="mx-4 mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">

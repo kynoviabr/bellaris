@@ -27,7 +27,7 @@ export async function getPublicBookingDataBySlug(slug: string) {
 
   if (!supabase) {
     console.error("[PublicBooking] Supabase admin client not configured.");
-    return { success: false, services: [], professionals: [], orgName: "", orgId: null, slug: "", logoUrl: null };
+    return { success: false, services: [], professionals: [], orgName: "", orgId: null, slug: "", logoUrl: null, error: "Missing configuration" };
   }
 
   const result = await fetchPublicBookingDataBySlug(supabase, slug);
@@ -42,7 +42,8 @@ export async function getPublicBookingDataBySlug(slug: string) {
     orgName: result.orgName,
     orgId: result.orgId,
     slug: result.slug,
-    logoUrl: getSalonLogoUrl(result.logoPath)
+    logoUrl: getSalonLogoUrl(result.logoPath),
+    error: result.error
   };
 }
 
