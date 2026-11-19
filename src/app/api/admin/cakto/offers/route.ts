@@ -15,12 +15,15 @@ export async function GET(request: NextRequest) {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !serviceKey) return NextResponse.json({ error: "Not configured" }, { status: 503 });
 
+  console.info("cakto-diag step=start");
   const db = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data: auth, error: authError } = await db.auth.getUser(token);
+  console.info("cakto-diag step=getUser", { ok: !authError && !!auth.user, code: authError?.code ?? null });
   if (authError || !auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { data: profile, error: profileError } = await db.from("profiles")
     .select("role").eq("id", auth.user.id).maybeSingle();
+  console.info("cakto-diag step=profile", { found: !!profile, code: profileError?.code ?? null });
   if (profileError) {
     console.error("Cakto admin profile lookup failed", { code: profileError.code });
     return NextResponse.json({ error: "Profile lookup failed", diagnostic: "profile_query_error" }, { status: 503 });
@@ -34,12 +37,14 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    console.info("cakto-diag step=cakto-start");
     const offers = (await listCaktoSubscriptionOffers()).filter(offer =>
       offer.product === "b0489bfc-7184-4df8-bc9f-a4714bf95c45"
     );
+    console.info("cakto-diag step=cakto-ok", { total: offers.length });
     return NextResponse.json({ offers }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
-    console.error("Cakto offer diagnostic failed", error instanceof Error ? error.message : "Unknown error");
+    console.error("cakto-diag step=cakto-error", error instanceof Error ? error.message : "Unknown error");
     return NextResponse.json({ error: "Unable to retrieve offers" }, { status: 502 });
   }
 }
