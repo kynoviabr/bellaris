@@ -151,7 +151,7 @@ export default async function Page() {
     </div>
   ) : null;
 
-  return <>{billingBanner}<NailStudioApp
+  return <>{billingBanner ? <div className="lg:pl-60">{billingBanner}</div> : null}<NailStudioApp
     initialClients={clients}
     initialProfessionals={professionals} 
     initialSpecialties={specialties}
