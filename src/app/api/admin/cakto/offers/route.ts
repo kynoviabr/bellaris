@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Forbidden", diagnostic: "profile_not_found" }, { status: 403 });
   }
   const role = String(profile.role).trim().toLowerCase();
-  if (role !== "master") {
+  if (role !== "platform_master") {
     return NextResponse.json({ error: "Forbidden", diagnostic: "role_not_master", currentRole: profile.role }, { status: 403 });
   }
 
