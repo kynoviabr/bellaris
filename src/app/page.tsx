@@ -139,29 +139,41 @@ export default async function Page() {
   const trialDaysLeft = trialEndsAt ? Math.round((Date.parse(String(trialEndsAt)) - Date.parse(todayIso)) / 86400000) : null;
   const trialDate = trialEndsAt ? String(trialEndsAt).split("-").reverse().slice(0, 2).join("/") : "";
 
+  // Mensalidade em atraso: mês, vencimento, valor e dias de atraso (só o próprio salão lê).
+  const { data: overdueRows } = supabase && (billingStatus === "aviso" || billingStatus === "somente_leitura")
+    ? await supabase.rpc("salon_billing_details")
+    : { data: null as unknown };
+  const overdue = Array.isArray(overdueRows) ? (overdueRows[0] as { plan_name: string; reference_month: string; due_date: string; amount: number; days_late: number } | undefined) : undefined;
+  const overdueText = overdue
+    ? ` Mensalidade de ${overdue.reference_month.slice(5, 7)}/${overdue.reference_month.slice(0, 4)} (plano ${overdue.plan_name}, ${Number(overdue.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}) venceu em ${overdue.due_date.split("-").reverse().join("/")}, há ${overdue.days_late} ${overdue.days_late === 1 ? "dia" : "dias"}.`
+    : "";
+  const bellarisContact = (
+    <a href="https://wa.me/5511932208384" target="_blank" rel="noopener noreferrer" className="font-semibold underline">(11) 93220-8384</a>
+  );
+
   const billingBanner = billingStatus === "somente_leitura" && trialEndsAt ? (
     <div className="mx-4 mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-      <strong>Teste gratuito encerrado.</strong> O salão está em modo somente leitura. Você pode consultar agenda, clientes e histórico. Para continuar alterando dados, escolha um plano. Fale com a Bellaris.
+      <strong>Teste gratuito encerrado.</strong> O salão está em modo somente leitura. Você pode consultar agenda, clientes e histórico. Para continuar alterando dados, escolha um plano. Fale com a Bellaris pelo WhatsApp {bellarisContact}.
     </div>
   ) : billingStatus === "somente_leitura" ? (
     <div className="mx-4 mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-      <strong>Assinatura em atraso.</strong> O salão está em modo somente leitura. Você pode consultar agenda, clientes e histórico, mas não pode criar nem alterar atendimentos, pagamentos, comissões, clientes, despesas, estoque ou pacotes. Regularize a mensalidade para liberar o sistema.
+      <strong>Assinatura em atraso.</strong>{overdueText} O salão está em modo somente leitura. Você pode consultar agenda, clientes e histórico, mas não pode criar nem alterar atendimentos, pagamentos, comissões, clientes, despesas, estoque ou pacotes. Regularize a mensalidade para liberar o sistema. Fale com a Bellaris pelo WhatsApp {bellarisContact}.
     </div>
   ) : billingStatus === "cancelada" ? (
     <div className="mx-4 mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-      <strong>Assinatura cancelada.</strong> Não é possível alterar dados deste salão. Fale com a Bellaris.
+      <strong>Assinatura cancelada.</strong> Não é possível alterar dados deste salão. Fale com a Bellaris pelo WhatsApp {bellarisContact}.
     </div>
   ) : billingStatus === "sem_plano" ? (
     <div className="mx-4 mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-      <strong>Sem plano ativo.</strong> Não é possível alterar dados deste salão. Fale com a Bellaris.
+      <strong>Sem plano ativo.</strong> Não é possível alterar dados deste salão. Fale com a Bellaris pelo WhatsApp {bellarisContact}.
     </div>
   ) : billingStatus === "trial" && trialDaysLeft !== null && trialDaysLeft <= 3 ? (
     <div className="mx-4 mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-      <strong>Teste gratuito termina em {trialDate}.</strong> Fale com a Bellaris para escolher um plano e continuar alterando dados sem interrupção.
+      <strong>Teste gratuito termina em {trialDate}.</strong> Fale com a Bellaris pelo WhatsApp {bellarisContact} para escolher um plano e continuar alterando dados sem interrupção.
     </div>
   ) : billingStatus === "aviso" ? (
     <div className="mx-4 mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-      <strong>Mensalidade vencida.</strong> Regularize para evitar o bloqueio de alterações.
+      <strong>Mensalidade vencida.</strong>{overdueText} Regularize para evitar o bloqueio de alterações. Fale com a Bellaris pelo WhatsApp {bellarisContact}.
     </div>
   ) : null;
 
